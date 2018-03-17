@@ -64,9 +64,9 @@ func (rs *RecordSchema) Size() int {
 
 // BaseRecord
 type BaseRecord struct {
-	ShardId      string            `json:"ShardId"`
-	HashKey      string            `json:"HashKey"`
-	PartitionKey string            `json:"PartitionKey"`
+	ShardId      string            `json:"ShardId,omitempty"`
+	HashKey      string            `json:"HashKey,omitempty"`
+	PartitionKey string            `json:"PartitionKey,omitempty"`
 	Attributes   map[string]string `json:"Attributes"`
 }
 
