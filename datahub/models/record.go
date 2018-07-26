@@ -64,10 +64,10 @@ func (rs *RecordSchema) Size() int {
 
 // BaseRecord
 type BaseRecord struct {
-	ShardId      string            `json:"ShardId"`
-	HashKey      string            `json:"HashKey"`
-	PartitionKey string            `json:"PartitionKey"`
-	Attributes   map[string]string `json:"Attributes"`
+	ShardId      string                 `json:"ShardId"`
+	HashKey      string                 `json:"HashKey"`
+	PartitionKey string                 `json:"PartitionKey"`
+	Attributes   map[string]interface{} `json:"Attributes"`
 }
 
 //RecordEntry
@@ -82,7 +82,7 @@ type IRecord interface {
 	GetData() interface{}
 	FillData(data interface{}) error
 	GetBaseRecord() BaseRecord
-	SetAttribute(key, val string)
+	SetAttribute(key string, val interface{})
 }
 
 // BlobRecord blob type record
@@ -99,14 +99,14 @@ func NewBlobRecord(bytedata []byte) *BlobRecord {
 		br.RawData = bytedata
 		br.StoreData = base64.StdEncoding.EncodeToString(bytedata)
 	}
-	br.Attributes = make(map[string]string)
+	br.Attributes = make(map[string]interface{})
 	return br
 }
 
 func (br *BlobRecord) String() string {
 	record := struct {
-		Data       string            `json:"Data"`
-		Attributes map[string]string `json:"Attributes"`
+		Data       string                 `json:"Data"`
+		Attributes map[string]interface{} `json:"Attributes"`
 	}{
 		Data:       br.StoreData,
 		Attributes: br.Attributes,
@@ -141,9 +141,9 @@ func (br *BlobRecord) GetBaseRecord() BaseRecord {
 }
 
 // SetAtbribute
-func (br *BlobRecord) SetAttribute(key, val string) {
+func (br *BlobRecord) SetAttribute(key string, val interface{}) {
 	if br.Attributes == nil {
-		br.Attributes = make(map[string]string)
+		br.Attributes = make(map[string]interface{})
 	}
 	br.Attributes[key] = val
 }
@@ -162,7 +162,7 @@ func NewTupleRecord(schema *RecordSchema) *TupleRecord {
 		tr.RecordSchema = schema
 		tr.Values = make([]types.DataType, schema.Size())
 	}
-	tr.Attributes = make(map[string]string)
+	tr.Attributes = make(map[string]interface{})
 	for idx, _ := range tr.Values {
 		tr.Values[idx] = nil
 	}
@@ -171,9 +171,9 @@ func NewTupleRecord(schema *RecordSchema) *TupleRecord {
 
 func (tr *TupleRecord) String() string {
 	record := struct {
-		RecordSchema *RecordSchema     `json:"RecordSchema"`
-		Values       []types.DataType  `json:"Values"`
-		Attributes   map[string]string `json:"Attributes"`
+		RecordSchema *RecordSchema          `json:"RecordSchema"`
+		Values       []types.DataType       `json:"Values"`
+		Attributes   map[string]interface{} `json:"Attributes"`
 	}{
 		RecordSchema: tr.RecordSchema,
 		Values:       tr.Values,
@@ -200,6 +200,15 @@ func (tr *TupleRecord) SetValueByIdx(idx int, val interface{}) *TupleRecord {
 func (tr *TupleRecord) SetValueByName(name string, val interface{}) *TupleRecord {
 	idx := tr.RecordSchema.GetFieldIndex(name)
 	return tr.SetValueByIdx(idx, val)
+}
+
+func (tr *TupleRecord) GetValueByIdx(idx int) types.DataType {
+	return tr.Values[idx]
+}
+
+func (tr *TupleRecord) GetValueByName(name string) types.DataType {
+	idx := tr.RecordSchema.GetFieldIndex(name)
+	return tr.GetValueByIdx(idx)
 }
 
 // SetValues batch set values
@@ -260,9 +269,9 @@ func (tr *TupleRecord) GetBaseRecord() BaseRecord {
 }
 
 // SetAttribute set attribute
-func (tr *TupleRecord) SetAttribute(key, val string) {
+func (tr *TupleRecord) SetAttribute(key string, val interface{}) {
 	if tr.Attributes == nil {
-		tr.Attributes = make(map[string]string)
+		tr.Attributes = make(map[string]interface{})
 	}
 	tr.Attributes[key] = val
 }
@@ -377,14 +386,15 @@ func (gr *GetRecords) ResponseBodyDecode(method string, body []byte) error {
 		respMsg := struct {
 			NextCursor  string `json:"NextCursor"`
 			RecordCount int    `json:"RecordCount"`
-			Records     []struct {
-				SystemTime int               `json:"SystemTime"`
-				Data       interface{}       `json:"Data"`
-				Attributes map[string]string `json:"Attributes"`
+			Records     []*struct {
+				SystemTime int                    `json:"SystemTime"`
+				Data       interface{}            `json:"Data"`
+				Attributes map[string]interface{} `json:"Attributes"`
 			} `json:"Records"`
 		}{}
 		err := json.Unmarshal(body, &respMsg)
 		if err != nil {
+			fmt.Printf("%v\n", err)
 			return err
 		}
 		if gr.Result == nil {
