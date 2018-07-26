@@ -17,7 +17,7 @@ type Cursor struct {
 	TopicName   string           `json:"TopicName"`
 	ShardId     string           `json:"ShardId"`
 	Type        types.CursorType `json:"Type"`
-	SystemTime  int              `json:"SystemTime"`
+	SystemTime  int64            `json:"SystemTime"`
 }
 
 func (c *Cursor) String() string {
@@ -37,7 +37,7 @@ func (c *Cursor) RequestBodyEncode(method string) ([]byte, error) {
 		}
 		reqMsg := struct {
 			Action     string `json:"Action"`
-			SystemTime int    `json:"SystemTime"`
+			SystemTime int64  `json:"SystemTime"`
 			Type       string `json:"Type"`
 		}{
 			Action:     "cursor",

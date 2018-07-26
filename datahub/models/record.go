@@ -68,6 +68,11 @@ type BaseRecord struct {
 	HashKey      string                 `json:"HashKey"`
 	PartitionKey string                 `json:"PartitionKey"`
 	Attributes   map[string]interface{} `json:"Attributes"`
+	SystemTime   int64                  `json:"SystemTime"`
+}
+
+func (br *BaseRecord) GetSystemTime() int64 {
+	return br.SystemTime
 }
 
 //RecordEntry
@@ -79,6 +84,7 @@ type RecordEntry struct {
 // IRecord record interface
 type IRecord interface {
 	fmt.Stringer
+	GetSystemTime() int64
 	GetData() interface{}
 	FillData(data interface{}) error
 	GetBaseRecord() BaseRecord
@@ -93,13 +99,12 @@ type BlobRecord struct {
 }
 
 // NewBlobRecord new a tuple type record from given record schema
-func NewBlobRecord(bytedata []byte) *BlobRecord {
+func NewBlobRecord(bytedata []byte, systemTime int64) *BlobRecord {
 	br := &BlobRecord{}
-	if br != nil {
-		br.RawData = bytedata
-		br.StoreData = base64.StdEncoding.EncodeToString(bytedata)
-	}
+	br.RawData = bytedata
+	br.StoreData = base64.StdEncoding.EncodeToString(bytedata)
 	br.Attributes = make(map[string]interface{})
+	br.SystemTime = systemTime
 	return br
 }
 
@@ -156,13 +161,14 @@ type TupleRecord struct {
 }
 
 // NewTupleRecord new a tuple type record from given record schema
-func NewTupleRecord(schema *RecordSchema) *TupleRecord {
+func NewTupleRecord(schema *RecordSchema, systemTime int64) *TupleRecord {
 	tr := &TupleRecord{}
 	if schema != nil {
 		tr.RecordSchema = schema
 		tr.Values = make([]types.DataType, schema.Size())
 	}
 	tr.Attributes = make(map[string]interface{})
+	tr.SystemTime = systemTime
 	for idx, _ := range tr.Values {
 		tr.Values[idx] = nil
 	}
@@ -387,7 +393,7 @@ func (gr *GetRecords) ResponseBodyDecode(method string, body []byte) error {
 			NextCursor  string `json:"NextCursor"`
 			RecordCount int    `json:"RecordCount"`
 			Records     []*struct {
-				SystemTime int                    `json:"SystemTime"`
+				SystemTime int64                  `json:"SystemTime"`
 				Data       interface{}            `json:"Data"`
 				Attributes map[string]interface{} `json:"Attributes"`
 			} `json:"Records"`
@@ -409,9 +415,9 @@ func (gr *GetRecords) ResponseBodyDecode(method string, body []byte) error {
 				if gr.RecordSchema == nil {
 					return errors.New("tuple record type must set record schema")
 				}
-				gr.Result.Records[idx] = NewTupleRecord(gr.RecordSchema)
+				gr.Result.Records[idx] = NewTupleRecord(gr.RecordSchema, record.SystemTime)
 			case string:
-				gr.Result.Records[idx] = NewBlobRecord(nil)
+				gr.Result.Records[idx] = NewBlobRecord([]byte(dt), record.SystemTime)
 			default:
 				return errors.New(fmt.Sprintf("illegal record data type[%T]", dt))
 			}

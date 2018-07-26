@@ -172,7 +172,7 @@ func (datahub *DataHub) SplitShard(project_name, topic_name, shard_id, split_key
 
 // GetCursor get cursor of given shard, if cursor type is "SYSTEM_TIME", the systime parameter must be set
 // It returns models.Cursor
-func (datahub *DataHub) GetCursor(project_name, topic_name, shard_id string, ct types.CursorType, systime int) (c *models.Cursor, err error) {
+func (datahub *DataHub) GetCursor(project_name, topic_name, shard_id string, ct types.CursorType, systime int64) (c *models.Cursor, err error) {
 	c = &models.Cursor{
 		ProjectName: project_name,
 		TopicName:   topic_name,
