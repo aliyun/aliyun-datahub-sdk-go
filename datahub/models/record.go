@@ -217,6 +217,14 @@ func (tr *TupleRecord) GetValueByName(name string) types.DataType {
 	return tr.GetValueByIdx(idx)
 }
 
+func (tr *TupleRecord) GetValues() map[string]types.DataType {
+	values := make(map[string]types.DataType)
+	for i, f := range tr.RecordSchema.Fields {
+		values[f.Name] = tr.Values[i]
+	}
+	return values
+}
+
 // SetValues batch set values
 func (tr *TupleRecord) SetValues(values []types.DataType) *TupleRecord {
 	if fsize := tr.RecordSchema.Size(); fsize != len(values) {
