@@ -64,11 +64,11 @@ func (rs *RecordSchema) Size() int {
 
 // BaseRecord
 type BaseRecord struct {
-	ShardId      string                 `json:"ShardId"`
-	HashKey      string                 `json:"HashKey"`
-	PartitionKey string                 `json:"PartitionKey"`
-	Attributes   map[string]interface{} `json:"Attributes"`
-	SystemTime   int64                  `json:"SystemTime"`
+	ShardId      string            `json:"ShardId,omitempty"`
+	HashKey      string            `json:"HashKey,omitempty"`
+	PartitionKey string            `json:"PartitionKey,omitempty"`
+	Attributes   map[string]string `json:"Attributes"`
+  SystemTime   int64             `json:"SystemTime"`
 }
 
 func (br *BaseRecord) GetSystemTime() int64 {
