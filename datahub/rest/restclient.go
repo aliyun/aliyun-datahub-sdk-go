@@ -1,9 +1,5 @@
 package rest
 
-/*
-rest 包提供各类rest请求操作
-*/
-
 import (
 	"bytes"
 	"context"
@@ -122,23 +118,23 @@ func NewRestClient(endpoint string, useragent string, httpclient *http.Client, a
 }
 
 // Get send HTTP Get method request
-func (client *RestClient) Get(model RestModel) error {
-	return client.request(http.MethodGet, model)
+func (client *RestClient) Get(resource string, model RestModel) error {
+	return client.request(http.MethodGet, resource, model)
 }
 
 // Post send HTTP Post method request
-func (client *RestClient) Post(model RestModel) error {
-	return client.request(http.MethodPost, model)
+func (client *RestClient) Post(resource string, model RestModel) error {
+	return client.request(http.MethodPost, resource, model)
 }
 
 // Put send HTTP Put method request
-func (client *RestClient) Put(model RestModel) error {
-	return client.request(http.MethodPut, model)
+func (client *RestClient) Put(resource string, model RestModel) error {
+	return client.request(http.MethodPut, resource, model)
 }
 
 // Delete send HTTP Delete method request
-func (client *RestClient) Delete(model RestModel) error {
-	return client.request(http.MethodDelete, model)
+func (client *RestClient) Delete(resource string, model RestModel) error {
+	return client.request(http.MethodDelete, resource, model)
 }
 
 func (client *RestClient) BuildSignature(header *http.Header, method, resource string) {
@@ -181,16 +177,15 @@ func (client *RestClient) BuildSignature(header *http.Header, method, resource s
 	header.Add(HttpHeaderAuthorization, authorization)
 }
 
-func (client *RestClient) request(method string, model RestModel) error {
-	resource := model.Resource(method)
+func (client *RestClient) request(method, resource string, model RestModel) error {
 	url := fmt.Sprintf("%s%s", client.Endpoint, resource)
 
-	req_body, err := model.RequestBodyEncode(method)
+	reqBody, err := model.RequestBodyEncode(method)
 	if err != nil {
 		return err
 	}
 
-	req, err := http.NewRequest(method, url, bytes.NewBuffer(req_body))
+	req, err := http.NewRequest(method, url, bytes.NewBuffer(reqBody))
 	if err != nil {
 		return err
 	}
@@ -199,8 +194,8 @@ func (client *RestClient) request(method string, model RestModel) error {
 	req.Header.Add(HttpHeaderDate, time.Now().UTC().Format(http.TimeFormat))
 	req.Header.Add(HttpHeaderUserAgent, client.Useragent)
 	req.Header.Add(HttpHeaderContentType, "application/json")
-	if len(req_body) > 0 {
-		req.Header.Add(HttpHeaderContentLength, fmt.Sprintf("%d", len(req_body)))
+	if len(reqBody) > 0 {
+		req.Header.Add(HttpHeaderContentLength, fmt.Sprintf("%d", len(reqBody)))
 	}
 	client.BuildSignature(&req.Header, method, resource)
 
@@ -211,17 +206,17 @@ func (client *RestClient) request(method string, model RestModel) error {
 
 	defer resp.Body.Close()
 
-	resp_body, err := ioutil.ReadAll(resp.Body)
+	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
 
-	resp_result, err := NewCommonResponseResult(resp.StatusCode, &resp.Header, resp_body)
+	respResult, err := NewCommonResponseResult(resp.StatusCode, &resp.Header, respBody)
 	log.Debug(fmt.Sprintf("request id: %s\nrequest url: %s\nrequest headers: %v\nrequest body: %s\nresponse headers: %v\nresponse body: %s",
-		resp_result.RequestId, url, req.Header, string(req_body), resp.Header, string(resp_body)))
+		respResult.RequestId, url, req.Header, string(reqBody), resp.Header, string(respBody)))
 	if err != nil {
 		return err
 	}
 
-	return model.ResponseBodyDecode(method, resp_body)
+	return model.ResponseBodyDecode(method, respBody)
 }

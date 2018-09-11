@@ -28,6 +28,19 @@ func NewRecordSchema() *RecordSchema {
 	}
 }
 
+func NewRecordSchemaFromJson(SchemaJson string) (recordSchema *RecordSchema, err error) {
+	recordSchema = &RecordSchema{}
+	if err = json.Unmarshal([]byte(SchemaJson), recordSchema); err != nil {
+		return
+	}
+	for _, v := range recordSchema.Fields {
+		if !types.ValidateFieldType(v.Type) {
+			panic(fmt.Sprintf("field type %q illegal", v.Type))
+		}
+	}
+	return
+}
+
 func (rs *RecordSchema) String() string {
 	byts, _ := json.Marshal(rs)
 	return string(byts)
@@ -64,14 +77,14 @@ func (rs *RecordSchema) Size() int {
 
 // BaseRecord
 type BaseRecord struct {
-	ShardId      string            `json:"ShardId,omitempty"`
-	HashKey      string            `json:"HashKey,omitempty"`
-	PartitionKey string            `json:"PartitionKey,omitempty"`
-	Attributes   map[string]string `json:"Attributes"`
-  SystemTime   int64             `json:"SystemTime"`
+	ShardId      string                 `json:"ShardId,omitempty"`
+	HashKey      string                 `json:"HashKey,omitempty"`
+	PartitionKey string                 `json:"PartitionKey,omitempty"`
+	Attributes   map[string]interface{} `json:"Attributes"`
+	SystemTime   uint64                 `json:"SystemTime"`
 }
 
-func (br *BaseRecord) GetSystemTime() int64 {
+func (br *BaseRecord) GetSystemTime() uint64 {
 	return br.SystemTime
 }
 
@@ -84,7 +97,7 @@ type RecordEntry struct {
 // IRecord record interface
 type IRecord interface {
 	fmt.Stringer
-	GetSystemTime() int64
+	GetSystemTime() uint64
 	GetData() interface{}
 	FillData(data interface{}) error
 	GetBaseRecord() BaseRecord
@@ -99,7 +112,7 @@ type BlobRecord struct {
 }
 
 // NewBlobRecord new a tuple type record from given record schema
-func NewBlobRecord(bytedata []byte, systemTime int64) *BlobRecord {
+func NewBlobRecord(bytedata []byte, systemTime uint64) *BlobRecord {
 	br := &BlobRecord{}
 	br.RawData = bytedata
 	br.StoreData = base64.StdEncoding.EncodeToString(bytedata)
@@ -161,7 +174,7 @@ type TupleRecord struct {
 }
 
 // NewTupleRecord new a tuple type record from given record schema
-func NewTupleRecord(schema *RecordSchema, systemTime int64) *TupleRecord {
+func NewTupleRecord(schema *RecordSchema, systemTime uint64) *TupleRecord {
 	tr := &TupleRecord{}
 	if schema != nil {
 		tr.RecordSchema = schema
@@ -169,7 +182,7 @@ func NewTupleRecord(schema *RecordSchema, systemTime int64) *TupleRecord {
 	}
 	tr.Attributes = make(map[string]interface{})
 	tr.SystemTime = systemTime
-	for idx, _ := range tr.Values {
+	for idx := range tr.Values {
 		tr.Values[idx] = nil
 	}
 	return tr
@@ -290,7 +303,7 @@ func (tr *TupleRecord) SetAttribute(key string, val interface{}) {
 	tr.Attributes[key] = val
 }
 
-// PutResult 数据发布结果
+// PutResult
 type PutResult struct {
 	FailedRecordCount int `json:"FailedRecordCount"`
 	FailedRecords     []struct {
@@ -305,16 +318,10 @@ func (pr *PutResult) String() string {
 	return string(byts)
 }
 
-// PutRecords 数据发布操作
+// PutRecords
 type PutRecords struct {
-	ProjectName string     `json:"ProjectName"`
-	TopicName   string     `json:"TopicName"`
-	Records     []IRecord  `json:"Records"`
-	Result      *PutResult `json:"PutResult"`
-}
-
-func (pr *PutRecords) Resource(method string) string {
-	return fmt.Sprintf("/projects/%s/topics/%s/shards", pr.ProjectName, pr.TopicName)
+	Records []IRecord  `json:"Records"`
+	Result  *PutResult `json:"PutResult"`
 }
 
 func (pr *PutRecords) RequestBodyEncode(method string) ([]byte, error) {
@@ -349,7 +356,7 @@ func (pr *PutRecords) ResponseBodyDecode(method string, body []byte) error {
 	}
 }
 
-// GetResult 数据订阅结果
+// GetResult
 type GetResult struct {
 	NextCursor  string    `json:"NextCursor"`
 	RecordCount int       `json:"RecordCount"`
@@ -361,19 +368,12 @@ func (gr *GetResult) String() string {
 	return string(byts)
 }
 
-// GetRecords  数据订阅操作
+// GetRecords
 type GetRecords struct {
-	ProjectName  string        `json:"ProjectName"`
-	TopicName    string        `json:"TopicName"`
-	ShardId      string        `json:"ShardId"`
 	Cursor       string        `json:"Cursor"`
 	Limit        int           `json:"Limit"`
 	RecordSchema *RecordSchema `json:"RecordSchema"`
 	Result       *GetResult    `json:"GetResult"`
-}
-
-func (gr *GetRecords) Resource(method string) string {
-	return fmt.Sprintf("/projects/%s/topics/%s/shards/%s", gr.ProjectName, gr.TopicName, gr.ShardId)
 }
 
 func (gr *GetRecords) RequestBodyEncode(method string) ([]byte, error) {
@@ -401,7 +401,7 @@ func (gr *GetRecords) ResponseBodyDecode(method string, body []byte) error {
 			NextCursor  string `json:"NextCursor"`
 			RecordCount int    `json:"RecordCount"`
 			Records     []*struct {
-				SystemTime int64                  `json:"SystemTime"`
+				SystemTime uint64                 `json:"SystemTime"`
 				Data       interface{}            `json:"Data"`
 				Attributes map[string]interface{} `json:"Attributes"`
 			} `json:"Records"`

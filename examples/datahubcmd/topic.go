@@ -109,8 +109,8 @@ func create_topic_parsed_check() bool {
 
 func create_topic(dh *datahub.DataHub) error {
 	t := &models.Topic{
-		Name:        TopicName,
 		ProjectName: ProjectName,
+		TopicName:   TopicName,
 		ShardCount:  ShardCount,
 		Lifecycle:   Lifecycle,
 		Comment:     Comment,

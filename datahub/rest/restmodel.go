@@ -8,9 +8,6 @@ import (
 )
 
 type RestModel interface {
-	// Resource returns a rest model resource path base given method
-	Resource(method string) string
-
 	// RequestBodyEncode encode request body base given method.
 	// It returns []byte
 	RequestBodyEncode(method string) ([]byte, error)

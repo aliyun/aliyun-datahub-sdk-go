@@ -11,8 +11,8 @@ import (
 
 // Topic
 type Topic struct {
-	Name           string           `json:"Name"`
 	ProjectName    string           `json:"ProjectName"`
+	TopicName      string           `json:"TopicName"`
 	ShardCount     int              `json:"ShardCount"`
 	Lifecycle      int              `json:"Lifecycle"`
 	RecordType     types.RecordType `json:"RecordType"`
@@ -23,12 +23,8 @@ type Topic struct {
 }
 
 func (t *Topic) String() string {
-	pbytes, _ := json.Marshal(t)
-	return string(pbytes)
-}
-
-func (t *Topic) Resource(method string) string {
-	return fmt.Sprintf("/projects/%s/topics/%s", t.ProjectName, t.Name)
+	pBytes, _ := json.Marshal(t)
+	return string(pBytes)
 }
 
 func (t *Topic) RequestBodyEncode(method string) ([]byte, error) {
@@ -127,19 +123,14 @@ func (t *Topic) ResponseBodyDecode(method string, body []byte) error {
 	return nil
 }
 
-// Topics 用来获取某个project下的所有topic列表
+// Topics for list topics
 type Topics struct {
-	ProjectName string   `json:"ProjectName"`
-	Names       []string `json:"TopicNames"`
+	Names []string `json:"TopicNames"`
 }
 
 func (ts *Topics) String() string {
-	tsbytes, _ := json.Marshal(ts)
-	return string(tsbytes)
-}
-
-func (ts *Topics) Resource(method string) string {
-	return fmt.Sprintf("/projects/%s/topics", ts.ProjectName)
+	tsBytes, _ := json.Marshal(ts)
+	return string(tsBytes)
 }
 
 func (ts *Topics) RequestBodyEncode(method string) ([]byte, error) {

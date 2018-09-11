@@ -1,8 +1,7 @@
 package account
 
 /*
-account 包提供了不同账号类型的实现。
-目前仅支持一种账号类型：Aliyun账号。
+only support aliyun account now
 */
 
 import (
@@ -23,7 +22,7 @@ type AliyunAccount struct {
 	AccessKey string
 }
 
-// NewAliyunAccount 新建AliyunAccount实例
+// create new instance
 func NewAliyunAccount(id string, key string) *AliyunAccount {
 	return &AliyunAccount{
 		AccessId:  id,
@@ -31,7 +30,6 @@ func NewAliyunAccount(id string, key string) *AliyunAccount {
 	}
 }
 
-// String 方法支持fmt.Print类方法
 func (a AliyunAccount) String() string {
 	return fmt.Sprintf("access_id:%s, access_key:%s", a.AccessId, a.AccessKey)
 }

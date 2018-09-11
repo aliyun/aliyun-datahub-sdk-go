@@ -60,7 +60,7 @@ func put_records(dh *datahub.DataHub) error {
 		}
 
 		records = make([]models.IRecord, 1)
-		record := models.NewBlobRecord(dat)
+		record := models.NewBlobRecord(dat, 0)
 		record.ShardId = ShardId
 		records[0] = record
 
@@ -78,7 +78,7 @@ func put_records(dh *datahub.DataHub) error {
 
 		records = make([]models.IRecord, len(recordsData.Records))
 		for idx, record_data := range recordsData.Records {
-			record := models.NewTupleRecord(topic.RecordSchema)
+			record := models.NewTupleRecord(topic.RecordSchema, 0)
 			for key, val := range record_data {
 				record.ShardId = ShardId
 				record.SetValueByName(key, val)

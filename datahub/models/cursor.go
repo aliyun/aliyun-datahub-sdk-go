@@ -10,23 +10,16 @@ import (
 )
 
 type Cursor struct {
-	Id          string           `json:"Cursor"`
-	Sequence    int64            `json:"Sequence"`
-	RecordTime  int64            `json:"RecordTime"`
-	ProjectName string           `json:"ProjectName"`
-	TopicName   string           `json:"TopicName"`
-	ShardId     string           `json:"ShardId"`
-	Type        types.CursorType `json:"Type"`
-	SystemTime  int64            `json:"SystemTime"`
+	Id         string           `json:"Cursor"`
+	Sequence   uint64           `json:"Sequence"`
+	RecordTime uint64           `json:"RecordTime"`
+	Type       types.CursorType `json:"Type"`
+	SystemTime uint64           `json:"SystemTime"`
 }
 
 func (c *Cursor) String() string {
-	cbytes, _ := json.Marshal(c)
-	return string(cbytes)
-}
-
-func (c *Cursor) Resource(method string) string {
-	return fmt.Sprintf("/projects/%s/topics/%s/shards/%s", c.ProjectName, c.TopicName, c.ShardId)
+	cBytes, _ := json.Marshal(c)
+	return string(cBytes)
 }
 
 func (c *Cursor) RequestBodyEncode(method string) ([]byte, error) {
@@ -37,7 +30,7 @@ func (c *Cursor) RequestBodyEncode(method string) ([]byte, error) {
 		}
 		reqMsg := struct {
 			Action     string `json:"Action"`
-			SystemTime int64  `json:"SystemTime"`
+			SystemTime uint64 `json:"SystemTime"`
 			Type       string `json:"Type"`
 		}{
 			Action:     "cursor",

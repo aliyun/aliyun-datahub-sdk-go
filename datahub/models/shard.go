@@ -36,20 +36,14 @@ func (s Shard) String() string {
 	return string(sbytes)
 }
 
-// Shards 支持list shard操作
+// Shards for list shard
 type Shards struct {
-	ProjectName string  `json:"ProjectName"`
-	TopicName   string  `json:"TopicName"`
-	ShardList   []Shard `json:"Shards"`
+	ShardList []Shard `json:"Shards"`
 }
 
 func (ss *Shards) String() string {
 	ssbytes, _ := json.Marshal(ss)
 	return string(ssbytes)
-}
-
-func (ss *Shards) Resource(method string) string {
-	return fmt.Sprintf("/projects/%s/topics/%s/shards", ss.ProjectName, ss.TopicName)
 }
 
 func (ss *Shards) RequestBodyEncode(method string) ([]byte, error) {
@@ -70,17 +64,11 @@ func (ss *Shards) ResponseBodyDecode(method string, body []byte) error {
 	}
 }
 
-// MergeShard 支持shard的merge操作
+// MergeShard
 type MergeShard struct {
 	Id              string        `json:"ShardId"`
-	ProjectName     string        `json:"ProjectName"`
-	TopicName       string        `json:"TopicName"`
 	AdjacentShardId string        `json:"AdjacentShardId"`
 	NewShard        ShardAbstract `json:"NewShard"`
-}
-
-func (ms *MergeShard) Resource(method string) string {
-	return fmt.Sprintf("/projects/%s/topics/%s/shards", ms.ProjectName, ms.TopicName)
 }
 
 func (ms *MergeShard) RequestBodyEncode(method string) ([]byte, error) {
@@ -110,17 +98,11 @@ func (ms *MergeShard) ResponseBodyDecode(method string, body []byte) error {
 	}
 }
 
-// SplitShard 支持shard的split操作
+// SplitShard
 type SplitShard struct {
-	Id          string          `json:"ShardId"`
-	ProjectName string          `json:"ProjectName"`
-	TopicName   string          `json:"TopicName"`
-	SplitKey    string          `json:"SplitKey"`
-	NewShards   []ShardAbstract `json:"NewShards"`
-}
-
-func (ss *SplitShard) Resource(method string) string {
-	return fmt.Sprintf("/projects/%s/topics/%s/shards", ss.ProjectName, ss.TopicName)
+	Id        string          `json:"ShardId"`
+	SplitKey  string          `json:"SplitKey"`
+	NewShards []ShardAbstract `json:"NewShards"`
 }
 
 func (ss *SplitShard) RequestBodyEncode(method string) ([]byte, error) {

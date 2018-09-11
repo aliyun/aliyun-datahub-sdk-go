@@ -54,24 +54,24 @@ func (ft FieldType) String() string {
 }
 
 const (
-	// BIGINT 8字节有符号整型。请不要使用整型的最小值 (-9223372036854775808)，这是系统保留值。
+	// BIGINT 8-bit long signed integer, not include (-9223372036854775808)
 	// -9223372036854775807 ~ 9223372036854775807
 	BIGINT FieldType = "BIGINT"
 
-	// STRING 字符串，只支持UTF-8编码。
-	// 单个String列最长允许1MB。
+	// only support utf-8
+	// 1Mb max size
 	STRING FieldType = "STRING"
 
-	// BOOLEAN 布尔型。
+	// BOOLEAN
 	// True/False，true/false, 0/1
 	BOOLEAN FieldType = "BOOLEAN"
 
-	// DOUBLE 8字节双精度浮点数。
+	// DOUBLE 8-bit double
 	// -1.0 * 10^308 ~ 1.0 * 10^308
 	DOUBLE FieldType = "DOUBLE"
 
-	// TIMESTAMP 时间戳类型。
-	// 微秒
+	// TIMESTAMP
+	// unit: us
 	TIMESTAMP FieldType = "TIMESTAMP"
 )
 
@@ -292,16 +292,16 @@ func (state ShardState) String() string {
 }
 
 const (
-	// OPENING shard正在创建或者failover，不能正常服务
+	// OPENING shard is creating or fail over, not available
 	OPENING ShardState = "OPENING"
 
-	// ACTIVE shard可以正常服务
+	// ACTIVE is available
 	ACTIVE ShardState = "ACTIVE"
 
-	// CLOSED shard在expire之前处于只读状态
+	// CLOSED read-only
 	CLOSED ShardState = "CLOSED"
 
-	// CLOSING shard正在从ACTIVE转变为CLOSED中，期间不可读写
+	// CLOSING shard is closing, not available
 	CLOSING ShardState = "CLOSING"
 )
 
@@ -313,13 +313,13 @@ func (ct CursorType) String() string {
 }
 
 const (
-	// OLDEST 表示获取的cursor指向当前有效数据中时间最久远的record
+	// OLDEST
 	OLDEST CursorType = "OLDEST"
 
-	// LATEST 表示获取的cursor指向当前最新的record
+	// LATEST
 	LATEST CursorType = "LATEST"
 
-	// SYSTEM_TIME 表示获取的cursor指向该时间之后接收到的第一条record
+	// SYSTEM_TIME point to first record after system_time
 	SYSTEM_TIME CursorType = "SYSTEM_TIME"
 )
 
@@ -331,4 +331,43 @@ func ValidateCursorType(ct CursorType) bool {
 	default:
 		return false
 	}
+}
+
+// SubscriptionType
+type SubscriptionType int
+
+const (
+	// SUBTYPE_USER
+	SUBTYPE_USER SubscriptionType = iota
+
+	// SUBTYPE_SYSTEM
+	SUBTYPE_SYSTEM
+
+	// SUBTYPE_TT
+	SUBTYPE_TT
+)
+
+func (subType SubscriptionType) Value() int {
+	return int(subType)
+}
+
+// SubscriptionState
+type SubscriptionState int
+
+const (
+	// SUB_CLEANED
+	SUB_CLEANED SubscriptionState = iota
+
+	// SUB_OPENING
+	SUB_OPENING
+
+	// SUB_DELETING
+	SUB_DELETING
+
+	// SUB_OFFLINE
+	SUB_OFFLINE
+)
+
+func (subState SubscriptionState) Value() int {
+	return int(subState)
 }

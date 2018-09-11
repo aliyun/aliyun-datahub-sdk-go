@@ -5,7 +5,7 @@ import (
 )
 
 /*
-errors 包定义了Datahub相关的error信息。
+datahub errors
 */
 
 // DatahubError base datahub error struct
