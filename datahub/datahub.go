@@ -29,7 +29,7 @@ func (datahub *DataHub) ListProjects() (projects *models.Projects, err error) {
 	return
 }
 
-// CreateTopic create new project (Added at 2018.9)
+// CreateProject create new project (Added at 2018.9)
 func (datahub *DataHub) CreateProject(projectName, comment string) error {
 	path := fmt.Sprintf(rest.PROJECT, projectName)
 	project := &models.Project{
@@ -39,7 +39,7 @@ func (datahub *DataHub) CreateProject(projectName, comment string) error {
 	return err
 }
 
-// UpdateTopic update project (Added at 2018.9)
+// UpdateProject update project (Added at 2018.9)
 func (datahub *DataHub) UpdateProject(projectName, comment string) error {
 	path := fmt.Sprintf(rest.PROJECT, projectName)
 	project := &models.Project{
@@ -49,7 +49,7 @@ func (datahub *DataHub) UpdateProject(projectName, comment string) error {
 	return err
 }
 
-// DeleteTopic delete project (Added at 2018.9)
+// DeleteProject delete project (Added at 2018.9)
 func (datahub *DataHub) DeleteProject(projectName string) error {
 	path := fmt.Sprintf(rest.PROJECT, projectName)
 	project := &models.Project{}
@@ -296,7 +296,7 @@ func (datahub *DataHub) UpdateSubscription(projectName, topicName, subId, commen
 		SubId:   subId,
 		Comment: comment,
 	}
-	err := datahub.Client.Post(path, subscription)
+	err := datahub.Client.Put(path, subscription)
 	return err
 }
 
@@ -307,7 +307,7 @@ func (datahub *DataHub) UpdateSubscriptionState(projectName, topicName, subId st
 		SubId: subId,
 		State: state,
 	}
-	err := datahub.Client.Post(path, subscription)
+	err := datahub.Client.Put(path, subscription)
 	return err
 }
 

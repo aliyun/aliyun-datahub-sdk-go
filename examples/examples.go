@@ -302,11 +302,21 @@ func createSubscription(projectName, topicName, comment string, dh *datahub.Data
 }
 
 func updateSubscription(projectName, topicName, subId, comment string, dh *datahub.DataHub) {
-	dh.UpdateSubscription(projectName, topicName, subId, comment)
+	err := dh.UpdateSubscription(projectName, topicName, subId, comment)
+	if err != nil {
+		fmt.Println("update subscription error: " + err.Error())
+	} else {
+		fmt.Println("update subscription, id: " + subId)
+	}
 }
 
 func updateSubscriptionState(projectName, topicName, subId string, state types.SubscriptionState, dh *datahub.DataHub) {
-	dh.UpdateSubscriptionState(projectName, topicName, subId, state)
+	err := dh.UpdateSubscriptionState(projectName, topicName, subId, state)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println("update subscription state, id: " + subId)
+	}
 }
 
 func getSubscription(projectName, topicName, subId string, dh *datahub.DataHub) {
