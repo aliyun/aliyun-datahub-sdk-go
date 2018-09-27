@@ -1,4 +1,4 @@
-package models
+package datahub
 
 import (
 	"encoding/json"

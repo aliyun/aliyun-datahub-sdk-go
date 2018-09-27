@@ -3,36 +3,31 @@ package datahub
 import (
 	"fmt"
 	"time"
-
-	"github.com/aliyun/aliyun-datahub-sdk-go/datahub/account"
-	"github.com/aliyun/aliyun-datahub-sdk-go/datahub/models"
-	"github.com/aliyun/aliyun-datahub-sdk-go/datahub/rest"
-	"github.com/aliyun/aliyun-datahub-sdk-go/datahub/types"
 )
 
 type DataHub struct {
-	Client *rest.RestClient
+	Client *RestClient
 }
 
 func New(accessid, accesskey, endpoint string) *DataHub {
 	return &DataHub{
-		Client: rest.NewRestClient(endpoint, rest.DefaultUserAgent(), rest.DefaultHttpClient(), account.NewAliyunAccount(accessid, accesskey)),
+		Client: NewRestClient(endpoint, DefaultUserAgent(), DefaultHttpClient(), NewAliyunAccount(accessid, accesskey)),
 	}
 }
 
 // ListProjects list all projects
 // It returns all project names
-func (datahub *DataHub) ListProjects() (projects *models.Projects, err error) {
-	path := rest.PROJECTS
-	projects = &models.Projects{}
+func (datahub *DataHub) ListProjects() (projects *Projects, err error) {
+	path := PROJECTS
+	projects = &Projects{}
 	err = datahub.Client.Get(path, projects)
 	return
 }
 
 // CreateProject create new project (Added at 2018.9)
 func (datahub *DataHub) CreateProject(projectName, comment string) error {
-	path := fmt.Sprintf(rest.PROJECT, projectName)
-	project := &models.Project{
+	path := fmt.Sprintf(PROJECT, projectName)
+	project := &Project{
 		Comment: comment,
 	}
 	err := datahub.Client.Post(path, project)
@@ -41,8 +36,8 @@ func (datahub *DataHub) CreateProject(projectName, comment string) error {
 
 // UpdateProject update project (Added at 2018.9)
 func (datahub *DataHub) UpdateProject(projectName, comment string) error {
-	path := fmt.Sprintf(rest.PROJECT, projectName)
-	project := &models.Project{
+	path := fmt.Sprintf(PROJECT, projectName)
+	project := &Project{
 		Comment: comment,
 	}
 	err := datahub.Client.Put(path, project)
@@ -51,35 +46,35 @@ func (datahub *DataHub) UpdateProject(projectName, comment string) error {
 
 // DeleteProject delete project (Added at 2018.9)
 func (datahub *DataHub) DeleteProject(projectName string) error {
-	path := fmt.Sprintf(rest.PROJECT, projectName)
-	project := &models.Project{}
+	path := fmt.Sprintf(PROJECT, projectName)
+	project := &Project{}
 	err := datahub.Client.Delete(path, project)
 	return err
 }
 
 // GetProject get a project deatil named the given name
-// It returns models.Project
-func (datahub *DataHub) GetProject(projectName string) (project *models.Project, err error) {
-	path := fmt.Sprintf(rest.PROJECT, projectName)
-	project = &models.Project{}
+// It returns Project
+func (datahub *DataHub) GetProject(projectName string) (project *Project, err error) {
+	path := fmt.Sprintf(PROJECT, projectName)
+	project = &Project{}
 	err = datahub.Client.Get(path, project)
 	return
 }
 
 // ListTopics list all topic of the project named projectName
-// It returns models.Topics
-func (datahub *DataHub) ListTopics(projectName string) (topics *models.Topics, err error) {
-	path := fmt.Sprintf(rest.TOPICS, projectName)
-	topics = &models.Topics{}
+// It returns Topics
+func (datahub *DataHub) ListTopics(projectName string) (topics *Topics, err error) {
+	path := fmt.Sprintf(TOPICS, projectName)
+	topics = &Topics{}
 	err = datahub.Client.Get(path, topics)
 	return
 }
 
 // GetTopic get a topic detail named the given name of the project named projectName (Changed at 2018.9)
-// It return models.Topic
-func (datahub *DataHub) GetTopic(projectName, topicName string) (topic *models.Topic, err error) {
-	path := fmt.Sprintf(rest.TOPIC, projectName, topicName)
-	topic = &models.Topic{
+// It return Topic
+func (datahub *DataHub) GetTopic(projectName, topicName string) (topic *Topic, err error) {
+	path := fmt.Sprintf(TOPIC, projectName, topicName)
+	topic = &Topic{
 		ProjectName: projectName,
 		TopicName:   topicName,
 	}
@@ -88,23 +83,23 @@ func (datahub *DataHub) GetTopic(projectName, topicName string) (topic *models.T
 }
 
 // CreateTopic create new topic
-// It receives a models.Topic object
-func (datahub *DataHub) CreateTopic(topic *models.Topic) error {
-	path := fmt.Sprintf(rest.TOPIC, topic.ProjectName, topic.TopicName)
+// It receives a Topic object
+func (datahub *DataHub) CreateTopic(topic *Topic) error {
+	path := fmt.Sprintf(TOPIC, topic.ProjectName, topic.TopicName)
 	err := datahub.Client.Post(path, topic)
 	return err
 }
 
 // CreateTupleTopic create new tuple topic (Added at 2018.9)
-func (datahub *DataHub) CreateTupleTopic(projectName, topicName, comment string, shardCount, lifecycle int, recordSchema *models.RecordSchema) error {
-	path := fmt.Sprintf(rest.TOPIC, projectName, topicName)
-	topic := &models.Topic{
+func (datahub *DataHub) CreateTupleTopic(projectName, topicName, comment string, shardCount, lifecycle int, recordSchema *RecordSchema) error {
+	path := fmt.Sprintf(TOPIC, projectName, topicName)
+	topic := &Topic{
 		ProjectName:  projectName,
 		TopicName:    topicName,
 		ShardCount:   shardCount,
 		Lifecycle:    lifecycle,
 		RecordSchema: recordSchema,
-		RecordType:   types.TUPLE,
+		RecordType:   TUPLE,
 		Comment:      comment,
 	}
 	err := datahub.Client.Post(path, topic)
@@ -113,13 +108,13 @@ func (datahub *DataHub) CreateTupleTopic(projectName, topicName, comment string,
 
 // CreateBlobTopic create new blob topic (Added at 2018.9)
 func (datahub *DataHub) CreateBlobTopic(projectName, topicName, comment string, shardCount, lifecycle int) error {
-	path := fmt.Sprintf(rest.TOPIC, projectName, topicName)
-	topic := &models.Topic{
+	path := fmt.Sprintf(TOPIC, projectName, topicName)
+	topic := &Topic{
 		ProjectName: projectName,
 		TopicName:   topicName,
 		ShardCount:  shardCount,
 		Lifecycle:   lifecycle,
-		RecordType:  types.BLOB,
+		RecordType:  BLOB,
 		Comment:     comment,
 	}
 	err := datahub.Client.Post(path, topic)
@@ -128,8 +123,8 @@ func (datahub *DataHub) CreateBlobTopic(projectName, topicName, comment string, 
 
 // UpdateTopic update a topic (Changed at 2018.9)
 func (datahub *DataHub) UpdateTopic(projectName, topicName string, lifecycle int, comment string) error {
-	path := fmt.Sprintf(rest.TOPIC, projectName, topicName)
-	topic := &models.Topic{
+	path := fmt.Sprintf(TOPIC, projectName, topicName)
+	topic := &Topic{
 		ProjectName: projectName,
 		TopicName:   topicName,
 		Lifecycle:   lifecycle,
@@ -141,8 +136,8 @@ func (datahub *DataHub) UpdateTopic(projectName, topicName string, lifecycle int
 
 // DeleteTopic delete a topic (Changed at 2018.9)
 func (datahub *DataHub) DeleteTopic(projectName, topicName string) error {
-	path := fmt.Sprintf(rest.TOPIC, projectName, topicName)
-	topic := &models.Topic{
+	path := fmt.Sprintf(TOPIC, projectName, topicName)
+	topic := &Topic{
 		ProjectName: projectName,
 		TopicName:   topicName,
 	}
@@ -151,10 +146,10 @@ func (datahub *DataHub) DeleteTopic(projectName, topicName string) error {
 }
 
 // ListShards list all shards of the given topic
-// It returns []models.Shard
-func (datahub *DataHub) ListShards(projectName, topicName string) ([]models.Shard, error) {
-	path := fmt.Sprintf(rest.SHARDS, projectName, topicName)
-	shards := &models.Shards{}
+// It returns []Shard
+func (datahub *DataHub) ListShards(projectName, topicName string) ([]Shard, error) {
+	path := fmt.Sprintf(SHARDS, projectName, topicName)
+	shards := &Shards{}
 	err := datahub.Client.Get(path, shards)
 	if err != nil {
 		return nil, err
@@ -182,7 +177,7 @@ func (datahub *DataHub) WaitAllShardsReady(projectName, topicName string, timeou
 			ok := true
 			for _, shard := range shards {
 				switch shard.State {
-				case types.ACTIVE, types.CLOSED:
+				case ACTIVE, CLOSED:
 					continue
 				default:
 					ok = false
@@ -201,9 +196,9 @@ func (datahub *DataHub) WaitAllShardsReady(projectName, topicName string, timeou
 
 // MergeShard merge two adjacent shards
 // It returns the new shard after merged
-func (datahub *DataHub) MergeShard(projectName, topicName, shardId, adjShardId string) (*models.ShardAbstract, error) {
-	path := fmt.Sprintf(rest.SHARDS, projectName, topicName)
-	mergedShards := &models.MergeShard{
+func (datahub *DataHub) MergeShard(projectName, topicName, shardId, adjShardId string) (*ShardAbstract, error) {
+	path := fmt.Sprintf(SHARDS, projectName, topicName)
+	mergedShards := &MergeShard{
 		Id:              shardId,
 		AdjacentShardId: adjShardId,
 	}
@@ -216,9 +211,9 @@ func (datahub *DataHub) MergeShard(projectName, topicName, shardId, adjShardId s
 
 // SplitShard split a shard to two adjacent shards
 // It returns two new shards after split
-func (datahub *DataHub) SplitShard(projectName, topicName, shardId, splitKey string) ([]models.ShardAbstract, error) {
-	path := fmt.Sprintf(rest.SHARDS, projectName, topicName)
-	splitedShards := &models.SplitShard{
+func (datahub *DataHub) SplitShard(projectName, topicName, shardId, splitKey string) ([]ShardAbstract, error) {
+	path := fmt.Sprintf(SHARDS, projectName, topicName)
+	splitedShards := &SplitShard{
 		Id:       shardId,
 		SplitKey: splitKey,
 	}
@@ -230,10 +225,10 @@ func (datahub *DataHub) SplitShard(projectName, topicName, shardId, splitKey str
 }
 
 // GetCursor get cursor of given shard, if cursor type is "SYSTEM_TIME", the sysTime parameter must be set
-// It returns models.Cursor
-func (datahub *DataHub) GetCursor(projectName, topicName, shardId string, ct types.CursorType, sysTime uint64) (cursor *models.Cursor, err error) {
-	path := fmt.Sprintf(rest.SHARD, projectName, topicName, shardId)
-	cursor = &models.Cursor{
+// It returns Cursor
+func (datahub *DataHub) GetCursor(projectName, topicName, shardId string, ct CursorType, sysTime uint64) (cursor *Cursor, err error) {
+	path := fmt.Sprintf(SHARD, projectName, topicName, shardId)
+	cursor = &Cursor{
 		Type:       ct,
 		SystemTime: sysTime,
 	}
@@ -242,10 +237,10 @@ func (datahub *DataHub) GetCursor(projectName, topicName, shardId string, ct typ
 }
 
 // PutRecords put records
-func (datahub *DataHub) PutRecords(projectName, topicName string, records []models.IRecord) (*models.PutResult, error) {
-	path := fmt.Sprintf(rest.SHARDS, projectName, topicName)
-	recordsToPut := &models.PutRecords{
-		Records: make([]models.IRecord, 0, len(records)),
+func (datahub *DataHub) PutRecords(projectName, topicName string, records []IRecord) (*PutResult, error) {
+	path := fmt.Sprintf(SHARDS, projectName, topicName)
+	recordsToPut := &PutRecords{
+		Records: make([]IRecord, 0, len(records)),
 	}
 	for _, r := range records {
 		if r != nil {
@@ -257,9 +252,9 @@ func (datahub *DataHub) PutRecords(projectName, topicName string, records []mode
 }
 
 // GetRecords get records
-func (datahub *DataHub) GetRecords(topic *models.Topic, shardId, cursor string, limitNum int) (*models.GetResult, error) {
-	path := fmt.Sprintf(rest.SHARD, topic.ProjectName, topic.TopicName, shardId)
-	records := &models.GetRecords{
+func (datahub *DataHub) GetRecords(topic *Topic, shardId, cursor string, limitNum int) (*GetResult, error) {
+	path := fmt.Sprintf(SHARD, topic.ProjectName, topic.TopicName, shardId)
+	records := &GetRecords{
 		Cursor:       cursor,
 		Limit:        limitNum,
 		RecordSchema: topic.RecordSchema,
@@ -270,9 +265,9 @@ func (datahub *DataHub) GetRecords(topic *models.Topic, shardId, cursor string, 
 
 // ListSubscriptions list all subscriptions of specified topic
 // It returns all subscriptions of specified topic
-func (datahub *DataHub) ListSubscriptions(projectName, topicName string) (subscriptions *models.Subscriptions, err error) {
-	path := fmt.Sprintf(rest.SUBSCRIPTIONS, projectName, topicName)
-	subscriptions = &models.Subscriptions{}
+func (datahub *DataHub) ListSubscriptions(projectName, topicName string) (subscriptions *Subscriptions, err error) {
+	path := fmt.Sprintf(SUBSCRIPTIONS, projectName, topicName)
+	subscriptions = &Subscriptions{}
 	err = datahub.Client.Post(path, subscriptions)
 	return
 }
@@ -280,8 +275,8 @@ func (datahub *DataHub) ListSubscriptions(projectName, topicName string) (subscr
 // CreateSubscription create new subscription (Added at 2018.9)
 // It returns subId
 func (datahub *DataHub) CreateSubscription(projectName, topicName, comment string) (SubId string, err error) {
-	path := fmt.Sprintf(rest.SUBSCRIPTIONS, projectName, topicName)
-	subscription := &models.Subscription{
+	path := fmt.Sprintf(SUBSCRIPTIONS, projectName, topicName)
+	subscription := &Subscription{
 		Comment: comment,
 	}
 	err = datahub.Client.Post(path, subscription)
@@ -291,8 +286,8 @@ func (datahub *DataHub) CreateSubscription(projectName, topicName, comment strin
 
 // UpdateSubscription update subscription (Added at 2018.9)
 func (datahub *DataHub) UpdateSubscription(projectName, topicName, subId, comment string) error {
-	path := fmt.Sprintf(rest.SUBSCRIPTION, projectName, topicName, subId)
-	subscription := &models.Subscription{
+	path := fmt.Sprintf(SUBSCRIPTION, projectName, topicName, subId)
+	subscription := &Subscription{
 		SubId:   subId,
 		Comment: comment,
 	}
@@ -301,9 +296,9 @@ func (datahub *DataHub) UpdateSubscription(projectName, topicName, subId, commen
 }
 
 // UpdateSubscription update subscription state (Added at 2018.9)
-func (datahub *DataHub) UpdateSubscriptionState(projectName, topicName, subId string, state types.SubscriptionState) error {
-	path := fmt.Sprintf(rest.SUBSCRIPTION, projectName, topicName, subId)
-	subscription := &models.Subscription{
+func (datahub *DataHub) UpdateSubscriptionState(projectName, topicName, subId string, state SubscriptionState) error {
+	path := fmt.Sprintf(SUBSCRIPTION, projectName, topicName, subId)
+	subscription := &Subscription{
 		SubId: subId,
 		State: state,
 	}
@@ -313,8 +308,8 @@ func (datahub *DataHub) UpdateSubscriptionState(projectName, topicName, subId st
 
 // DeleteSubscription delete subscription (Added at 2018.9)
 func (datahub *DataHub) DeleteSubscription(projectName, topicName, subId string) error {
-	path := fmt.Sprintf(rest.SUBSCRIPTION, projectName, topicName, subId)
-	subscription := &models.Subscription{
+	path := fmt.Sprintf(SUBSCRIPTION, projectName, topicName, subId)
+	subscription := &Subscription{
 		SubId: subId,
 	}
 	err := datahub.Client.Delete(path, subscription)
@@ -322,10 +317,10 @@ func (datahub *DataHub) DeleteSubscription(projectName, topicName, subId string)
 }
 
 // GetSubscription get a subscription detail (Added at 2018.9)
-// It returns models.Subscription
-func (datahub *DataHub) GetSubscription(projectName, topicName, subId string) (subscription *models.Subscription, err error) {
-	path := fmt.Sprintf(rest.SUBSCRIPTION, projectName, topicName, subId)
-	subscription = &models.Subscription{
+// It returns Subscription
+func (datahub *DataHub) GetSubscription(projectName, topicName, subId string) (subscription *Subscription, err error) {
+	path := fmt.Sprintf(SUBSCRIPTION, projectName, topicName, subId)
+	subscription = &Subscription{
 		SubId: subId,
 	}
 	err = datahub.Client.Get(path, subscription)

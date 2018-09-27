@@ -8,8 +8,6 @@ import (
 	"strings"
 
 	"github.com/aliyun/aliyun-datahub-sdk-go/datahub"
-	"github.com/aliyun/aliyun-datahub-sdk-go/datahub/models"
-	"github.com/aliyun/aliyun-datahub-sdk-go/datahub/types"
 )
 
 // subcommands
@@ -108,7 +106,7 @@ func create_topic_parsed_check() bool {
 }
 
 func create_topic(dh *datahub.DataHub) error {
-	t := &models.Topic{
+	t := &datahub.Topic{
 		ProjectName: ProjectName,
 		TopicName:   TopicName,
 		ShardCount:  ShardCount,
@@ -116,8 +114,8 @@ func create_topic(dh *datahub.DataHub) error {
 		Comment:     Comment,
 	}
 	if strings.ToLower(RecordType) == "tuple" {
-		t.RecordType = types.TUPLE
-		t.RecordSchema = models.NewRecordSchema()
+		t.RecordType = datahub.TUPLE
+		t.RecordSchema = datahub.NewRecordSchema()
 		var schameMap map[string]string
 		buffer := bytes.NewBufferString(RecordSchema)
 		err := json.Unmarshal(buffer.Bytes(), &schameMap)
@@ -125,14 +123,14 @@ func create_topic(dh *datahub.DataHub) error {
 			return err
 		}
 		for key, val := range schameMap {
-			field := models.Field{
+			field := datahub.Field{
 				Name: key,
-				Type: types.FieldType(strings.ToUpper(val)),
+				Type: datahub.FieldType(strings.ToUpper(val)),
 			}
 			t.RecordSchema = t.RecordSchema.AddField(field)
 		}
 	} else {
-		t.RecordType = types.BLOB
+		t.RecordType = datahub.BLOB
 	}
 	err := dh.CreateTopic(t)
 	if err != nil {

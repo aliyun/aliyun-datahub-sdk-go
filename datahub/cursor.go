@@ -1,20 +1,18 @@
-package models
+package datahub
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-
-	"github.com/aliyun/aliyun-datahub-sdk-go/datahub/types"
 )
 
 type Cursor struct {
-	Id         string           `json:"Cursor"`
-	Sequence   uint64           `json:"Sequence"`
-	RecordTime uint64           `json:"RecordTime"`
-	Type       types.CursorType `json:"Type"`
-	SystemTime uint64           `json:"SystemTime"`
+	Id         string     `json:"Cursor"`
+	Sequence   uint64     `json:"Sequence"`
+	RecordTime uint64     `json:"RecordTime"`
+	Type       CursorType `json:"Type"`
+	SystemTime uint64     `json:"SystemTime"`
 }
 
 func (c *Cursor) String() string {
@@ -25,7 +23,7 @@ func (c *Cursor) String() string {
 func (c *Cursor) RequestBodyEncode(method string) ([]byte, error) {
 	switch method {
 	case http.MethodPost:
-		if !types.ValidateCursorType(c.Type) {
+		if !ValidateCursorType(c.Type) {
 			return nil, errors.New(fmt.Sprintf("cursor type %q not support", c.Type))
 		}
 		reqMsg := struct {

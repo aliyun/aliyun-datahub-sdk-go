@@ -9,8 +9,6 @@ import (
 	"time"
 
 	"github.com/aliyun/aliyun-datahub-sdk-go/datahub"
-	"github.com/aliyun/aliyun-datahub-sdk-go/datahub/models"
-	"github.com/aliyun/aliyun-datahub-sdk-go/datahub/types"
 )
 
 // subcommands
@@ -51,20 +49,20 @@ func put_records(dh *datahub.DataHub) error {
 		return err
 	}
 
-	var records []models.IRecord
+	var records []datahub.IRecord
 	switch topic.RecordType {
-	case types.BLOB:
+	case datahub.BLOB:
 		dat, err := ioutil.ReadFile(RecordSource)
 		if err != nil {
 			return err
 		}
 
-		records = make([]models.IRecord, 1)
-		record := models.NewBlobRecord(dat, 0)
+		records = make([]datahub.IRecord, 1)
+		record := datahub.NewBlobRecord(dat, 0)
 		record.ShardId = ShardId
 		records[0] = record
 
-	case types.TUPLE:
+	case datahub.TUPLE:
 		recordsData := &struct {
 			Records []map[string]interface{} `json:records`
 		}{}
@@ -76,9 +74,9 @@ func put_records(dh *datahub.DataHub) error {
 			return err
 		}
 
-		records = make([]models.IRecord, len(recordsData.Records))
+		records = make([]datahub.IRecord, len(recordsData.Records))
 		for idx, record_data := range recordsData.Records {
-			record := models.NewTupleRecord(topic.RecordSchema, 0)
+			record := datahub.NewTupleRecord(topic.RecordSchema, 0)
 			for key, val := range record_data {
 				record.ShardId = ShardId
 				record.SetValueByName(key, val)
@@ -97,7 +95,7 @@ func put_records(dh *datahub.DataHub) error {
 			fmt.Println("put records suc! trynum:", trynum)
 			return nil
 		} else {
-			fail_records := make([]models.IRecord, len(result.FailedRecords))
+			fail_records := make([]datahub.IRecord, len(result.FailedRecords))
 			for idx, failinfo := range result.FailedRecords {
 				fail_records[idx] = records[failinfo.Index]
 			}
@@ -122,16 +120,16 @@ func get_records(dh *datahub.DataHub) error {
 		return err
 	}
 
-	cursor, err := dh.GetCursor(ProjectName, TopicName, ShardId, types.OLDEST, 0)
+	cursor, err := dh.GetCursor(ProjectName, TopicName, ShardId, datahub.OLDEST, 0)
 	if err != nil {
 		return err
 	}
 
-	rch := make(chan models.IRecord, 10)
+	rch := make(chan datahub.IRecord, 10)
 	quit := make(chan int)
 
 	// productor goroutine
-	go func(dh *datahub.DataHub, topic *models.Topic, shardid, cursor string) {
+	go func(dh *datahub.DataHub, topic *datahub.Topic, shardid, cursor string) {
 		for {
 			result, err := dh.GetRecords(topic, shardid, cursor, 10)
 			if err != nil {
@@ -151,16 +149,16 @@ func get_records(dh *datahub.DataHub) error {
 	}(dh, topic, ShardId, cursor.Id)
 
 	// consumer goroutine
-	go func(rt types.RecordType) {
+	go func(rt datahub.RecordType) {
 		switch topic.RecordType {
-		case types.BLOB:
+		case datahub.BLOB:
 			for record := range rch {
-				br := record.(*models.BlobRecord)
+				br := record.(*datahub.BlobRecord)
 				fmt.Println(br)
 			}
-		case types.TUPLE:
+		case datahub.TUPLE:
 			for record := range rch {
-				tr := record.(*models.TupleRecord)
+				tr := record.(*datahub.TupleRecord)
 				fmt.Println(tr)
 			}
 		}

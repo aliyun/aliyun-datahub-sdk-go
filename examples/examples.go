@@ -5,9 +5,6 @@ import (
 	"time"
 
 	"github.com/aliyun/aliyun-datahub-sdk-go/datahub"
-	"github.com/aliyun/aliyun-datahub-sdk-go/datahub/models"
-	"github.com/aliyun/aliyun-datahub-sdk-go/datahub/types"
-	"github.com/aliyun/aliyun-datahub-sdk-go/datahub/utils"
 )
 
 func listProjects(dh *datahub.DataHub) {
@@ -26,7 +23,7 @@ func getProject(name string, dh *datahub.DataHub) {
 		return
 	}
 	fmt.Println(project)
-	fmt.Println("last modify time " + utils.Uint64ToTimeString(project.LastModifyTime))
+	fmt.Println("last modify time " + datahub.Uint64ToTimeString(project.LastModifyTime))
 }
 
 func createProject(projectName, comment string, dh *datahub.DataHub) {
@@ -49,12 +46,12 @@ func deleteProject(projectName string, dh *datahub.DataHub) {
 }
 
 func createTupleTopic(projectName, topicName string, dh *datahub.DataHub) {
-	recordSchema := models.NewRecordSchema()
-	recordSchema.AddField(models.Field{Name: "bigint_field", Type: types.BIGINT}).
-		AddField(models.Field{Name: "timestamp_field", Type: types.TIMESTAMP}).
-		AddField(models.Field{Name: "string_field", Type: types.STRING}).
-		AddField(models.Field{Name: "double_field", Type: types.DOUBLE}).
-		AddField(models.Field{Name: "boolean_field", Type: types.BOOLEAN})
+	recordSchema := datahub.NewRecordSchema()
+	recordSchema.AddField(datahub.Field{Name: "bigint_field", Type: datahub.BIGINT}).
+		AddField(datahub.Field{Name: "timestamp_field", Type: datahub.TIMESTAMP}).
+		AddField(datahub.Field{Name: "string_field", Type: datahub.STRING}).
+		AddField(datahub.Field{Name: "double_field", Type: datahub.DOUBLE}).
+		AddField(datahub.Field{Name: "boolean_field", Type: datahub.BOOLEAN})
 	err := dh.CreateTupleTopic(projectName, topicName, "go sdk test topic", 3, 7, recordSchema)
 	if err != nil {
 		fmt.Println(err)
@@ -67,16 +64,16 @@ func createTupleTopic(projectName, topicName string, dh *datahub.DataHub) {
 }
 
 func createTupleWithSchemaJson(projectName, topicName string, dh *datahub.DataHub) {
-	t := &models.Topic{
+	t := &datahub.Topic{
 		ProjectName: projectName,
 		TopicName:   topicName,
 		ShardCount:  3,
 		Lifecycle:   7,
 		Comment:     "go sdk test topic",
 	}
-	t.RecordType = types.TUPLE
+	t.RecordType = datahub.TUPLE
 	var err error
-	t.RecordSchema, err = models.NewRecordSchemaFromJson("{\"fields\":[{\"name\":\"bigint_field\",\"type\":\"BIGINT\"},{\"name\":\"timestamp_field\",\"type\":\"TIMESTAMP\"},{\"name\":\"string_field\",\"type\":\"STRING\"},{\"name\":\"double_field\",\"type\":\"DOUBLE\"},{\"name\":\"boolean_field\",\"type\":\"BOOLEAN\"}]}")
+	t.RecordSchema, err = datahub.NewRecordSchemaFromJson("{\"fields\":[{\"name\":\"bigint_field\",\"type\":\"BIGINT\"},{\"name\":\"timestamp_field\",\"type\":\"TIMESTAMP\"},{\"name\":\"string_field\",\"type\":\"STRING\"},{\"name\":\"double_field\",\"type\":\"DOUBLE\"},{\"name\":\"boolean_field\",\"type\":\"BOOLEAN\"}]}")
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -165,7 +162,7 @@ func splitShard(projectName, topicName, shardId, splitKey string, dh *datahub.Da
 	}
 }
 
-func getCursor(projectName, topicName, shardId string, ct types.CursorType, systemTime uint64, dh *datahub.DataHub) {
+func getCursor(projectName, topicName, shardId string, ct datahub.CursorType, systemTime uint64, dh *datahub.DataHub) {
 	cursor, err := dh.GetCursor(projectName, topicName, shardId, ct, systemTime)
 	if err != nil {
 		fmt.Println(err)
@@ -181,8 +178,8 @@ func putTupleRecords(projectName, topicName string, dh *datahub.DataHub) {
 		return
 	}
 
-	records := make([]models.IRecord, 3)
-	record1 := models.NewTupleRecord(topic.RecordSchema, 0)
+	records := make([]datahub.IRecord, 3)
+	record1 := datahub.NewTupleRecord(topic.RecordSchema, 0)
 	record1.ShardId = "0"
 	record1.SetValueByIdx(0, 1)
 	record1.SetValueByIdx(1, uint(123456))
@@ -191,22 +188,22 @@ func putTupleRecords(projectName, topicName string, dh *datahub.DataHub) {
 	record1.SetValueByIdx(4, true)
 	records[0] = record1
 
-	record2 := models.NewTupleRecord(topic.RecordSchema, 0)
+	record2 := datahub.NewTupleRecord(topic.RecordSchema, 0)
 	record2.ShardId = "1"
-	record2.SetValueByIdx(0, types.Bigint(2))
-	record2.SetValueByIdx(1, types.Timestamp(123456))
-	record2.SetValueByName("string_field", types.String("TEST2"))
-	record2.SetValueByName("double_field", types.Double(1.0))
-	record2.SetValueByIdx(4, types.Boolean(true))
+	record2.SetValueByIdx(0, datahub.Bigint(2))
+	record2.SetValueByIdx(1, datahub.Timestamp(123456))
+	record2.SetValueByName("string_field", datahub.String("TEST2"))
+	record2.SetValueByName("double_field", datahub.Double(1.0))
+	record2.SetValueByIdx(4, datahub.Boolean(true))
 	records[1] = record2
 
-	record3 := models.NewTupleRecord(topic.RecordSchema, 0)
+	record3 := datahub.NewTupleRecord(topic.RecordSchema, 0)
 	record3.ShardId = "2"
-	record3.SetValueByIdx(0, types.Bigint(3))
-	record3.SetValueByIdx(1, types.Timestamp(133456))
-	record3.SetValueByName("string_field", types.String("TEST3"))
-	record3.SetValueByName("double_field", types.Double(1.0))
-	record3.SetValueByIdx(4, types.Boolean(true))
+	record3.SetValueByIdx(0, datahub.Bigint(3))
+	record3.SetValueByIdx(1, datahub.Timestamp(133456))
+	record3.SetValueByName("string_field", datahub.String("TEST3"))
+	record3.SetValueByName("double_field", datahub.Double(1.0))
+	record3.SetValueByIdx(4, datahub.Boolean(true))
 	records[2] = record3
 
 	result, err := dh.PutRecords(projectName, topicName, records)
@@ -224,7 +221,7 @@ func getTupleRecords(projectName, topicName, shardId string, dh *datahub.DataHub
 		return
 	}
 
-	cursor, err := dh.GetCursor(projectName, topicName, shardId, types.OLDEST, 0)
+	cursor, err := dh.GetCursor(projectName, topicName, shardId, datahub.OLDEST, 0)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -236,7 +233,7 @@ func getTupleRecords(projectName, topicName, shardId string, dh *datahub.DataHub
 		return
 	}
 	for _, record := range result.Records {
-		if br, ok := record.(*models.TupleRecord); ok {
+		if br, ok := record.(*datahub.TupleRecord); ok {
 			// do some tuple record
 			fmt.Println(br)
 		}
@@ -244,16 +241,16 @@ func getTupleRecords(projectName, topicName, shardId string, dh *datahub.DataHub
 }
 
 func putBlobRecords(projectName, topicName string, dh *datahub.DataHub) {
-	records := make([]models.IRecord, 3)
-	record1 := models.NewBlobRecord([]byte("blob test1"), 0)
+	records := make([]datahub.IRecord, 3)
+	record1 := datahub.NewBlobRecord([]byte("blob test1"), 0)
 	record1.ShardId = "0"
 	records[0] = record1
 
-	record2 := models.NewBlobRecord([]byte("blob test2"), 0)
+	record2 := datahub.NewBlobRecord([]byte("blob test2"), 0)
 	record2.ShardId = "1"
 	records[1] = record2
 
-	record3 := models.NewBlobRecord([]byte("blob test3"), 0)
+	record3 := datahub.NewBlobRecord([]byte("blob test3"), 0)
 	record3.ShardId = "2"
 	records[2] = record3
 
@@ -272,7 +269,7 @@ func getBlobRecords(projectName, topicName, shardId string, dh *datahub.DataHub)
 		return
 	}
 
-	cursor, err := dh.GetCursor(projectName, topicName, shardId, types.OLDEST, 0)
+	cursor, err := dh.GetCursor(projectName, topicName, shardId, datahub.OLDEST, 0)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -284,7 +281,7 @@ func getBlobRecords(projectName, topicName, shardId string, dh *datahub.DataHub)
 		return
 	}
 	for _, record := range result.Records {
-		if br, ok := record.(*models.BlobRecord); ok {
+		if br, ok := record.(*datahub.BlobRecord); ok {
 			// do some blob record
 			fmt.Println(br)
 		}
@@ -310,7 +307,7 @@ func updateSubscription(projectName, topicName, subId, comment string, dh *datah
 	}
 }
 
-func updateSubscriptionState(projectName, topicName, subId string, state types.SubscriptionState, dh *datahub.DataHub) {
+func updateSubscriptionState(projectName, topicName, subId string, state datahub.SubscriptionState, dh *datahub.DataHub) {
 	err := dh.UpdateSubscriptionState(projectName, topicName, subId, state)
 	if err != nil {
 		fmt.Println(err)
@@ -427,7 +424,7 @@ func main() {
 	listSubscriptions(projectName, "go_sdk_tuple_topic_test_v2", dh)
 
 	// update subscription state
-	updateSubscriptionState(projectName, "go_sdk_tuple_topic_test_v2", subId, types.SUB_OFFLINE, dh)
+	updateSubscriptionState(projectName, "go_sdk_tuple_topic_test_v2", subId, datahub.SUB_OFFLINE, dh)
 
 	// get subscription
 	getSubscription(projectName, "go_sdk_tuple_topic_test_v2", subId, dh)

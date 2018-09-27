@@ -1,23 +1,22 @@
-package models
+package datahub
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/aliyun/aliyun-datahub-sdk-go/datahub/types"
 	"net/http"
 )
 
 // Subscription
 type Subscription struct {
-	SubId          string                  `json:"SubId"`
-	TopicName      string                  `json:"TopicName"`
-	IsOwner        bool                    `json:"IsOwner"`
-	Type           types.SubscriptionType  `json:"Type"`
-	State          types.SubscriptionState `json:"State,omitempty"`
-	Comment        string                  `json:"Comment,omitempty"`
-	CreateTime     uint64                  `json:"CreateTime"`
-	LastModifyTime uint64                  `json:"LastModifyTime"`
+	SubId          string            `json:"SubId"`
+	TopicName      string            `json:"TopicName"`
+	IsOwner        bool              `json:"IsOwner"`
+	Type           SubscriptionType  `json:"Type"`
+	State          SubscriptionState `json:"State,omitempty"`
+	Comment        string            `json:"Comment,omitempty"`
+	CreateTime     uint64            `json:"CreateTime"`
+	LastModifyTime uint64            `json:"LastModifyTime"`
 }
 
 func (s *Subscription) String() string {

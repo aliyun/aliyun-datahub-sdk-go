@@ -1,4 +1,4 @@
-package types
+package datahub
 
 import (
 	"encoding/json"
@@ -355,17 +355,11 @@ func (subType SubscriptionType) Value() int {
 type SubscriptionState int
 
 const (
-	// SUB_CLEANED
-	SUB_CLEANED SubscriptionState = iota
-
-	// SUB_OPENING
-	SUB_OPENING
-
-	// SUB_DELETING
-	SUB_DELETING
-
 	// SUB_OFFLINE
-	SUB_OFFLINE
+	SUB_OFFLINE SubscriptionState = iota
+
+	// SUB_ONLINE
+	SUB_ONLINE
 )
 
 func (subState SubscriptionState) Value() int {

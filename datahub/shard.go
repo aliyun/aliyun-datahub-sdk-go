@@ -1,12 +1,10 @@
-package models
+package datahub
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-
-	"github.com/aliyun/aliyun-datahub-sdk-go/datahub/types"
 )
 
 type ShardAbstract struct {
@@ -21,14 +19,14 @@ func (s ShardAbstract) String() string {
 }
 
 type Shard struct {
-	Id             string           `json:"ShardId"`
-	State          types.ShardState `json:"State"`
-	BeginHashKey   string           `json:"BeginHashKey"`
-	EndHashKey     string           `json:"EndHashKey"`
-	ClosedTime     uint64           `json:"ClosedTime"`
-	ParentShardIds []string         `json:"ParentShardIds"`
-	LeftShardId    string           `json:"LeftShardId"`
-	RightShardId   string           `json:"RightShardId"`
+	Id             string     `json:"ShardId"`
+	State          ShardState `json:"State"`
+	BeginHashKey   string     `json:"BeginHashKey"`
+	EndHashKey     string     `json:"EndHashKey"`
+	ClosedTime     uint64     `json:"ClosedTime"`
+	ParentShardIds []string   `json:"ParentShardIds"`
+	LeftShardId    string     `json:"LeftShardId"`
+	RightShardId   string     `json:"RightShardId"`
 }
 
 func (s Shard) String() string {

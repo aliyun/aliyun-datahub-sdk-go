@@ -1,10 +1,8 @@
-package rest
+package datahub
 
 import (
 	"encoding/json"
 	"net/http"
-
-	datahuberrors "github.com/aliyun/aliyun-datahub-sdk-go/datahub/errors"
 )
 
 type RestModel interface {
@@ -32,10 +30,10 @@ func NewCommonResponseResult(code int, header *http.Header, body []byte) (result
 
 	switch {
 	case code >= 400:
-		var datahuberr datahuberrors.DatahubError
-		err = json.Unmarshal(body, &datahuberr)
+		var datahubErr DatahubError
+		err = json.Unmarshal(body, &datahubErr)
 		if err == nil {
-			err = datahuberrors.NewError(datahuberr.Code, datahuberr.Message)
+			err = NewError(code, header.Get("x-datahub-request-id"), datahubErr.Code, datahubErr.Message)
 		}
 	default:
 		err = nil

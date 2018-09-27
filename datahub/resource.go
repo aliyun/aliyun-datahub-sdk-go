@@ -1,4 +1,4 @@
-package rest
+package datahub
 
 const (
 	PROJECTS      = "/projects"

@@ -1,25 +1,23 @@
-package models
+package datahub
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-
-	"github.com/aliyun/aliyun-datahub-sdk-go/datahub/types"
 )
 
 // Topic
 type Topic struct {
-	ProjectName    string           `json:"ProjectName"`
-	TopicName      string           `json:"TopicName"`
-	ShardCount     int              `json:"ShardCount"`
-	Lifecycle      int              `json:"Lifecycle"`
-	RecordType     types.RecordType `json:"RecordType"`
-	RecordSchema   *RecordSchema    `json:"RecordSchema"`
-	CreateTime     uint64           `json:"CreateTime"`
-	LastModifyTime uint64           `json:"LastModifyTime"`
-	Comment        string           `json:"Comment"`
+	ProjectName    string        `json:"ProjectName"`
+	TopicName      string        `json:"TopicName"`
+	ShardCount     int           `json:"ShardCount"`
+	Lifecycle      int           `json:"Lifecycle"`
+	RecordType     RecordType    `json:"RecordType"`
+	RecordSchema   *RecordSchema `json:"RecordSchema"`
+	CreateTime     uint64        `json:"CreateTime"`
+	LastModifyTime uint64        `json:"LastModifyTime"`
+	Comment        string        `json:"Comment"`
 }
 
 func (t *Topic) String() string {
@@ -46,7 +44,7 @@ func (t *Topic) RequestBodyEncode(method string) ([]byte, error) {
 	case http.MethodPost:
 		var reqMsg interface{}
 		switch t.RecordType {
-		case types.BLOB:
+		case BLOB:
 			reqMsg = struct {
 				Action     string `json:"Action"`
 				ShardCount int    `json:"ShardCount"`
@@ -60,7 +58,7 @@ func (t *Topic) RequestBodyEncode(method string) ([]byte, error) {
 				RecordType: t.RecordType.String(),
 				Comment:    t.Comment,
 			}
-		case types.TUPLE:
+		case TUPLE:
 			if t.RecordSchema == nil {
 				return nil, errors.New(fmt.Sprintf("tuple record type must be set record schema"))
 			}
@@ -109,8 +107,8 @@ func (t *Topic) ResponseBodyDecode(method string, body []byte) error {
 		t.CreateTime = respMsg.CreateTime
 		t.LastModifyTime = respMsg.LastModifyTime
 		t.Comment = respMsg.Comment
-		t.RecordType = types.RecordType(respMsg.RecordType)
-		if t.RecordType == types.TUPLE {
+		t.RecordType = RecordType(respMsg.RecordType)
+		if t.RecordType == TUPLE {
 			t.RecordSchema = &RecordSchema{}
 			err = json.Unmarshal([]byte(respMsg.RecordSchema), t.RecordSchema)
 			if err != nil {

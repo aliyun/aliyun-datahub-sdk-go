@@ -1,4 +1,4 @@
-package models
+package datahub
 
 import (
 	"encoding/base64"
@@ -6,14 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-
-	"github.com/aliyun/aliyun-datahub-sdk-go/datahub/types"
 )
 
 // Field
 type Field struct {
-	Name string          `json:"name"`
-	Type types.FieldType `json:"type"`
+	Name string    `json:"name"`
+	Type FieldType `json:"type"`
 }
 
 // RecordSchema
@@ -34,7 +32,7 @@ func NewRecordSchemaFromJson(SchemaJson string) (recordSchema *RecordSchema, err
 		return
 	}
 	for _, v := range recordSchema.Fields {
-		if !types.ValidateFieldType(v.Type) {
+		if !ValidateFieldType(v.Type) {
 			panic(fmt.Sprintf("field type %q illegal", v.Type))
 		}
 	}
@@ -48,7 +46,7 @@ func (rs *RecordSchema) String() string {
 
 // AddField add a field
 func (rs *RecordSchema) AddField(f Field) *RecordSchema {
-	if !types.ValidateFieldType(f.Type) {
+	if !ValidateFieldType(f.Type) {
 		panic(fmt.Sprintf("field type %q illegal", f.Type))
 	}
 	for _, v := range rs.Fields {
@@ -169,7 +167,7 @@ func (br *BlobRecord) SetAttribute(key string, val interface{}) {
 // TupleRecord tuple type record
 type TupleRecord struct {
 	RecordSchema *RecordSchema
-	Values       []types.DataType
+	Values       []DataType
 	BaseRecord
 }
 
@@ -178,7 +176,7 @@ func NewTupleRecord(schema *RecordSchema, systemTime uint64) *TupleRecord {
 	tr := &TupleRecord{}
 	if schema != nil {
 		tr.RecordSchema = schema
-		tr.Values = make([]types.DataType, schema.Size())
+		tr.Values = make([]DataType, schema.Size())
 	}
 	tr.Attributes = make(map[string]interface{})
 	tr.SystemTime = systemTime
@@ -191,7 +189,7 @@ func NewTupleRecord(schema *RecordSchema, systemTime uint64) *TupleRecord {
 func (tr *TupleRecord) String() string {
 	record := struct {
 		RecordSchema *RecordSchema          `json:"RecordSchema"`
-		Values       []types.DataType       `json:"Values"`
+		Values       []DataType             `json:"Values"`
 		Attributes   map[string]interface{} `json:"Attributes"`
 	}{
 		RecordSchema: tr.RecordSchema,
@@ -207,7 +205,7 @@ func (tr *TupleRecord) SetValueByIdx(idx int, val interface{}) *TupleRecord {
 	if idx < 0 || idx >= tr.RecordSchema.Size() {
 		panic(fmt.Sprintf("index[%d] out range", idx))
 	}
-	v, err := types.ValidateFieldValue(tr.RecordSchema.Fields[idx].Type, val)
+	v, err := ValidateFieldValue(tr.RecordSchema.Fields[idx].Type, val)
 	if err != nil {
 		panic(err)
 	}
@@ -221,17 +219,17 @@ func (tr *TupleRecord) SetValueByName(name string, val interface{}) *TupleRecord
 	return tr.SetValueByIdx(idx, val)
 }
 
-func (tr *TupleRecord) GetValueByIdx(idx int) types.DataType {
+func (tr *TupleRecord) GetValueByIdx(idx int) DataType {
 	return tr.Values[idx]
 }
 
-func (tr *TupleRecord) GetValueByName(name string) types.DataType {
+func (tr *TupleRecord) GetValueByName(name string) DataType {
 	idx := tr.RecordSchema.GetFieldIndex(name)
 	return tr.GetValueByIdx(idx)
 }
 
-func (tr *TupleRecord) GetValues() map[string]types.DataType {
-	values := make(map[string]types.DataType)
+func (tr *TupleRecord) GetValues() map[string]DataType {
+	values := make(map[string]DataType)
 	for i, f := range tr.RecordSchema.Fields {
 		values[f.Name] = tr.Values[i]
 	}
@@ -239,12 +237,12 @@ func (tr *TupleRecord) GetValues() map[string]types.DataType {
 }
 
 // SetValues batch set values
-func (tr *TupleRecord) SetValues(values []types.DataType) *TupleRecord {
+func (tr *TupleRecord) SetValues(values []DataType) *TupleRecord {
 	if fsize := tr.RecordSchema.Size(); fsize != len(values) {
 		panic(fmt.Sprintf("values size not match field size(field.size=%d, values.size=%d)", fsize, len(values)))
 	}
 	for idx, val := range values {
-		v, err := types.ValidateFieldValue(tr.RecordSchema.Fields[idx].Type, val)
+		v, err := ValidateFieldValue(tr.RecordSchema.Fields[idx].Type, val)
 		if err != nil {
 			panic(err)
 		}
@@ -267,7 +265,7 @@ func (tr *TupleRecord) FillData(data interface{}) error {
 			if !ok {
 				return errors.New(fmt.Sprintf("data value type[%T] illegal", v))
 			}
-			tv, err := types.CastValueFromString(s, tr.RecordSchema.Fields[idx].Type)
+			tv, err := CastValueFromString(s, tr.RecordSchema.Fields[idx].Type)
 			if err != nil {
 				return err
 			}

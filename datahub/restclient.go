@@ -1,4 +1,4 @@
-package rest
+package datahub
 
 import (
 	"bytes"
@@ -17,9 +17,6 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-
-	"github.com/aliyun/aliyun-datahub-sdk-go/datahub/account"
-	"github.com/aliyun/aliyun-datahub-sdk-go/datahub/version"
 )
 
 const (
@@ -89,7 +86,7 @@ func DefaultHttpClient() *http.Client {
 
 // DefaultUserAgent returns a default user agent
 func DefaultUserAgent() string {
-	return fmt.Sprintf("godatahub/%s golang/%s %s", version.DATAHUB_SDK_VERSION, runtime.Version(), runtime.GOOS)
+	return fmt.Sprintf("godatahub/%s golang/%s %s", DATAHUB_SDK_VERSION, runtime.Version(), runtime.GOOS)
 }
 
 // RestClient rest客户端
@@ -101,11 +98,11 @@ type RestClient struct {
 	// HttpClient http client
 	HttpClient *http.Client
 	// Account
-	Account account.Account
+	Account Account
 }
 
 // NewRestClient create a new rest client
-func NewRestClient(endpoint string, useragent string, httpclient *http.Client, account account.Account) *RestClient {
+func NewRestClient(endpoint string, useragent string, httpclient *http.Client, account Account) *RestClient {
 	if strings.HasSuffix(endpoint, "/") {
 		endpoint = endpoint[0 : len(endpoint)-1]
 	}
@@ -190,7 +187,7 @@ func (client *RestClient) request(method, resource string, model RestModel) erro
 		return err
 	}
 
-	req.Header.Add(DatahubHeadersPrefix+"client-version", version.DATAHUB_CLIENT_VERSION)
+	req.Header.Add(DatahubHeadersPrefix+"client-version", DATAHUB_CLIENT_VERSION)
 	req.Header.Add(HttpHeaderDate, time.Now().UTC().Format(http.TimeFormat))
 	req.Header.Add(HttpHeaderUserAgent, client.Useragent)
 	req.Header.Add(HttpHeaderContentType, "application/json")
