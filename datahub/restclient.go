@@ -25,6 +25,7 @@ const (
 	HttpHeaderContentType   = "Content-Type"
 	HttpHeaderContentLength = "Content-Length"
 	HttpHeaderAuthorization = "Authorization"
+	HttpHeaderSecurityToken = "x-datahub-security-token"
 )
 
 const (
@@ -191,6 +192,9 @@ func (client *RestClient) request(method, resource string, model RestModel) erro
 	req.Header.Add(HttpHeaderDate, time.Now().UTC().Format(http.TimeFormat))
 	req.Header.Add(HttpHeaderUserAgent, client.Useragent)
 	req.Header.Add(HttpHeaderContentType, "application/json")
+	if client.Account.GetSecurityToken() != "" {
+		req.Header.Add(HttpHeaderSecurityToken, client.Account.GetSecurityToken())
+	}
 	if len(reqBody) > 0 {
 		req.Header.Add(HttpHeaderContentLength, fmt.Sprintf("%d", len(reqBody)))
 	}

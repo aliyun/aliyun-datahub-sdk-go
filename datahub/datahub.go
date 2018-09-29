@@ -9,9 +9,15 @@ type DataHub struct {
 	Client *RestClient
 }
 
-func New(accessid, accesskey, endpoint string) *DataHub {
+func New(accessId, accessKey, endpoint string) *DataHub {
 	return &DataHub{
-		Client: NewRestClient(endpoint, DefaultUserAgent(), DefaultHttpClient(), NewAliyunAccount(accessid, accesskey)),
+		Client: NewRestClient(endpoint, DefaultUserAgent(), DefaultHttpClient(), NewAliyunAccount(accessId, accessKey)),
+	}
+}
+
+func NewClientWithConfig(endpoint string, config *Config, account Account) *DataHub {
+	return &DataHub{
+		Client: NewRestClient(endpoint, config.UserAgent, DefaultHttpClient(), account),
 	}
 }
 
