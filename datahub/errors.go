@@ -21,6 +21,7 @@ const (
 	NoSuchProject              = "NoSuchProject"
 	NoSuchTopic                = "NoSuchTopic"
 	NoSuchShard                = "NoSuchShard"
+	NoSuchSubscription         = "NoSuchSubscription"
 	ProjectAlreadyExist        = "ProjectAlreadyExist"
 	TopicAlreadyExist          = "TopicAlreadyExist"
 	MethodNotAllowed           = "MethodNotAllowed"
