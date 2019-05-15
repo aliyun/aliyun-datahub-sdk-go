@@ -7,7 +7,7 @@ To use the SDK, you’ll need [Go setup up on your computer](https://golang.org/
 ## Dependencies
 
 * go(>=1.7)
-* github.com/Sirupsen/logrus
+* github.com/sirupsen/logrus
 
 ## Installation
 
@@ -22,7 +22,7 @@ To use the SDK, you’ll need [Go setup up on your computer](https://golang.org/
 * Install Datahub Go SDK
 
 ```shell
-$ go get github.com/Sirupsen/logrus
+$ go get github.com/sirupsen/logrus
 $ go get -u -insecure github.com/aliyun/aliyun-datahub-sdk-go/datahub
 ```
 
