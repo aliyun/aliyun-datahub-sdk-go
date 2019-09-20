@@ -29,12 +29,12 @@ func list_projects_parsed_check() bool {
 	return true
 }
 
-func list_projects(dh *datahub.DataHub) error {
-	projects, err := dh.ListProjects()
+func list_projects(dh datahub.DataHub) error {
+	projects, err := dh.ListProject()
 	if err != nil {
 		return err
 	}
-	fmt.Println(projects)
+	fmt.Println(*projects)
 	return nil
 }
 
@@ -45,11 +45,11 @@ func get_project_parsed_check() bool {
 	return true
 }
 
-func get_project(dh *datahub.DataHub) error {
+func get_project(dh datahub.DataHub) error {
 	project, err := dh.GetProject(ProjectName)
 	if err != nil {
 		return err
 	}
-	fmt.Println(project)
+	fmt.Println(*project)
 	return nil
 }

@@ -6,47 +6,78 @@ To use the SDK, you’ll need [Go setup up on your computer](https://golang.org/
 
 ## Dependencies
 
-* go(>=1.7)
-* github.com/sirupsen/logrus
+- go(>=1.7)
+- github.com/sirupsen/logrus
 
 ## Installation
 
-* Install the Go Tools
-  * Download the lastest version from [here](https://golang.org/dl/)
+- Install the Go Tools
+  - Download the lastest version from [here](https://golang.org/dl/)
   
-    ```shell
-    tar -C /usr/local -xzf go$VERSION.$OS-$ARCH.tar.gz
-    ```
-  * Config your local GO workspace [reference](https://golang.org/doc/install#install), and you set the GOPATH environment variable equals your go workspace.
+  ```
+  tar -C /usr/local -xzf go$VERSION.$OS-$ARCH.tar.gz
+  ```
+  
+  - Config your local GO workspace [reference](https://golang.org/doc/install#install), and you set the GOPATH environment variable equals your go workspace.
 
-* Install Datahub Go SDK
+- Install Datahub Go SDK
 
-```shell
+```
 $ go get github.com/sirupsen/logrus
 $ go get -u -insecure github.com/aliyun/aliyun-datahub-sdk-go/datahub
 ```
 
-* Run Tests
+- Run Example Tests
 
-  * Modify [examples/examples.go](http://github.com/aliyun/aliyun-datahub-sdk-go/blob/master/examples/examples.go) and config your accessid, accesskey, endpoint, such as:
+  - Modify [examples.go](http://github.com/aliyun/aliyun-datahub-sdk-go/blob/master/examples/exampletest/example.go) and config your accessid, accesskey, endpoint, such as:
   
-    ```python
-	  accessid := "**your access id**"
-	  accesskey := "**your access key**"
-      endpoint := "**the datahub server endpoint**"
-	  project_name := "**your project name**"
-    ```
+  ```
+  accessid := "**your access id**"
+  accesskey := "**your access key**"
+  endpoint := "**the datahub server endpoint**"
+  project_name := "**your project name**"
+  ```
 
-  * Build and Run Tests
- 
-    ``` shell
-    $ go install github.com/aliyun/aliyun-datahub-sdk-go/examples/datahubcmd
-    $ $GOPATH/bin/examples
-    ```
+  - Build and Run Tests
+  
+  ```
+  $ go install github.com/aliyun/aliyun-datahub-sdk-go/examples/datahubcmd  
+  $ $GOPATH/bin/examples
+  ```
+
 
 ## More Detail Examples
 
-* [DatahubCmd](http://github.com/aliyun/aliyun-datahub-sdk-go/tree/master/examples/datahubcmd)
+- [datahubcmd](http://github.com/aliyun/aliyun-datahub-sdk-go/tree/master/examples/datahubcmd)
+    
+    datahubcmd provides a command line runtime tool.
+    
+    ```
+    $ cd datahubcmd
+    $ go build *
+    $ # print usage
+    $ ./maincmd
+    $ # list project
+    $ go run maincmd.go project.go  -endpoint <your endpoint> -accessid <your accessid> -accesskey <your accesskey> subcmd lp
+    ```   
+     
+- [detailed example](http://github.com/aliyun/aliyun-datahub-sdk-go/tree/master/examples)
+    - if your want run project example,modify the project related parameters in [constant.go](http://github.com/aliyun/aliyun-datahub-sdk-go/tree/master/examples/constant.go)
+    
+    ```
+    accessId      = "**your access id**"  
+    accessKey     = "**your access key**"
+    endpoint      = "**the datahub server endpoint**"
+    projectName   = "**your project name**"
+    ```
+    
+    - run example
+    
+        You can run directly with```go run constant.go project.go```,or run after build.
+    
+    - if your want run other example,you should modify the related parameter,for example,you want run topic example,you should modify the ```topicName``` and ```blobTopicName```,and ensure the project already exits ,and run ```go run constant.go topic.go``` 
+
+## [more Instructions](http://github.com/aliyun/aliyun-datahub-sdk-go/tree/master/Instructions.md)
 
 ## Contributing
 
