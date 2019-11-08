@@ -43,7 +43,7 @@ func put_records_parsed_check() bool {
     return true
 }
 
-func put_records(dh datahub.DataHub) error {
+func put_records(dh datahub.DataHubApi) error {
     topic, err := dh.GetTopic(TopicName, ProjectName)
     if err != nil {
         return err
@@ -114,7 +114,7 @@ func get_records_parsed_check() bool {
     return true
 }
 
-func get_records(dh datahub.DataHub) error {
+func get_records(dh datahub.DataHubApi) error {
     topic, err := dh.GetTopic(ProjectName, TopicName)
     if err != nil {
         return err
@@ -129,7 +129,7 @@ func get_records(dh datahub.DataHub) error {
     quit := make(chan int)
 
     // productor goroutine
-    go func(dh datahub.DataHub, projectName, topicName, shardId, cursor string, schema *datahub.RecordSchema) {
+    go func(dh datahub.DataHubApi, projectName, topicName, shardId, cursor string, schema *datahub.RecordSchema) {
         for {
             result, err := dh.GetTupleRecords(projectName, topicName, shardId, cursor, 10, schema)
             //result, err := dh.GetRecords(topic, shardId, cursor, 10)

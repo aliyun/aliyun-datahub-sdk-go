@@ -2,6 +2,7 @@ package main
 
 import (
     "fmt"
+    "github.com/shopspring/decimal"
     "github.com/aliyun/aliyun-datahub-sdk-go/datahub"
     "reflect"
     "time"
@@ -9,11 +10,7 @@ import (
 
 
 func main() {
-    config := &datahub.Config{
-        EnableBinary:false,
-    }
-    //dh = datahub.New(accessId, accessKey, endpoint)
-    dh = datahub.NewClientWithConfig(accessId,accessKey,endpoint,config)
+    dh = datahub.New(accessId, accessKey, endpoint)
     //getBlobData()
     //putBlobData()
 
@@ -154,25 +151,39 @@ func putTupleData() {
     }
     fmt.Println("get topic successful")
 
+
     records := make([]datahub.IRecord, 3)
     record1 := datahub.NewTupleRecord(topic.RecordSchema, 0)
     record1.ShardId = "0"
-    record1.SetValueByName("field1", "TEST1")
-    record1.SetValueByName("field2", 1)
-    //you can add some attributes when put record
-    record1.SetAttribute("attribute", "test attribute")
+    record1.SetValueByName("bigint_field", 1)
+    record1.SetValueByName("timestamp_field", time.Now().UnixNano()/1000000)
+    record1.SetValueByName("string_field", "Test1")
+    record1.SetValueByName("double_field", 1.1111)
+    record1.SetValueByName("boolean_field", true)
+    record1.SetValueByName("decimal_field", decimal.NewFromFloat32(-13.1415926))
+
+    // you can add some attributes when put record
+    record1.SetAttribute("attribute", "Test attribute")
     records[0] = record1
 
     record2 := datahub.NewTupleRecord(topic.RecordSchema, 0)
     record2.ShardId = "1"
-    record2.SetValueByName("field1", datahub.String("TEST2"))
-    record2.SetValueByName("field2", datahub.Bigint(2))
+    record2.SetValueByName("bigint_field", 2)
+    record2.SetValueByName("timestamp_field", time.Now().UnixNano()/1000000)
+    record2.SetValueByName("string_field", "Test2")
+    record2.SetValueByName("double_field", 2.2222)
+    record2.SetValueByName("boolean_field", true)
+    record2.SetValueByName("decimal_field", decimal.NewFromFloat32(-23.1415926))
     records[1] = record2
 
     record3 := datahub.NewTupleRecord(topic.RecordSchema, 0)
     record3.ShardId = "2"
-    record3.SetValueByName("field1", datahub.String("TEST3"))
-    record3.SetValueByName("field2", datahub.Bigint(3))
+    record3.SetValueByName("bigint_field", 3)
+    record3.SetValueByName("timestamp_field", time.Now().UnixNano()/1000000)
+    record3.SetValueByName("string_field", "Test3")
+    record3.SetValueByName("double_field", 3.3333)
+    record3.SetValueByName("boolean_field", true)
+    record3.SetValueByName("decimal_field", decimal.NewFromFloat32(-33.1415926))
     records[2] = record3
 
     maxReTry := 3

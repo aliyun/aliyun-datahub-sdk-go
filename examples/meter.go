@@ -7,9 +7,10 @@ import (
 
 func main() {
     dh = datahub.New(accessId, accessKey, endpoint)
+    meter()
 }
 
-func meter(dh datahub.DataHub, projectName, topicName string) {
+func meter() {
     shardId := "0"
     gmi, err := dh.GetMeterInfo(projectName, topicName, shardId)
     if err != nil {

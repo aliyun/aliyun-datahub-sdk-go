@@ -8,12 +8,12 @@ import (
     "time"
 )
 
-type DataHubJson struct {
+type DataHub struct {
     Client *RestClient
 }
 
 // ListProjects list all projects
-func (datahub *DataHubJson) ListProject() (*ListProjectResult, error) {
+func (datahub *DataHub) ListProject() (*ListProjectResult, error) {
     path := projectsPath
     responseBody, err := datahub.Client.Get(path)
     if err != nil {
@@ -23,7 +23,7 @@ func (datahub *DataHubJson) ListProject() (*ListProjectResult, error) {
 }
 
 // CreateProject create new project
-func (datahub *DataHubJson) CreateProject(projectName, comment string) error {
+func (datahub *DataHub) CreateProject(projectName, comment string) error {
     if !util.CheckProjectName(projectName) {
         return NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -42,7 +42,7 @@ func (datahub *DataHubJson) CreateProject(projectName, comment string) error {
 }
 
 // UpdateProject update project
-func (datahub *DataHubJson) UpdateProject(projectName, comment string) error {
+func (datahub *DataHub) UpdateProject(projectName, comment string) error {
     if !util.CheckProjectName(projectName) {
         return NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -61,7 +61,7 @@ func (datahub *DataHubJson) UpdateProject(projectName, comment string) error {
 }
 
 // DeleteProject delete project
-func (datahub *DataHubJson) DeleteProject(projectName string) error {
+func (datahub *DataHub) DeleteProject(projectName string) error {
     if !util.CheckProjectName(projectName) {
         return NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -74,7 +74,7 @@ func (datahub *DataHubJson) DeleteProject(projectName string) error {
 }
 
 // GetProject get a project deatil named the given name
-func (datahub *DataHubJson) GetProject(projectName string) (*GetProjectResult, error) {
+func (datahub *DataHub) GetProject(projectName string) (*GetProjectResult, error) {
     if !util.CheckProjectName(projectName) {
         return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -84,14 +84,22 @@ func (datahub *DataHubJson) GetProject(projectName string) (*GetProjectResult, e
     if err != nil {
         return nil, err
     }
-    return NewGetProjectResult(respBody)
+
+    result, err := NewGetProjectResult(respBody)
+    if err != nil {
+        return nil, err
+    }
+
+    result.ProjectName = projectName
+    return result, nil
+
 }
 
-func (datahub *DataHubJson) WaitAllShardsReady(projectName, topicName string) bool {
+func (datahub *DataHub) WaitAllShardsReady(projectName, topicName string) bool {
     return datahub.WaitAllShardsReadyWithTime(projectName, topicName, minWaitingTimeInMs/1000)
 }
 
-func (datahub *DataHubJson) WaitAllShardsReadyWithTime(projectName, topicName string, timeout int64) bool {
+func (datahub *DataHub) WaitAllShardsReadyWithTime(projectName, topicName string, timeout int64) bool {
     ready := make(chan bool)
     if timeout > 0 {
         go func(timeout int64) {
@@ -99,7 +107,7 @@ func (datahub *DataHubJson) WaitAllShardsReadyWithTime(projectName, topicName st
             ready <- false
         }(timeout)
     }
-    go func(datahub DataHub) {
+    go func(datahub DataHubApi) {
         for {
             ls, err := datahub.ListShard(projectName, topicName)
             shards := ls.Shards
@@ -126,7 +134,7 @@ func (datahub *DataHubJson) WaitAllShardsReadyWithTime(projectName, topicName st
     return <-ready
 }
 
-func (datahub *DataHubJson) CreateBlobTopic(projectName, topicName, comment string, shardCount, lifeCycle int) error {
+func (datahub *DataHub) CreateBlobTopic(projectName, topicName, comment string, shardCount, lifeCycle int) error {
     if !util.CheckProjectName(projectName) {
         return NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -152,7 +160,7 @@ func (datahub *DataHubJson) CreateBlobTopic(projectName, topicName, comment stri
     return nil
 }
 
-func (datahub *DataHubJson) CreateTupleTopic(projectName, topicName, comment string, shardCount, lifeCycle int, recordSchema *RecordSchema) error {
+func (datahub *DataHub) CreateTupleTopic(projectName, topicName, comment string, shardCount, lifeCycle int, recordSchema *RecordSchema) error {
     if !util.CheckProjectName(projectName) {
         return NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -181,7 +189,7 @@ func (datahub *DataHubJson) CreateTupleTopic(projectName, topicName, comment str
     return nil
 }
 
-func (datahub *DataHubJson) UpdateTopic(projectName, topicName, comment string) error {
+func (datahub *DataHub) UpdateTopic(projectName, topicName, comment string) error {
     if !util.CheckProjectName(projectName) {
         return NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -203,7 +211,7 @@ func (datahub *DataHubJson) UpdateTopic(projectName, topicName, comment string) 
     return nil
 }
 
-func (datahub *DataHubJson) GetTopic(projectName, topicName string) (*GetTopicResult, error) {
+func (datahub *DataHub) GetTopic(projectName, topicName string) (*GetTopicResult, error) {
     if !util.CheckProjectName(projectName) {
         return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -216,10 +224,17 @@ func (datahub *DataHubJson) GetTopic(projectName, topicName string) (*GetTopicRe
     if err != nil {
         return nil, err
     }
-    return NewGetTopicResult(respBody)
+    result, err := NewGetTopicResult(respBody)
+
+    if err != nil {
+        return nil, err
+    }
+    result.ProjectName = projectName
+    result.TopicName = topicName
+    return result, nil
 }
 
-func (datahub *DataHubJson) DeleteTopic(projectName, topicName string) error {
+func (datahub *DataHub) DeleteTopic(projectName, topicName string) error {
     if !util.CheckProjectName(projectName) {
         return NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -233,7 +248,7 @@ func (datahub *DataHubJson) DeleteTopic(projectName, topicName string) error {
     return nil
 }
 
-func (datahub *DataHubJson) ListTopic(projectName string) (*ListTopicResult, error) {
+func (datahub *DataHub) ListTopic(projectName string) (*ListTopicResult, error) {
     if !util.CheckProjectName(projectName) {
         return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -246,7 +261,7 @@ func (datahub *DataHubJson) ListTopic(projectName string) (*ListTopicResult, err
     return NewListTopicResult(respBody)
 }
 
-func (datahub *DataHubJson) ListShard(projectName, topicName string) (*ListShardResult, error) {
+func (datahub *DataHub) ListShard(projectName, topicName string) (*ListShardResult, error) {
     if !util.CheckProjectName(projectName) {
         return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -262,7 +277,7 @@ func (datahub *DataHubJson) ListShard(projectName, topicName string) (*ListShard
     return NewListShardResult(respBody)
 }
 
-func (datahub *DataHubJson) SplitShard(projectName, topicName, shardId string) (*SplitShardResult, error) {
+func (datahub *DataHub) SplitShard(projectName, topicName, shardId string) (*SplitShardResult, error) {
     if !util.CheckProjectName(projectName) {
         return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -293,7 +308,7 @@ func (datahub *DataHubJson) SplitShard(projectName, topicName, shardId string) (
 
 }
 
-func (datahub *DataHubJson) SplitShardBySplitKey(projectName, topicName, shardId, splitKey string) (*SplitShardResult, error) {
+func (datahub *DataHub) SplitShardBySplitKey(projectName, topicName, shardId, splitKey string) (*SplitShardResult, error) {
     if !util.CheckProjectName(projectName) {
         return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -319,7 +334,7 @@ func (datahub *DataHubJson) SplitShardBySplitKey(projectName, topicName, shardId
     return NewSplitShardResult(respBody)
 }
 
-func (datahub *DataHubJson) MergeShard(projectName, topicName, shardId, adjacentShardId string) (*MergeShardResult, error) {
+func (datahub *DataHub) MergeShard(projectName, topicName, shardId, adjacentShardId string) (*MergeShardResult, error) {
     if !util.CheckProjectName(projectName) {
         return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -346,7 +361,7 @@ func (datahub *DataHubJson) MergeShard(projectName, topicName, shardId, adjacent
 
 }
 
-func (datahub *DataHubJson) GetCursor(projectName, topicName, shardId string, ctype CursorType, param ...int64) (*GetCursorResult, error) {
+func (datahub *DataHub) GetCursor(projectName, topicName, shardId string, ctype CursorType, param ...int64) (*GetCursorResult, error) {
     if !util.CheckProjectName(projectName) {
         return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -389,7 +404,7 @@ func (datahub *DataHubJson) GetCursor(projectName, topicName, shardId string, ct
     }
     return NewGetCursorResult(respBody)
 }
-func (datahub *DataHubJson) PutRecords(projectName, topicName string, records []IRecord) (*PutRecordsResult, error) {
+func (datahub *DataHub) PutRecords(projectName, topicName string, records []IRecord) (*PutRecordsResult, error) {
     if !util.CheckProjectName(projectName) {
         return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -409,11 +424,11 @@ func (datahub *DataHubJson) PutRecords(projectName, topicName string, records []
     return NewPutRecordsResult(respBody)
 }
 
-func (datahub *DataHubJson) PutRecordsByShard(projectName, topicName, shardId string, records []IRecord) error {
+func (datahub *DataHub) PutRecordsByShard(projectName, topicName, shardId string, records []IRecord) error {
     return errors.New("not support this method")
 }
 
-func (datahub *DataHubJson) GetTupleRecords(projectName, topicName, shardId, cursor string, limit int, recordSchema *RecordSchema) (*GetRecordsResult, error) {
+func (datahub *DataHub) GetTupleRecords(projectName, topicName, shardId, cursor string, limit int, recordSchema *RecordSchema) (*GetRecordsResult, error) {
     if !util.CheckProjectName(projectName) {
         return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -437,7 +452,7 @@ func (datahub *DataHubJson) GetTupleRecords(projectName, topicName, shardId, cur
     return NewGetRecordsResult(respBody, recordSchema)
 }
 
-func (datahub *DataHubJson) GetBlobRecords(projectName, topicName, shardId, cursor string, limit int) (*GetRecordsResult, error) {
+func (datahub *DataHub) GetBlobRecords(projectName, topicName, shardId, cursor string, limit int) (*GetRecordsResult, error) {
     if !util.CheckProjectName(projectName) {
         return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -461,7 +476,7 @@ func (datahub *DataHubJson) GetBlobRecords(projectName, topicName, shardId, curs
     return NewGetRecordsResult(respBody, nil)
 }
 
-func (datahub *DataHubJson) AppendField(projectName, topicName string, field Field) error {
+func (datahub *DataHub) AppendField(projectName, topicName string, field Field) error {
     if !util.CheckProjectName(projectName) {
         return NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -483,7 +498,7 @@ func (datahub *DataHubJson) AppendField(projectName, topicName string, field Fie
 
 }
 
-func (datahub *DataHubJson) GetMeterInfo(projectName, topicName, shardId string) (*GetMeterInfoResult, error) {
+func (datahub *DataHub) GetMeterInfo(projectName, topicName, shardId string) (*GetMeterInfoResult, error) {
     if !util.CheckProjectName(projectName) {
         return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -505,7 +520,7 @@ func (datahub *DataHubJson) GetMeterInfo(projectName, topicName, shardId string)
     return NewGetMeterInfoResult(respBody)
 }
 
-func (datahub *DataHubJson) CreateConnector(projectName, topicName string, cType ConnectorType, columnFields []string, config interface{}) (*CreateConnectorResult, error) {
+func (datahub *DataHub) CreateConnector(projectName, topicName string, cType ConnectorType, columnFields []string, config interface{}) (*CreateConnectorResult, error) {
     if !util.CheckProjectName(projectName) {
         return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -530,7 +545,7 @@ func (datahub *DataHubJson) CreateConnector(projectName, topicName string, cType
     return NewCreateConnectorResult(respBody)
 }
 
-func (datahub *DataHubJson) GetConnector(projectName, topicName, connectorId string) (*GetConnectorResult, error) {
+func (datahub *DataHub) GetConnector(projectName, topicName, connectorId string) (*GetConnectorResult, error) {
     if !util.CheckProjectName(projectName) {
         return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -546,7 +561,7 @@ func (datahub *DataHubJson) GetConnector(projectName, topicName, connectorId str
     return NewGetConnectorResult(respBody)
 }
 
-func (datahub *DataHubJson) UpdateConnector(projectName, topicName, connectorId string, config interface{}) error {
+func (datahub *DataHub) UpdateConnector(projectName, topicName, connectorId string, config interface{}) error {
     if !util.CheckProjectName(projectName) {
         return NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -566,7 +581,7 @@ func (datahub *DataHubJson) UpdateConnector(projectName, topicName, connectorId 
     return nil
 }
 
-func (datahub *DataHubJson) ListConnector(projectName, topicName string) (*ListConnectorResult, error) {
+func (datahub *DataHub) ListConnector(projectName, topicName string) (*ListConnectorResult, error) {
     if !util.CheckProjectName(projectName) {
         return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -582,7 +597,7 @@ func (datahub *DataHubJson) ListConnector(projectName, topicName string) (*ListC
     return NewListConnectorResult(respBody)
 }
 
-func (datahub *DataHubJson) DeleteConnector(projectName, topicName, connectorId string) error {
+func (datahub *DataHub) DeleteConnector(projectName, topicName, connectorId string) error {
     if !util.CheckProjectName(projectName) {
         return NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -597,7 +612,7 @@ func (datahub *DataHubJson) DeleteConnector(projectName, topicName, connectorId 
     return nil
 }
 
-func (datahub *DataHubJson) GetConnectorDoneTime(projectName, topicName, connectorId string) (*GetConnectorDoneTimeResult, error) {
+func (datahub *DataHub) GetConnectorDoneTime(projectName, topicName, connectorId string) (*GetConnectorDoneTimeResult, error) {
     if !util.CheckProjectName(projectName) {
         return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -613,7 +628,7 @@ func (datahub *DataHubJson) GetConnectorDoneTime(projectName, topicName, connect
     return NewGetConnectorDoneTimeResult(respBody)
 }
 
-func (datahub *DataHubJson) ReloadConnector(projectName, topicName, connectorId string) error {
+func (datahub *DataHub) ReloadConnector(projectName, topicName, connectorId string) error {
     if !util.CheckProjectName(projectName) {
         return NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -631,7 +646,7 @@ func (datahub *DataHubJson) ReloadConnector(projectName, topicName, connectorId 
     return nil
 }
 
-func (datahub *DataHubJson) ReloadConnectorByShard(projectName, topicName, connectorId, shardId string) error {
+func (datahub *DataHub) ReloadConnectorByShard(projectName, topicName, connectorId, shardId string) error {
     if !util.CheckProjectName(projectName) {
         return NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -653,7 +668,7 @@ func (datahub *DataHubJson) ReloadConnectorByShard(projectName, topicName, conne
     return nil
 }
 
-func (datahub *DataHubJson) UpdateConnectorState(projectName, topicName, connectorId string, state ConnectorState) error {
+func (datahub *DataHub) UpdateConnectorState(projectName, topicName, connectorId string, state ConnectorState) error {
     if !util.CheckProjectName(projectName) {
         return NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -675,7 +690,7 @@ func (datahub *DataHubJson) UpdateConnectorState(projectName, topicName, connect
     return nil
 }
 
-func (datahub *DataHubJson) UpdateConnectorOffset(projectName, topicName, connectorId, shardId string, offset ConnectorOffset) error {
+func (datahub *DataHub) UpdateConnectorOffset(projectName, topicName, connectorId, shardId string, offset ConnectorOffset) error {
     if !util.CheckProjectName(projectName) {
         return NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -700,7 +715,7 @@ func (datahub *DataHubJson) UpdateConnectorOffset(projectName, topicName, connec
     return nil
 }
 
-func (datahub *DataHubJson) GetConnectorShardStatus(projectName, topicName, connectorId string) (*GetConnectorShardStatusResult, error) {
+func (datahub *DataHub) GetConnectorShardStatus(projectName, topicName, connectorId string) (*GetConnectorShardStatusResult, error) {
     if !util.CheckProjectName(projectName) {
         return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -719,7 +734,7 @@ func (datahub *DataHubJson) GetConnectorShardStatus(projectName, topicName, conn
     return NewGetConnectorShardStatusResult(respBody)
 }
 
-func (datahub *DataHubJson) GetConnectorShardStatusByShard(projectName, topicName, connectorId, shardId string) (*ConnectorShardStatusEntry, error) {
+func (datahub *DataHub) GetConnectorShardStatusByShard(projectName, topicName, connectorId, shardId string) (*ConnectorShardStatusEntry, error) {
     if !util.CheckProjectName(projectName) {
         return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -746,7 +761,7 @@ func (datahub *DataHubJson) GetConnectorShardStatusByShard(projectName, topicNam
     return csse, nil
 }
 
-func (datahub *DataHubJson) AppendConnectorField(projectName, topicName, connectorId, fieldName string) error {
+func (datahub *DataHub) AppendConnectorField(projectName, topicName, connectorId, fieldName string) error {
     if !util.CheckProjectName(projectName) {
         return NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -765,7 +780,7 @@ func (datahub *DataHubJson) AppendConnectorField(projectName, topicName, connect
     return nil
 }
 
-func (datahub *DataHubJson) CreateSubscription(projectName, topicName, comment string) (*CreateSubscriptionResult, error) {
+func (datahub *DataHub) CreateSubscription(projectName, topicName, comment string) (*CreateSubscriptionResult, error) {
     if !util.CheckProjectName(projectName) {
         return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -788,7 +803,7 @@ func (datahub *DataHubJson) CreateSubscription(projectName, topicName, comment s
     return NewCreateSubscriptionResult(respBody)
 }
 
-func (datahub *DataHubJson) GetSubscription(projectName, topicName, subId string) (*GetSubscriptionResult, error) {
+func (datahub *DataHub) GetSubscription(projectName, topicName, subId string) (*GetSubscriptionResult, error) {
     if !util.CheckProjectName(projectName) {
         return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -804,7 +819,7 @@ func (datahub *DataHubJson) GetSubscription(projectName, topicName, subId string
     return NewGetSubscriptionResult(respBody)
 }
 
-func (datahub *DataHubJson) DeleteSubscription(projectName, topicName, subId string) error {
+func (datahub *DataHub) DeleteSubscription(projectName, topicName, subId string) error {
     if !util.CheckProjectName(projectName) {
         return NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -819,7 +834,7 @@ func (datahub *DataHubJson) DeleteSubscription(projectName, topicName, subId str
     return nil
 }
 
-func (datahub *DataHubJson) ListSubscription(projectName, topicName string, pageIndex, pageSize int) (*ListSubscriptionResult, error) {
+func (datahub *DataHub) ListSubscription(projectName, topicName string, pageIndex, pageSize int) (*ListSubscriptionResult, error) {
     if !util.CheckProjectName(projectName) {
         return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -840,7 +855,7 @@ func (datahub *DataHubJson) ListSubscription(projectName, topicName string, page
     return NewListSubscriptionResult(respBody)
 }
 
-func (datahub *DataHubJson) UpdateSubscription(projectName, topicName, subId, comment string) error {
+func (datahub *DataHub) UpdateSubscription(projectName, topicName, subId, comment string) error {
     if !util.CheckProjectName(projectName) {
         return NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -861,7 +876,7 @@ func (datahub *DataHubJson) UpdateSubscription(projectName, topicName, subId, co
     return nil
 }
 
-func (datahub *DataHubJson) UpdateSubscriptionState(projectName, topicName, subId string, state SubscriptionState) error {
+func (datahub *DataHub) UpdateSubscriptionState(projectName, topicName, subId string, state SubscriptionState) error {
     if !util.CheckProjectName(projectName) {
         return NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -879,7 +894,7 @@ func (datahub *DataHubJson) UpdateSubscriptionState(projectName, topicName, subI
     return nil
 }
 
-func (datahub *DataHubJson) OpenSubscriptionSession(projectName, topicName, subId string, shardIds []string) (*OpenSubscriptionSessionResult, error) {
+func (datahub *DataHub) OpenSubscriptionSession(projectName, topicName, subId string, shardIds []string) (*OpenSubscriptionSessionResult, error) {
     if !util.CheckProjectName(projectName) {
         return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -904,7 +919,7 @@ func (datahub *DataHubJson) OpenSubscriptionSession(projectName, topicName, subI
     return NewOpenSubscriptionSessionResult(respBody)
 }
 
-func (datahub *DataHubJson) GetSubscriptionOffset(projectName, topicName, subId string, shardIds []string) (*GetSubscriptionOffsetResult, error) {
+func (datahub *DataHub) GetSubscriptionOffset(projectName, topicName, subId string, shardIds []string) (*GetSubscriptionOffsetResult, error) {
     if !util.CheckProjectName(projectName) {
         return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -929,7 +944,7 @@ func (datahub *DataHubJson) GetSubscriptionOffset(projectName, topicName, subId 
     return NewGetSubscriptionOffsetResult(respBody)
 }
 
-func (datahub *DataHubJson) CommitSubscriptionOffset(projectName, topicName, subId string, offsets map[string]SubscriptionOffset) error {
+func (datahub *DataHub) CommitSubscriptionOffset(projectName, topicName, subId string, offsets map[string]SubscriptionOffset) error {
     if !util.CheckProjectName(projectName) {
         return NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -948,7 +963,7 @@ func (datahub *DataHubJson) CommitSubscriptionOffset(projectName, topicName, sub
     return nil
 }
 
-func (datahub *DataHubJson) ResetSubscriptionOffset(projectName, topicName, subId string, offsets map[string]SubscriptionOffset) error {
+func (datahub *DataHub) ResetSubscriptionOffset(projectName, topicName, subId string, offsets map[string]SubscriptionOffset) error {
     if !util.CheckProjectName(projectName) {
         return NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -967,7 +982,7 @@ func (datahub *DataHubJson) ResetSubscriptionOffset(projectName, topicName, subI
     return nil
 }
 
-func (datahub *DataHubJson) Heartbeat(projectName, topicName, consumerGroup, consumerId string, versionId int64, holdShardList, readEndShardList []string) (*HeartbeatResult, error) {
+func (datahub *DataHub) Heartbeat(projectName, topicName, consumerGroup, consumerId string, versionId int64, holdShardList, readEndShardList []string) (*HeartbeatResult, error) {
     if !util.CheckProjectName(projectName) {
         return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -1000,7 +1015,7 @@ func (datahub *DataHubJson) Heartbeat(projectName, topicName, consumerGroup, con
     return NewHeartbeatResult(respBody)
 }
 
-func (datahub *DataHubJson) JoinGroup(projectName, topicName, consumerGroup string, sessionTimeout int64) (*JoinGroupResult, error) {
+func (datahub *DataHub) JoinGroup(projectName, topicName, consumerGroup string, sessionTimeout int64) (*JoinGroupResult, error) {
     if !util.CheckProjectName(projectName) {
         return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -1020,7 +1035,7 @@ func (datahub *DataHubJson) JoinGroup(projectName, topicName, consumerGroup stri
     return NewJoinGroupResult(respBody)
 
 }
-func (datahub *DataHubJson) SyncGroup(projectName, topicName, consumerGroup, consumerId string, versionId int64, releaseShardList, readEndShardList []string) error {
+func (datahub *DataHub) SyncGroup(projectName, topicName, consumerGroup, consumerId string, versionId int64, releaseShardList, readEndShardList []string) error {
     if !util.CheckProjectName(projectName) {
         return NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -1054,7 +1069,7 @@ func (datahub *DataHubJson) SyncGroup(projectName, topicName, consumerGroup, con
     }
     return nil
 }
-func (datahub *DataHubJson) LeaveGroup(projectName, topicName, consumerGroup, consumerId string, versionId int64) error {
+func (datahub *DataHub) LeaveGroup(projectName, topicName, consumerGroup, consumerId string, versionId int64) error {
     if !util.CheckProjectName(projectName) {
         return NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -1076,7 +1091,7 @@ func (datahub *DataHubJson) LeaveGroup(projectName, topicName, consumerGroup, co
 }
 
 type DataHubPB struct {
-    DataHubJson
+    DataHub
 }
 
 func (datahub *DataHubPB) PutRecords(projectName, topicName string, records []IRecord) (*PutRecordsResult, error) {

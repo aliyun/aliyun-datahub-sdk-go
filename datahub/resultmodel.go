@@ -56,6 +56,7 @@ func NewListProjectResult(data []byte) (*ListProjectResult, error) {
 
 // the result of GetProject
 type GetProjectResult struct {
+    ProjectName    string
     CreateTime     int64  `json:"CreateTime"`
     LastModifyTime int64  `json:"LastModifyTime"`
     Comment        string `json"Comment"`
@@ -83,8 +84,8 @@ func NewListTopicResult(data []byte) (*ListTopicResult, error) {
 }
 
 type GetTopicResult struct {
-    //ProjectName string
-    //TopicName   string
+    ProjectName    string
+    TopicName      string
     ShardCount     int           `json:"ShardCount"`
     LifeCycle      int           `json:"LifeCycle"`
     RecordType     RecordType    `json:"RecordType"`
@@ -207,7 +208,6 @@ func NewPutPBRecordsResult(data []byte) (*PutRecordsResult, error) {
     if err != nil {
         return nil, err
     }
-    fmt.Println(data)
     prr := &pbmodel.PutRecordsResponse{}
     if err := proto.Unmarshal(data, prr); err != nil {
         return nil, err

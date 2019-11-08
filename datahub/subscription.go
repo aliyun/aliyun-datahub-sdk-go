@@ -7,8 +7,8 @@ type SubscriptionEntry struct {
     Type           SubscriptionType  `json:"Type"`
     State          SubscriptionState `json:"State,omitempty"`
     Comment        string            `json:"Comment,omitempty"`
-    CreateTime     uint64            `json:"CreateTime"`
-    LastModifyTime uint64            `json:"LastModifyTime"`
+    CreateTime     int64             `json:"CreateTime"`
+    LastModifyTime int64             `json:"LastModifyTime"`
 }
 
 type SubscriptionOffset struct {

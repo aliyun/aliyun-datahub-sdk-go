@@ -19,7 +19,7 @@ type ShardEntry struct {
     Address        string     `json:"Address"`
 }
 
-func generateSpliteKey(projectName, topicName, shardId string, datahub DataHub) (string, error) {
+func generateSpliteKey(projectName, topicName, shardId string, datahub DataHubApi) (string, error) {
     ls, err := datahub.ListShard(projectName, topicName)
     if err != nil {
         return "", err

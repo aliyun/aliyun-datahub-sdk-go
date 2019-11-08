@@ -1,4 +1,4 @@
-package exampletest
+package main
 
 import (
     "fmt"
@@ -7,7 +7,7 @@ import (
     "github.com/aliyun/aliyun-datahub-sdk-go/datahub"
 )
 
-func listProjects(dh datahub.DataHub) {
+func listProjects(dh datahub.DataHubApi) {
     projects, err := dh.ListProject()
     if err != nil {
         fmt.Println(err)
@@ -16,7 +16,7 @@ func listProjects(dh datahub.DataHub) {
     fmt.Println(projects)
 }
 
-func getProject(name string, dh datahub.DataHub) {
+func getProject(name string, dh datahub.DataHubApi) {
     project, err := dh.GetProject(name)
     if err != nil {
         fmt.Println(err)
@@ -26,18 +26,18 @@ func getProject(name string, dh datahub.DataHub) {
     fmt.Println("last modify time  ", project.LastModifyTime)
 }
 
-func createProject(projectName, comment string, dh datahub.DataHub) {
+func createProject(projectName, comment string, dh datahub.DataHubApi) {
     if err := dh.CreateProject(projectName, comment); err != nil {
         fmt.Println(err.Error())
         return
     }
 }
 
-func updateProject(projectName, comment string, dh datahub.DataHub) {
+func updateProject(projectName, comment string, dh datahub.DataHubApi) {
     dh.UpdateProject(projectName, comment)
 }
 
-func deleteProject(projectName string, dh datahub.DataHub) {
+func deleteProject(projectName string, dh datahub.DataHubApi) {
     if err := dh.DeleteProject(projectName); err != nil {
         fmt.Println(err.Error())
     }
@@ -45,7 +45,7 @@ func deleteProject(projectName string, dh datahub.DataHub) {
 
 }
 
-func createTupleTopic(projectName, topicName string, dh datahub.DataHub) {
+func createTupleTopic(projectName, topicName string, dh datahub.DataHubApi) {
     recordSchema := datahub.NewRecordSchema()
     recordSchema.AddField(datahub.Field{Name: "bigint_field", Type: datahub.BIGINT}).
         AddField(datahub.Field{Name: "timestamp_field", Type: datahub.TIMESTAMP}).
@@ -63,7 +63,7 @@ func createTupleTopic(projectName, topicName string, dh datahub.DataHub) {
     }
 }
 
-func createBlobTopic(projectName, topicName string, dh datahub.DataHub) {
+func createBlobTopic(projectName, topicName string, dh datahub.DataHubApi) {
     err := dh.CreateBlobTopic(projectName, topicName, "go sdk test topic", 3, 7)
     if err != nil {
         fmt.Println(err)
@@ -72,7 +72,7 @@ func createBlobTopic(projectName, topicName string, dh datahub.DataHub) {
     fmt.Println("create topic [" + topicName + "] suc")
 }
 
-func getTopic(projectName, topicName string, dh datahub.DataHub) {
+func getTopic(projectName, topicName string, dh datahub.DataHubApi) {
     topic, err := dh.GetTopic(projectName, topicName)
     if err != nil {
         fmt.Println(err)
@@ -81,7 +81,7 @@ func getTopic(projectName, topicName string, dh datahub.DataHub) {
     fmt.Println(topic)
 }
 
-func listTopics(projectName string, dh datahub.DataHub) {
+func listTopics(projectName string, dh datahub.DataHubApi) {
     topics, err := dh.ListTopic(projectName)
     if err != nil {
         fmt.Println(err)
@@ -90,7 +90,7 @@ func listTopics(projectName string, dh datahub.DataHub) {
     fmt.Println(topics)
 }
 
-func updateTopic(projectName, topicName string, lifecycle int, comment string, dh datahub.DataHub) {
+func updateTopic(projectName, topicName string, lifecycle int, comment string, dh datahub.DataHubApi) {
     err := dh.UpdateTopic(projectName, topicName, comment)
     if err != nil {
         fmt.Println(err)
@@ -99,7 +99,7 @@ func updateTopic(projectName, topicName string, lifecycle int, comment string, d
     fmt.Printf("update %s suc\n", topicName)
 }
 
-func deleteTopic(projectName, topicName string, dh datahub.DataHub) {
+func deleteTopic(projectName, topicName string, dh datahub.DataHubApi) {
     err := dh.DeleteTopic(projectName, topicName)
     if err != nil {
         fmt.Println(err)
@@ -108,7 +108,7 @@ func deleteTopic(projectName, topicName string, dh datahub.DataHub) {
     fmt.Printf("del %s suc\n", topicName)
 }
 
-func listShards(projectName, topicName string, dh datahub.DataHub) {
+func listShards(projectName, topicName string, dh datahub.DataHubApi) {
     shards, err := dh.ListShard(projectName, topicName)
     if err != nil {
         fmt.Println(err)
@@ -119,7 +119,7 @@ func listShards(projectName, topicName string, dh datahub.DataHub) {
     }
 }
 
-func mergeShard(projectName, topicName, shardId, adjShardId string, dh datahub.DataHub) {
+func mergeShard(projectName, topicName, shardId, adjShardId string, dh datahub.DataHubApi) {
     newShards, err := dh.MergeShard(projectName, topicName, shardId, adjShardId)
     if err != nil {
         fmt.Println(err)
@@ -128,7 +128,7 @@ func mergeShard(projectName, topicName, shardId, adjShardId string, dh datahub.D
     fmt.Println(newShards)
 }
 
-func splitShard(projectName, topicName, shardId, splitKey string, dh datahub.DataHub) {
+func splitShard(projectName, topicName, shardId, splitKey string, dh datahub.DataHubApi) {
     newShards, err := dh.SplitShardBySplitKey(projectName, topicName, shardId, splitKey)
     if err != nil {
         fmt.Println(err)
@@ -139,7 +139,7 @@ func splitShard(projectName, topicName, shardId, splitKey string, dh datahub.Dat
     }
 }
 
-func getCursor(projectName, topicName, shardId string, ct datahub.CursorType, systemTime int64, dh datahub.DataHub) {
+func getCursor(projectName, topicName, shardId string, ct datahub.CursorType, systemTime int64, dh datahub.DataHubApi) {
     cursor, err := dh.GetCursor(projectName, topicName, shardId, ct, systemTime)
     if err != nil {
         fmt.Println(err)
@@ -148,7 +148,7 @@ func getCursor(projectName, topicName, shardId string, ct datahub.CursorType, sy
     fmt.Println(cursor)
 }
 
-func putTupleRecords(projectName, topicName string, dh datahub.DataHub) {
+func putTupleRecords(projectName, topicName string, dh datahub.DataHubApi) {
     topic, err := dh.GetTopic(projectName, topicName)
     if err != nil {
         fmt.Println(err)
@@ -191,14 +191,14 @@ func putTupleRecords(projectName, topicName string, dh datahub.DataHub) {
     fmt.Println(result)
 }
 
-func getTupleRecords(projectName, topicName, shardId string, dh datahub.DataHub) {
+func getTupleRecords(projectName, topicName, shardId string, dh datahub.DataHubApi) {
     topic, err := dh.GetTopic(projectName, topicName)
     if err != nil {
         fmt.Println(err)
         return
     }
 
-    cursor, err := dh.GetCursor(projectName, topicName, shardId, datahub.OLDEST, 0)
+    cursor, err := dh.GetCursor(projectName, topicName, shardId, datahub.OLDEST)
     if err != nil {
         fmt.Println(err)
         return
@@ -217,7 +217,7 @@ func getTupleRecords(projectName, topicName, shardId string, dh datahub.DataHub)
     }
 }
 
-func putBlobRecords(projectName, topicName string, dh datahub.DataHub) {
+func putBlobRecords(projectName, topicName string, dh datahub.DataHubApi) {
     records := make([]datahub.IRecord, 3)
     record1 := datahub.NewBlobRecord([]byte("blob test1"), 0)
     record1.ShardId = "0"
@@ -239,8 +239,8 @@ func putBlobRecords(projectName, topicName string, dh datahub.DataHub) {
     fmt.Println(result)
 }
 
-func getBlobRecords(projectName, topicName, shardId string, dh datahub.DataHub) {
-    cursor, err := dh.GetCursor(projectName, topicName, shardId, datahub.OLDEST, 0)
+func getBlobRecords(projectName, topicName, shardId string, dh datahub.DataHubApi) {
+    cursor, err := dh.GetCursor(projectName, topicName, shardId, datahub.OLDEST)
     if err != nil {
         fmt.Println(err)
         return
@@ -259,7 +259,7 @@ func getBlobRecords(projectName, topicName, shardId string, dh datahub.DataHub) 
     }
 }
 
-func createSubscription(projectName, topicName, comment string, dh datahub.DataHub) string {
+func createSubscription(projectName, topicName, comment string, dh datahub.DataHubApi) string {
     subId, err := dh.CreateSubscription(projectName, topicName, comment)
     if err != nil {
         fmt.Println(err)
@@ -269,7 +269,7 @@ func createSubscription(projectName, topicName, comment string, dh datahub.DataH
     return subId.SubId
 }
 
-func updateSubscription(projectName, topicName, subId, comment string, dh datahub.DataHub) {
+func updateSubscription(projectName, topicName, subId, comment string, dh datahub.DataHubApi) {
     err := dh.UpdateSubscription(projectName, topicName, subId, comment)
     if err != nil {
         fmt.Println("update subscription error: " + err.Error())
@@ -278,7 +278,7 @@ func updateSubscription(projectName, topicName, subId, comment string, dh datahu
     }
 }
 
-func updateSubscriptionState(projectName, topicName, subId string, state datahub.SubscriptionState, dh datahub.DataHub) {
+func updateSubscriptionState(projectName, topicName, subId string, state datahub.SubscriptionState, dh datahub.DataHubApi) {
     err := dh.UpdateSubscriptionState(projectName, topicName, subId, state)
     if err != nil {
         fmt.Println(err)
@@ -287,7 +287,7 @@ func updateSubscriptionState(projectName, topicName, subId string, state datahub
     }
 }
 
-func getSubscription(projectName, topicName, subId string, dh datahub.DataHub) {
+func getSubscription(projectName, topicName, subId string, dh datahub.DataHubApi) {
     subscription, err := dh.GetSubscription(projectName, topicName, subId)
     if err != nil {
         fmt.Println(err)
@@ -296,7 +296,7 @@ func getSubscription(projectName, topicName, subId string, dh datahub.DataHub) {
     fmt.Println(subscription)
 }
 
-func deleteSubscription(projectName, topicName, subId string, dh datahub.DataHub) {
+func deleteSubscription(projectName, topicName, subId string, dh datahub.DataHubApi) {
     err := dh.DeleteSubscription(projectName, topicName, subId)
     if err != nil {
         fmt.Println(err)
@@ -305,7 +305,7 @@ func deleteSubscription(projectName, topicName, subId string, dh datahub.DataHub
     fmt.Println("del subscription [" + subId + "] suc")
 }
 
-func listSubscriptions(projectName, topicName string, dh datahub.DataHub) {
+func listSubscriptions(projectName, topicName string, dh datahub.DataHubApi) {
     subscriptions, err := dh.ListSubscription(projectName, topicName, 1, 5)
     if err != nil {
         fmt.Println(err)
@@ -404,7 +404,6 @@ func main() {
     // delete topic
     deleteTopic(projectName, "go_sdk_tuple_topic_test_v2", dh)
     deleteTopic(projectName, "go_sdk_blob_topic_test_v2", dh)
-    deleteTopic(projectName, "go_sdk_schema_test", dh)
 
     //delete project
     deleteProject(projectName, dh)

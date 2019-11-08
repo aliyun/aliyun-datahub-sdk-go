@@ -9,7 +9,7 @@ func main() {
     dh = datahub.New(accessId, accessKey, endpoint)
 }
 
-func openOffset(dh datahub.DataHub, projectName, topicName string) {
+func openOffset() {
     shardIds := []string{"0", "1", "2"}
     oss, err := dh.OpenSubscriptionSession(projectName, topicName, subId, shardIds)
     if err != nil {
@@ -20,7 +20,7 @@ func openOffset(dh datahub.DataHub, projectName, topicName string) {
     fmt.Println(oss)
 }
 
-func getOffset(dh datahub.DataHub, projectName, topicName string) {
+func getOffset() {
     shardIds := []string{"0", "1", "2"}
     gss, err := dh.GetSubscriptionOffset(projectName, topicName, subId, shardIds)
     if err != nil {

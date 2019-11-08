@@ -1,29 +1,29 @@
 package datahub
 
-func New(accessId, accessKey, endpoint string) DataHub {
-    config := newDefaultConfig()
+func New(accessId, accessKey, endpoint string) DataHubApi {
+    config := NewDefaultConfig()
     return &DataHubPB{
-        DataHubJson: DataHubJson{
+        DataHub: DataHub{
             Client: NewRestClient(endpoint, config.UserAgent, config.HttpClient,
                 NewAliyunAccount(accessId, accessKey), config.CompressorType),
         },
     }
 }
 
-func NewClientWithConfig(accessId, accessKey, endpoint string, config *Config) DataHub {
+func NewClientWithConfig(endpoint string, config *Config, account Account) DataHubApi {
     if config.UserAgent == "" {
-        config.UserAgent = defaultUserAgent()
+        config.UserAgent = DefaultUserAgent()
     }
     if config.HttpClient == nil {
-        config.HttpClient = defaultHttpClient()
+        config.HttpClient = DefaultHttpClient()
     }
     if !validateCompressorType(config.CompressorType) {
         config.CompressorType = NOCOMPRESS
     }
 
-    dh := &DataHubJson{
+    dh := &DataHub{
         Client: NewRestClient(endpoint, config.UserAgent, config.HttpClient,
-            NewAliyunAccount(accessId, accessKey), config.CompressorType),
+            account, config.CompressorType),
     }
     if !config.EnableBinary {
         return dh
@@ -31,12 +31,12 @@ func NewClientWithConfig(accessId, accessKey, endpoint string, config *Config) D
 
     //return &DataHubJson{}
     return &DataHubPB{
-        DataHubJson: *dh,
+        DataHub: *dh,
     }
 }
 
 // Datahub provides restful apis for visiting examples service.
-type DataHub interface {
+type DataHubApi interface {
     // Get the information of the specified project.
     GetProject(projectName string) (*GetProjectResult, error)
 

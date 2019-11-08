@@ -4,6 +4,7 @@ import (
     "encoding/json"
     "errors"
     "fmt"
+    "github.com/shopspring/decimal"
     "strconv"
 )
 
@@ -46,6 +47,12 @@ func (t Timestamp) String() string {
     return strconv.FormatUint(uint64(t), 10)
 }
 
+// DECIMAL
+type Decimal decimal.Decimal
+func (d Decimal) String() string{
+    return decimal.Decimal(d).String()
+}
+
 // FieldType
 type FieldType string
 
@@ -73,12 +80,16 @@ const (
     // TIMESTAMP
     // unit: us
     TIMESTAMP FieldType = "TIMESTAMP"
+
+    // DECIMAL
+    // can "only" represent numbers with a maximum of 2^31 digits after the decimal point.
+    DECIMAL FieldType = "DECIMAL"
 )
 
 // validateFieldType validate field type
 func validateFieldType(ft FieldType) bool {
     switch ft {
-    case BIGINT, STRING, BOOLEAN, DOUBLE, TIMESTAMP:
+    case BIGINT, STRING, BOOLEAN, DOUBLE, TIMESTAMP, DECIMAL:
         return true
     default:
         return false
@@ -220,6 +231,15 @@ func validateFieldValue(ft FieldType, val interface{}) (DataType, error) {
             return nil, errors.New(fmt.Sprintf("value type[%T] not match field type[TIMESTAMP]", val))
         }
         return realval, nil
+    case DECIMAL:
+        var realval Decimal
+        switch v := val.(type) {
+        case decimal.Decimal:
+            realval = Decimal(v)
+        default:
+            return nil, errors.New(fmt.Sprintf("value type[%T] not match field type[DECIMAL]", val))
+        }
+        return realval, nil
     default:
         return nil, errors.New(fmt.Sprintf("field type[%T] is not illegal", ft))
     }
@@ -252,6 +272,12 @@ func castValueFromString(str string, ft FieldType) (DataType, error) {
         v, err := strconv.ParseUint(str, 10, 64)
         if err == nil {
             return Timestamp(v), nil
+        }
+        return nil, err
+    case DECIMAL:
+        v, err := decimal.NewFromString(str)
+        if err == nil {
+            return Decimal(v), nil
         }
         return nil, err
     default:

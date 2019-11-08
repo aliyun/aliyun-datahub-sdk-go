@@ -29,7 +29,7 @@ $ go get -u -insecure github.com/aliyun/aliyun-datahub-sdk-go/datahub
 
 - Run Example Tests
 
-  - Modify [examples.go](http://github.com/aliyun/aliyun-datahub-sdk-go/blob/master/examples/exampletest/example.go) and config your accessid, accesskey, endpoint, such as:
+  - Modify [example.go](http://github.com/aliyun/aliyun-datahub-sdk-go/blob/master/examples/exampletest/example.go) and config your accessid, accesskey, endpoint, such as:
   
   ```
   accessid := "**your access id**"
@@ -41,8 +41,8 @@ $ go get -u -insecure github.com/aliyun/aliyun-datahub-sdk-go/datahub
   - Build and Run Tests
   
   ```
-  $ go install github.com/aliyun/aliyun-datahub-sdk-go/examples/datahubcmd  
-  $ $GOPATH/bin/examples
+  $ go install github.com/aliyun/aliyun-datahub-sdk-go/examples/exampletest 
+  $ $GOPATH/bin/exampletest
   ```
 
 
@@ -61,7 +61,7 @@ $ go get -u -insecure github.com/aliyun/aliyun-datahub-sdk-go/datahub
     $ go run maincmd.go project.go  -endpoint <your endpoint> -accessid <your accessid> -accesskey <your accesskey> subcmd lp
     ```   
      
-- [detailed example](http://github.com/aliyun/aliyun-datahub-sdk-go/tree/master/examples)
+- [more specific examples](http://github.com/aliyun/aliyun-datahub-sdk-go/tree/master/examples)
     - if your want run project example,modify the project related parameters in [constant.go](http://github.com/aliyun/aliyun-datahub-sdk-go/tree/master/examples/constant.go)
     
     ```
@@ -79,7 +79,7 @@ $ go get -u -insecure github.com/aliyun/aliyun-datahub-sdk-go/datahub
 
 ## [more Instructions](http://github.com/aliyun/aliyun-datahub-sdk-go/tree/master/Instructions.md)
 
-## Contributing
+## source installation
 
 For a development install, clone the repository and then install from source:
 

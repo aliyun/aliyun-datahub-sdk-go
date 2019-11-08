@@ -1,9 +1,10 @@
 package Test
 
 import (
-    "../datahub"
     "fmt"
+    "github.com/shopspring/decimal"
     "github.com/stretchr/Testify/assert"
+    "github.com/aliyun/aliyun-datahub-sdk-go/datahub"
     "testing"
     "time"
 )
@@ -17,8 +18,7 @@ var blobTopicName = "_blob_topic_Test_"
 
 var subId string
 var connectorId string
-var dh datahub.DataHub = datahub.New(accessId, accessKey, endpoint)
-
+var dh = datahub.New(accessId, accessKey, endpoint)
 
 func ExampleNew() {
     //var dh DataHub
@@ -62,7 +62,8 @@ func TestRun(t *testing.T) {
         AddField(datahub.Field{Name: "timestamp_field", Type: datahub.TIMESTAMP, AllowNull: false}).
         AddField(datahub.Field{Name: "string_field", Type: datahub.STRING}).
         AddField(datahub.Field{Name: "double_field", Type: datahub.DOUBLE}).
-        AddField(datahub.Field{Name: "boolean_field", Type: datahub.BOOLEAN})
+        AddField(datahub.Field{Name: "boolean_field", Type: datahub.BOOLEAN}).
+        AddField(datahub.Field{Name: "decimal_field", Type: datahub.DECIMAL})
     err = dh.CreateTupleTopic(projectName, tupleTopicName, "topic comment", 5, 7, recordSchema)
     assert.Nil(t, err)
     defer dh.DeleteTopic(projectName, tupleTopicName)
@@ -103,6 +104,7 @@ func TestRun(t *testing.T) {
     /* list shard */
     ls, err := dh.ListShard(projectName, tupleTopicName)
     assert.Nil(t, err)
+    assert.NotNil(t, ls)
     fmt.Println("****** list shard *****")
     for _, shard := range ls.Shards {
         fmt.Println(shard)
@@ -110,17 +112,19 @@ func TestRun(t *testing.T) {
     fmt.Println()
 
     /* split shard */
-    time.Sleep(3 * time.Second)
+    time.Sleep(5 * time.Second)
     shardId := "2"
+    fmt.Println("****** split shard *****")
     ss, err := dh.SplitShard(projectName, tupleTopicName, shardId)
     assert.Nil(t, err)
-    assert.NotNil(t, gt)
+    assert.NotNil(t, ss)
     fmt.Println(*ss)
 
     /* merge shard */
     time.Sleep(3 * time.Second)
     shardId = "3"
     adjacentShardId := "4"
+    fmt.Println("****** merge shard *****")
     ms, err := dh.MergeShard(projectName, tupleTopicName, shardId, adjacentShardId)
     assert.Nil(t, err)
     assert.NotNil(t, ms)
@@ -142,7 +146,8 @@ func TestRun(t *testing.T) {
 
     fmt.Println("######################### subscription ###################################")
     /* create subscription */
-    err = dh.CreateSubscription(projectName, tupleTopicName, "sub comment")
+    cs, err := dh.CreateSubscription(projectName, tupleTopicName, "sub comment")
+    assert.NotNil(t, cs)
     assert.Nil(t, err)
 
     /* list subscription */
@@ -249,6 +254,7 @@ func PutRecords(t *testing.T) {
     record1.SetValueByName("string_field", "Test1")
     record1.SetValueByName("double_field", 1.1111)
     record1.SetValueByName("boolean_field", true)
+    record1.SetValueByName("decimal_field", decimal.NewFromFloat32(-13.1415926))
 
     // you can add some attributes when put record
     record1.SetAttribute("attribute", "Test attribute")
@@ -261,6 +267,7 @@ func PutRecords(t *testing.T) {
     record2.SetValueByName("string_field", "Test2")
     record2.SetValueByName("double_field", 2.2222)
     record2.SetValueByName("boolean_field", true)
+    record2.SetValueByName("decimal_field", decimal.NewFromFloat32(-23.1415926))
     //records[1] = record2
 
     record3 := datahub.NewTupleRecord(topic.RecordSchema, 0)
@@ -270,6 +277,7 @@ func PutRecords(t *testing.T) {
     record3.SetValueByName("string_field", "Test3")
     record3.SetValueByName("double_field", 3.3333)
     record3.SetValueByName("boolean_field", true)
+    record3.SetValueByName("decimal_field", decimal.NewFromFloat32(-33.1415926))
     //records[2] = record3
 
     for i := 0; i < putNum; i++ {
@@ -286,6 +294,7 @@ func PutRecords(t *testing.T) {
     result, err := dh.PutRecords(projectName, tupleTopicName, records)
     assert.Nil(t, err)
     assert.NotNil(t, result)
+    assert.Equal(t, 33, result.FailedRecordCount)
 
     fmt.Println("****** put result ****")
     fmt.Printf("putRecord failed num is %d\n", result.FailedRecordCount)
@@ -327,6 +336,7 @@ func PutRecords2(t *testing.T) {
     result, err := dh.PutRecords(projectName, blobTopicName, records)
     assert.Nil(t, err)
     assert.NotNil(t, result)
+    assert.Equal(t, 0, result.FailedRecordCount)
 
     fmt.Println("****** put result ****")
     fmt.Printf("putRecord failed num is %d\n", result.FailedRecordCount)
@@ -357,6 +367,9 @@ func GetTupleRecords(t *testing.T) {
     for _, record := range gr.Records {
         data, ok := record.(*datahub.TupleRecord)
         assert.True(t, ok)
+        for _, field := range data.RecordSchema.Fields {
+            fmt.Println(field.Name, field.Type, data.GetValueByName(field.Name))
+        }
         fmt.Println(data.Values)
     }
     fmt.Println()

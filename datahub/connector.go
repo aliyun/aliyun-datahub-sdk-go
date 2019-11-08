@@ -148,26 +148,6 @@ type SinkOdpsConfig struct {
     TunnelEndpoint  string          `json:"TunnelEndpoint,omitempty"`
 }
 
-/*func NewSinkOdpsConfig(args ...interface{}) (*SinkOdpsConfig, error) {
-    // The first eight parameters must be set
-    if len(args) < 8 {
-        return nil, errors.New("parameter number is valid")
-    }
-    conf := &SinkOdpsConfig{}
-    paras := []interface{}(args)
-
-    confType := reflect.TypeOf(conf)
-    confValue := reflect.ValueOf(conf)
-    for i := 0; i < confType.Elem().NumField() && i < len(paras); i++ {
-        // Check if the parameter type and structure are consistent
-        if reflect.TypeOf(paras[i]) != confType.Elem().Field(i).Type {
-            return nil, errors.New("parameter is invalid")
-        }
-        confValue.Elem().Field(i).Set(reflect.ValueOf(paras[i]))
-    }
-    return conf, nil
-}*/
-
 func marshalCreateOdpsConnector(ccr *CreateConnectorRequest) ([]byte, error) {
     soConf, ok := ccr.Config.(SinkOdpsConfig)
     if !ok {
@@ -243,39 +223,6 @@ type SinkOssConfig struct {
     AccessId   string   `json:"AccessId"`
     AccessKey  string   `json:"AccessKey"`
 }
-
-//func NewSinkOssConfig(args ...interface{}) (*SinkOssConfig, error) {
-//    if len(args) != 8 && len(args) != 6 {
-//        return nil, errors.New("parameter number is valid")
-//    }
-//    conf := &SinkOssConfig{}
-//    paras := []interface{}(args)
-//
-//    confType := reflect.TypeOf(conf)
-//    confValue := reflect.ValueOf(conf)
-//    for i := 0; i < confType.Elem().NumField() && i < len(paras) && i < 6; i++ {
-//        // Check if the parameter type and structure are consistent
-//        if reflect.TypeOf(paras[i]) != confType.Elem().Field(i).Type {
-//            return nil, errors.New("parameter is invalid")
-//        }
-//        confValue.Elem().Field(i).Set(reflect.ValueOf(paras[i]))
-//    }
-//
-//    //if the AuthMode is AK ,AccessId and AccessKey are must be set
-//    if conf.AuthMode == AK {
-//        if len(args) != 8 {
-//            return nil, errors.New("parameter number is valid")
-//        }
-//        for i := 6; i < confType.Elem().NumField() && i < len(paras); i++ {
-//            // Check if the parameter type and structure are consistent
-//            if reflect.TypeOf(paras[i]) != confType.Elem().Field(i).Type {
-//                return nil, errors.New("parameter is invalid")
-//            }
-//            confValue.Elem().Field(i).Set(reflect.ValueOf(paras[i]))
-//        }
-//    }
-//    return conf, nil
-//}
 
 func marshalCreateOssConnector(ccr *CreateConnectorRequest) ([]byte, error) {
     soConf, ok := ccr.Config.(SinkOssConfig)
@@ -707,8 +654,6 @@ func marshalUpdateOtsConnector(ucr *UpdateConnectorRequest) ([]byte, error) {
     }
     return json.Marshal(ct)
 }
-
-/******************************************************/
 
 type ConnectorOffset struct {
     Timestamp int64 `json:"Timestamp"`

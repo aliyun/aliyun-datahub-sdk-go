@@ -14,8 +14,8 @@ const (
     subId         = ""
     connectorId   = ""
 
-    spiltShardId           = ""
-    mergeShardId           = ""
+    spiltShardId         = ""
+    mergeShardId         = ""
     mergeAdjacentShardId = ""
 
     odpsEndpoint  = ""
@@ -25,4 +25,4 @@ const (
     odpsAccessKey = ""
 )
 
-var dh datahub.DataHub
+var dh datahub.DataHubApi

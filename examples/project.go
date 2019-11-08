@@ -9,17 +9,16 @@ import (
 func main() {
 
 
-    dh := datahub.New(accessId, accessKey, endpoint)
-    ////dh = datahub.NewClientWithConfig(accessId, accessKey, endpoint, config)
-    createProjet(dh, projectName)
-    listProject(dh)
-    getProject(dh, projectName)
-    updateProject(dh, projectName)
-    deleteProject(dh, projectName)
+    dh = datahub.New(accessId, accessKey, endpoint)
+    createProjet()
+    listProject()
+    getProject()
+    updateProject()
+    deleteProject()
 
 }
 
-func createProjet(dh datahub.DataHub, projectName string) {
+func createProjet() {
     if err := dh.CreateProject(projectName, "project comment"); err != nil {
         if _, ok := err.(*datahub.ResourceExistError); ok {
             fmt.Println("project already exists")
@@ -32,7 +31,7 @@ func createProjet(dh datahub.DataHub, projectName string) {
     fmt.Println("create successful")
 }
 
-func deleteProject(dh datahub.DataHub, projectName string) {
+func deleteProject() {
     if err := dh.DeleteProject(projectName); err != nil {
         if _, ok := err.(*datahub.ResourceNotFoundError); ok {
             fmt.Println("project not found")
@@ -45,7 +44,7 @@ func deleteProject(dh datahub.DataHub, projectName string) {
     fmt.Println("delete project successful")
 }
 
-func listProject(dh datahub.DataHub) {
+func listProject() {
     lp, err := dh.ListProject()
     if err != nil {
         fmt.Println("get project list failed")
@@ -58,7 +57,7 @@ func listProject(dh datahub.DataHub) {
     }
 }
 
-func getProject(dh datahub.DataHub, projectName string) {
+func getProject() {
     gp, err := dh.GetProject(projectName)
     if err != nil {
         fmt.Println("get project message failed")
@@ -70,7 +69,7 @@ func getProject(dh datahub.DataHub, projectName string) {
 
 }
 
-func updateProject(dh datahub.DataHub, projectName string) {
+func updateProject() {
     if err := dh.UpdateProject(projectName, "new project comment"); err != nil {
         fmt.Println("update project comment failed")
         fmt.Println(err)

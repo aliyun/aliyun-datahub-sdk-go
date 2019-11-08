@@ -38,7 +38,7 @@ func Usage() {
 }
 
 type ParsedCheckFunc func() bool
-type ExecuteFunc func(datahub.DataHub) error
+type ExecuteFunc func(datahub.DataHubApi) error
 
 type SubCommand struct {
     Name        string

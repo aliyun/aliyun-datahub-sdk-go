@@ -1,13 +1,13 @@
 package Test
 
 import (
-    "../datahub"
     "fmt"
     "github.com/stretchr/testify/assert"
+    "github.com/aliyun/aliyun-datahub-sdk-go/datahub"
     "testing"
 )
 
-var dh datahub.DataHub
+var dh datahub.DataHubApi
 var _accessId string = ""
 var _accessKey string = ""
 var _endpoint string = ""
@@ -43,7 +43,6 @@ var OSS_ACCESSKEY string = ""
 
 var OTS_ENDPOINT string = ""
 var OTS_INSTANCE string = ""
-// tt2datahub@aliyun-inner.com SubAccount
 var OTS_TABLE string = ""
 var OTS_ACCESSID string = ""
 var OTS_ACCESSKEY string = ""

@@ -16,11 +16,13 @@ func offset_consumption() {
         //use lz4 compress data
         CompressorType: datahub.LZ4,
     }
-    dh := datahub.NewClientWithConfig(accessId, accessKey, endpoint, config)
 
-    shardId := "5"
+    account := datahub.NewAliyunAccount(accessId, accessKey)
+    dh := datahub.NewClientWithConfig(endpoint, config, account)
+
+    shardId := "3"
     // add your want to open shardId
-    shardIds := []string{"1", "2", "5"}
+    shardIds := []string{"0", "1", "2", "3"}
     session, err := dh.OpenSubscriptionSession(projectName, topicName, subId, shardIds)
     if err != nil {
         fmt.Println("open session failed")

@@ -10,42 +10,42 @@ examples errors
 
 // Error codes
 const (
-    invalidParameter    = "InvalidParameter"
-    invalidSubscription = "InvalidSubscription"
-    invalidCursor       = "InvalidCursor"
+    InvalidParameter    = "InvalidParameter"
+    InvalidSubscription = "InvalidSubscription"
+    InvalidCursor       = "InvalidCursor"
     /**
      * for later arrange error code
      */
-    resourceNotFound   = "ResourceNotFound"
-    noSuchTopic        = "NoSuchTopic"
-    noSuchProject      = "NoSuchProject"
-    noSuchSubscription = "NoSuchSubscription"
-    noSuchShard        = "NoSuchShard"
-    noSuchConnector    = "NoSuchConnector"
-    noSuchMeterInfo    = "NoSuchMeteringInfo"
+    ResourceNotFound   = "ResourceNotFound"
+    NoSuchTopic        = "NoSuchTopic"
+    NoSuchProject      = "NoSuchProject"
+    NoSuchSubscription = "NoSuchSubscription"
+    NoSuchShard        = "NoSuchShard"
+    NoSuchConnector    = "NoSuchConnector"
+    NoSuchMeterInfo    = "NoSuchMeteringInfo"
     /**
      * for later arrange error code
      */
-    seekOutOfRange        = "SeekOutOfRange"
-    resourceAlreadyExist  = "ResourceAlreadyExist"
-    projectAlreadyExist   = "ProjectAlreadyExist"
-    topicAlreadyExist     = "TopicAlreadyExist"
-    connectorAlreadyExist = "ConnectorAlreadyExist"
-    unAuthorized          = "Unauthorized"
-    noPermission          = "NoPermission"
-    invalidShardOperation = "InvalidShardOperation"
-    operatorDenied        = "OperationDenied"
-    limitExceed           = "LimitExceeded"
+    SeekOutOfRange        = "SeekOutOfRange"
+    ResourceAlreadyExist  = "ResourceAlreadyExist"
+    ProjectAlreadyExist   = "ProjectAlreadyExist"
+    TopicAlreadyExist     = "TopicAlreadyExist"
+    ConnectorAlreadyExist = "ConnectorAlreadyExist"
+    UnAuthorized          = "Unauthorized"
+    NoPermission          = "NoPermission"
+    InvalidShardOperation = "InvalidShardOperation"
+    OperatorDenied        = "OperationDenied"
+    LimitExceed           = "LimitExceeded"
     //ODPSServiceError       = "OdpsServiceError"
     //MysqlServiceError      = "MysqlServiceError"
     //InternalServerErrorS    = "InternalServerError"
-    subscriptionOffline    = "SubscriptionOffline"
-    offsetReseted          = "OffsetReseted"
-    offsetSessionClosed    = "OffsetSessionClosed"
-    offsetSessionChanged   = "OffsetSessionChanged"
-    malformedRecord        = "MalformedRecord"
-    noSuchConsumer         = "NoSuchConsumer"
-    consumerGroupInProcess = "ConsumerGroupInProcess"
+    SubscriptionOffline    = "SubscriptionOffline"
+    OffsetReseted          = "OffsetReseted"
+    OffsetSessionClosed    = "OffsetSessionClosed"
+    OffsetSessionChanged   = "OffsetSessionChanged"
+    MalformedRecord        = "MalformedRecord"
+    NoSuchConsumer         = "NoSuchConsumer"
+    ConsumerGroupInProcess = "ConsumerGroupInProcess"
 )
 
 const (
@@ -64,34 +64,34 @@ const (
 func errorHandler(statusCode int, requestId string, errorCode string, message string) error {
 
     switch errorCode {
-    case invalidParameter, invalidSubscription, invalidCursor:
+    case InvalidParameter, InvalidSubscription, InvalidCursor:
         return NewInvalidParameterError(statusCode, requestId, errorCode, message)
-    case resourceNotFound, noSuchTopic, noSuchProject, noSuchSubscription, noSuchShard, noSuchConnector,
-        noSuchMeterInfo, noSuchConsumer:
+    case ResourceNotFound, NoSuchTopic, NoSuchProject, NoSuchSubscription, NoSuchShard, NoSuchConnector,
+        NoSuchMeterInfo, NoSuchConsumer:
         return NewResourceNotFoundError(statusCode, requestId, errorCode, message)
-    case seekOutOfRange:
+    case SeekOutOfRange:
         return NewSeekOutOfRangeError(statusCode, requestId, errorCode, message)
-    case resourceAlreadyExist, projectAlreadyExist, topicAlreadyExist, connectorAlreadyExist:
+    case ResourceAlreadyExist, ProjectAlreadyExist, TopicAlreadyExist, ConnectorAlreadyExist:
         return NewResourceExistError(statusCode, requestId, errorCode, message)
-    case unAuthorized:
+    case UnAuthorized:
         return NewAuthorizationFailedError(statusCode, requestId, errorCode, message)
-    case noPermission:
+    case NoPermission:
         return NewNoPermissionError(statusCode, requestId, errorCode, message)
-    case operatorDenied:
+    case OperatorDenied:
         return NewInvalidOperationError(statusCode, requestId, errorCode, message)
-    case limitExceed:
+    case LimitExceed:
         return NewLimitExceededError(statusCode, requestId, errorCode, message)
-    case subscriptionOffline:
+    case SubscriptionOffline:
         return NewSubscriptionOfflineError(statusCode, requestId, errorCode, message)
-    case offsetReseted:
+    case OffsetReseted:
         return NewSubscriptionOffsetResetError(statusCode, requestId, errorCode, message)
-    case offsetSessionClosed, offsetSessionChanged:
+    case OffsetSessionClosed, OffsetSessionChanged:
         return NewSubscriptionSessionInvalidError(statusCode, requestId, errorCode, message)
-    case malformedRecord:
+    case MalformedRecord:
         return NewMalformedRecordError(statusCode, requestId, errorCode, message)
-    case consumerGroupInProcess:
+    case ConsumerGroupInProcess:
         return NewServiceInProcessError(statusCode, requestId, errorCode, message)
-    case invalidShardOperation:
+    case InvalidShardOperation:
         return NewShardSealedError(statusCode, requestId, errorCode, message)
     }
     return NewDatahubClientError(statusCode, requestId, errorCode, message)

@@ -25,8 +25,12 @@ func main() {
 
 func createTupleTopic() {
     fields := []datahub.Field{
-        {"field1", datahub.STRING, true},
-        {"field2", datahub.BIGINT, false},
+        {"string_field", datahub.STRING, true},
+        {"bigint_field", datahub.BIGINT, false},
+        {"timestamp_field", datahub.TIMESTAMP, true},
+        {"double_field", datahub.DOUBLE, true},
+        {"boolean_field", datahub.BOOLEAN, true},
+        {"decimal_field", datahub.DECIMAL, true},
     }
     schema := &datahub.RecordSchema{
         fields,
@@ -120,7 +124,7 @@ func appendField() {
 }
 
 func getSchema(dh datahub.DataHub, projectName, topicName string) {
-    gt, err := dh.GetTopic(projectName, "topic_test")
+    gt, err := dh.GetTopic(projectName, topicName)
     if err != nil {
         fmt.Println("get topic failed")
         fmt.Println(err)
@@ -131,7 +135,7 @@ func getSchema(dh datahub.DataHub, projectName, topicName string) {
     }
 }
 
-func createSchema1(dh datahub.DataHub, projectName, topicName string) {
+func createSchema1() {
     fields := []datahub.Field{
         {"field1", datahub.STRING, true},
         {"field2", datahub.BIGINT, false},
@@ -142,16 +146,17 @@ func createSchema1(dh datahub.DataHub, projectName, topicName string) {
 
     fmt.Println(schema)
 }
-func createSchema2(dh datahub.DataHub, projectName, topicName string) {
+func createSchema2() {
     recordSchema := datahub.NewRecordSchema()
     recordSchema.AddField(datahub.Field{Name: "bigint_field", Type: datahub.BIGINT, AllowNull: true}).
         AddField(datahub.Field{Name: "timestamp_field", Type: datahub.TIMESTAMP, AllowNull: false}).
         AddField(datahub.Field{Name: "string_field", Type: datahub.STRING}).
         AddField(datahub.Field{Name: "double_field", Type: datahub.DOUBLE}).
-        AddField(datahub.Field{Name: "boolean_field", Type: datahub.BOOLEAN})
+        AddField(datahub.Field{Name: "boolean_field", Type: datahub.BOOLEAN}).
+        AddField(datahub.Field{Name: "decimal_field", Type: datahub.DECIMAL})
 }
 
-func createSchema3(dh datahub.DataHub, projectName, topicName string) {
+func createSchema3() {
     str := ""
     schema, err := datahub.NewRecordSchemaFromJson(str)
     if err != nil {

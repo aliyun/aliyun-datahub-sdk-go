@@ -29,7 +29,7 @@ func list_projects_parsed_check() bool {
 	return true
 }
 
-func list_projects(dh datahub.DataHub) error {
+func list_projects(dh datahub.DataHubApi) error {
 	projects, err := dh.ListProject()
 	if err != nil {
 		return err
@@ -45,7 +45,7 @@ func get_project_parsed_check() bool {
 	return true
 }
 
-func get_project(dh datahub.DataHub) error {
+func get_project(dh datahub.DataHubApi) error {
 	project, err := dh.GetProject(ProjectName)
 	if err != nil {
 		return err

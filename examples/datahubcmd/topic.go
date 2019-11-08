@@ -70,7 +70,7 @@ func list_topics_parsed_check() bool {
     return true
 }
 
-func list_topics(dh datahub.DataHub) error {
+func list_topics(dh datahub.DataHubApi) error {
     topics, err := dh.ListTopic(ProjectName)
     if err != nil {
         return err
@@ -86,7 +86,7 @@ func get_topic_parsed_check() bool {
     return true
 }
 
-func get_topic(dh datahub.DataHub) error {
+func get_topic(dh datahub.DataHubApi) error {
     topic, err := dh.GetTopic(ProjectName, TopicName)
     if err != nil {
         return err
@@ -105,7 +105,7 @@ func create_topic_parsed_check() bool {
     return true
 }
 
-func create_topic(dh datahub.DataHub) error {
+func create_topic(dh datahub.DataHubApi) error {
 
     if strings.ToLower(RecordType) == "tuple" {
         recordSchema := datahub.NewRecordSchema()
@@ -144,7 +144,7 @@ func delete_topic_parsed_check() bool {
     return true
 }
 
-func delete_topic(dh datahub.DataHub) error {
+func delete_topic(dh datahub.DataHubApi) error {
     err := dh.DeleteTopic(ProjectName, TopicName)
     if err != nil {
         return err
@@ -160,7 +160,7 @@ func update_topic_parsed_check() bool {
     return true
 }
 
-func update_topic(dh datahub.DataHub) error {
+func update_topic(dh datahub.DataHubApi) error {
     err := dh.UpdateTopic(ProjectName, TopicName, Comment)
     if err != nil {
         return err

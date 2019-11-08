@@ -14,17 +14,17 @@ type Config struct {
     HttpClient     *http.Client
 }
 
-func newDefaultConfig() *Config {
+func NewDefaultConfig() *Config {
     return &Config{
-        UserAgent:      defaultUserAgent(),
+        UserAgent:      DefaultUserAgent(),
         CompressorType: NOCOMPRESS,
         EnableBinary:   true,
-        HttpClient:     defaultHttpClient(),
+        HttpClient:     DefaultHttpClient(),
     }
 }
 
-// defaultHttpClient returns a default HTTP client with sensible values.
-func defaultHttpClient() *http.Client {
+// DefaultHttpClient returns a default HTTP client with sensible values.
+func DefaultHttpClient() *http.Client {
     return &http.Client{
         Transport: &http.Transport{
             DialContext:           TraceDialContext(10 * time.Second),
@@ -39,6 +39,6 @@ func defaultHttpClient() *http.Client {
 }
 
 // DefaultUserAgent returns a default user agent
-func defaultUserAgent() string {
+func DefaultUserAgent() string {
     return fmt.Sprintf("godatahub/%s golang/%s %s", DATAHUB_SDK_VERSION, runtime.Version(), runtime.GOOS)
 }
