@@ -116,8 +116,12 @@ type DataHubApi interface {
     // Get metering info of the specified shard
     GetMeterInfo(projectName, topicName, shardId string) (*GetMeterInfoResult, error)
 
-    // Create examples data connectors.
+    // Create data connectors.
     CreateConnector(projectName, topicName string, cType ConnectorType, columnFields []string, config interface{}) (*CreateConnectorResult, error)
+
+    // Create connector with start time(unit:ms)
+    CreateConnectorWithStartTime(projectName, topicName string, cType ConnectorType,
+        columnFields []string, sinkStartTime int64, config interface{}) (*CreateConnectorResult, error)
 
     // Get information of the specified data connector.
     GetConnector(projectName, topicName, connectorId string) (*GetConnectorResult, error)

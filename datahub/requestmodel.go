@@ -217,10 +217,11 @@ func (gmir *GetMeterInfoRequest) requestBodyEncode(header map[string]string) ([]
 }
 
 type CreateConnectorRequest struct {
-    Action       string        `json:"Action"`
-    Type         ConnectorType `json:"Type"`
-    ColumnFields []string      `json:"ColumnFields"`
-    Config       interface{}   `json:"Config"`
+    Action        string        `json:"Action"`
+    Type          ConnectorType `json:"Type"`
+    SinkStartTime int64         `json:"SinkStartTime"`
+    ColumnFields  []string      `json:"ColumnFields"`
+    Config        interface{}   `json:"Config"`
 }
 
 func (ccr *CreateConnectorRequest) requestBodyEncode(header map[string]string) ([]byte, error) {

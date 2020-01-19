@@ -533,10 +533,38 @@ func (datahub *DataHub) CreateConnector(projectName, topicName string, cType Con
 
     path := fmt.Sprintf(connectorPath, projectName, topicName, cType.String())
     ccr := &CreateConnectorRequest{
-        Action:       "create",
-        Type:         cType,
-        ColumnFields: columnFields,
-        Config:       config,
+        Action:        "create",
+        Type:          cType,
+        SinkStartTime: -1,
+        ColumnFields:  columnFields,
+        Config:        config,
+    }
+    respBody, err := datahub.Client.Post(path, ccr)
+    if err != nil {
+        return nil, err
+    }
+    return NewCreateConnectorResult(respBody)
+}
+
+func (datahub *DataHub) CreateConnectorWithStartTime(projectName, topicName string, cType ConnectorType,
+    columnFields []string, sinkStartTime int64, config interface{}) (*CreateConnectorResult, error) {
+    if !util.CheckProjectName(projectName) {
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
+    }
+    if !util.CheckTopicName(topicName) {
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
+    }
+    if !validateConnectorType(cType) {
+        return nil, NewInvalidParameterErrorWithMessage(parameterTypeInvalid)
+    }
+
+    path := fmt.Sprintf(connectorPath, projectName, topicName, cType.String())
+    ccr := &CreateConnectorRequest{
+        Action:        "create",
+        Type:          cType,
+        SinkStartTime: sinkStartTime,
+        ColumnFields:  columnFields,
+        Config:        config,
     }
     respBody, err := datahub.Client.Post(path, ccr)
     if err != nil {
