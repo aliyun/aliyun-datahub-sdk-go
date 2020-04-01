@@ -369,11 +369,13 @@ func fillTupleData(tr *TupleRecord, recordEntry *pbmodel.RecordEntry) error {
     data := recordEntry.Data.Data
 
     for idx, v := range data {
-        tv, err := castValueFromString(string(v.Value), tr.RecordSchema.Fields[idx].Type)
-        if err != nil {
-            return err
+        if v.Value != nil {
+            tv, err := castValueFromString(string(v.Value), tr.RecordSchema.Fields[idx].Type)
+            if err != nil {
+                return err
+            }
+            tr.Values[idx] = tv
         }
-        tr.Values[idx] = tv
     }
     return nil
 

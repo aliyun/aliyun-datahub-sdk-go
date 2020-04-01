@@ -484,9 +484,11 @@ func (pr *PutPBRecordsRequest) requestBodyEncode(header map[string]string) ([]by
                 return nil, errors.New("data format is invalid")
             }
             for _, str := range v {
-                fd := &pbmodel.FieldData{
-
-                    Value: []byte(fmt.Sprintf("%s", str)),
+                fd := &pbmodel.FieldData{}
+                if str == nil {
+                    fd.Value = nil
+                } else {
+                    fd.Value = []byte(fmt.Sprintf("%s", str))
                 }
                 fds = append(fds, fd)
             }
