@@ -150,8 +150,8 @@ func validateFieldValue(ft FieldType, val interface{}) (DataType, error) {
         default:
             return nil, errors.New(fmt.Sprintf("value type[%T] not match field type[STRING]", val))
         }
-        if len(string(realval)) > 1*1024*1024 {
-            return nil, errors.New("STRING type value length must less than 1*1024*1024")
+        if len(string(realval)) > 2*1024*1024 {
+            return nil, errors.New("STRING type value length must less than 2*1024*1024")
         }
         return realval, nil
     case BOOLEAN:
