@@ -1,5 +1,5 @@
 syntax = "proto2";
-package datahubProtos;
+package pbmodel;
 
 option java_package = "com.aliyun.datahub.client.model.protobuf";
 option java_outer_classname = "DatahubProtos";
