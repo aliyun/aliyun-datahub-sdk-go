@@ -340,3 +340,29 @@ func NewShardSealedError(statusCode int, requestId string, code string, message 
 type ShardSealedError struct {
     DatahubClientError
 }
+
+func NewServiceTemporaryUnavailableError(message string) *ServiceTemporaryUnavailableError {
+    return &ServiceTemporaryUnavailableError{
+        DatahubClientError{
+            StatusCode: -1,
+            RequestId:  "",
+            Code:       "",
+            Message:    message,
+        },
+    }
+}
+
+func NewServiceTemporaryUnavailableErrorWithCode(statusCode int, requestId string, code string, message string) *ServiceTemporaryUnavailableError {
+    return &ServiceTemporaryUnavailableError{
+        DatahubClientError{
+            StatusCode: statusCode,
+            RequestId:  requestId,
+            Code:       code,
+            Message:    message,
+        },
+    }
+}
+
+type ServiceTemporaryUnavailableError struct {
+    DatahubClientError
+}

@@ -172,6 +172,9 @@ func (client *RestClient) request(method, resource string, requestModel RequestM
 
     resp, err := client.HttpClient.Do(req)
     if err != nil {
+        if strings.Contains(err.Error(), "EOF") {
+            return nil, NewServiceTemporaryUnavailableError(err.Error());
+        }
         return nil, err
     }
     defer resp.Body.Close()
