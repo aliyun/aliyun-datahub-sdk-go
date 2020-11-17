@@ -2,6 +2,7 @@ package datahub
 
 import (
     "fmt"
+    "math"
     "net/http"
     "runtime"
     "time"
@@ -29,7 +30,9 @@ func DefaultHttpClient() *http.Client {
         Transport: &http.Transport{
             DialContext:           TraceDialContext(10 * time.Second),
             Proxy:                 http.ProxyFromEnvironment,
-            MaxIdleConns:          100,
+            MaxIdleConns:          math.MaxInt32,
+            MaxIdleConnsPerHost:   math.MaxInt32,
+            MaxConnsPerHost:       math.MaxInt32,
             IdleConnTimeout:       30 * time.Second,
             TLSHandshakeTimeout:   10 * time.Second,
             ExpectContinueTimeout: 1 * time.Second,
