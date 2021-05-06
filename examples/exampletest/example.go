@@ -27,7 +27,7 @@ func getProject(name string, dh datahub.DataHubApi) {
 }
 
 func createProject(projectName, comment string, dh datahub.DataHubApi) {
-    if err := dh.CreateProject(projectName, comment); err != nil {
+    if _, err := dh.CreateProject(projectName, comment); err != nil {
         fmt.Println(err.Error())
         return
     }
@@ -38,7 +38,7 @@ func updateProject(projectName, comment string, dh datahub.DataHubApi) {
 }
 
 func deleteProject(projectName string, dh datahub.DataHubApi) {
-    if err := dh.DeleteProject(projectName); err != nil {
+    if _, err := dh.DeleteProject(projectName); err != nil {
         fmt.Println(err.Error())
     }
     fmt.Println("del " + projectName + " suc")
@@ -52,7 +52,7 @@ func createTupleTopic(projectName, topicName string, dh datahub.DataHubApi) {
         AddField(datahub.Field{Name: "string_field", Type: datahub.STRING}).
         AddField(datahub.Field{Name: "double_field", Type: datahub.DOUBLE}).
         AddField(datahub.Field{Name: "boolean_field", Type: datahub.BOOLEAN})
-    err := dh.CreateTupleTopic(projectName, topicName, "go sdk test topic", 3, 7, recordSchema)
+    _, err := dh.CreateTupleTopic(projectName, topicName, "go sdk test topic", 3, 7, recordSchema)
     if err != nil {
         fmt.Println(err)
         return
@@ -64,7 +64,7 @@ func createTupleTopic(projectName, topicName string, dh datahub.DataHubApi) {
 }
 
 func createBlobTopic(projectName, topicName string, dh datahub.DataHubApi) {
-    err := dh.CreateBlobTopic(projectName, topicName, "go sdk test topic", 3, 7)
+    _, err := dh.CreateBlobTopic(projectName, topicName, "go sdk test topic", 3, 7)
     if err != nil {
         fmt.Println(err)
         return
@@ -91,7 +91,7 @@ func listTopics(projectName string, dh datahub.DataHubApi) {
 }
 
 func updateTopic(projectName, topicName string, lifecycle int, comment string, dh datahub.DataHubApi) {
-    err := dh.UpdateTopic(projectName, topicName, comment)
+    _, err := dh.UpdateTopic(projectName, topicName, comment)
     if err != nil {
         fmt.Println(err)
         return
@@ -100,7 +100,7 @@ func updateTopic(projectName, topicName string, lifecycle int, comment string, d
 }
 
 func deleteTopic(projectName, topicName string, dh datahub.DataHubApi) {
-    err := dh.DeleteTopic(projectName, topicName)
+    _, err := dh.DeleteTopic(projectName, topicName)
     if err != nil {
         fmt.Println(err)
         return
@@ -270,7 +270,7 @@ func createSubscription(projectName, topicName, comment string, dh datahub.DataH
 }
 
 func updateSubscription(projectName, topicName, subId, comment string, dh datahub.DataHubApi) {
-    err := dh.UpdateSubscription(projectName, topicName, subId, comment)
+    _, err := dh.UpdateSubscription(projectName, topicName, subId, comment)
     if err != nil {
         fmt.Println("update subscription error: " + err.Error())
     } else {
@@ -279,7 +279,7 @@ func updateSubscription(projectName, topicName, subId, comment string, dh datahu
 }
 
 func updateSubscriptionState(projectName, topicName, subId string, state datahub.SubscriptionState, dh datahub.DataHubApi) {
-    err := dh.UpdateSubscriptionState(projectName, topicName, subId, state)
+    _, err := dh.UpdateSubscriptionState(projectName, topicName, subId, state)
     if err != nil {
         fmt.Println(err)
     } else {
@@ -297,7 +297,7 @@ func getSubscription(projectName, topicName, subId string, dh datahub.DataHubApi
 }
 
 func deleteSubscription(projectName, topicName, subId string, dh datahub.DataHubApi) {
-    err := dh.DeleteSubscription(projectName, topicName, subId)
+    _, err := dh.DeleteSubscription(projectName, topicName, subId)
     if err != nil {
         fmt.Println(err)
         return
@@ -339,7 +339,6 @@ func main() {
     // get project
     getProject(projectName, dh)
 
-
     // create tuple topic
     createTupleTopic(projectName, "go_sdk_tuple_topic_test_v2", dh)
 
@@ -371,12 +370,12 @@ func main() {
     fmt.Println("=======================")
 
     // split shard
-    time.Sleep(time.Second*5)
+    time.Sleep(time.Second * 5)
     splitShard(projectName, "go_sdk_tuple_topic_test_v2", "1", "88888888888888888888888888888888", dh)
     listShards(projectName, "go_sdk_tuple_topic_test_v2", dh)
 
     // merge shard
-    time.Sleep(time.Second*5)
+    time.Sleep(time.Second * 5)
     mergeShard(projectName, "go_sdk_tuple_topic_test_v2", "3", "4", dh)
     listShards(projectName, "go_sdk_tuple_topic_test_v2", dh)
 

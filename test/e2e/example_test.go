@@ -1,4 +1,4 @@
-package Test
+package e2e
 
 import (
     "fmt"
@@ -9,34 +9,25 @@ import (
     "time"
 )
 
-var accessId = ""
-var accessKey = ""
-var endpoint = ""
-var projectName = "_project_Test_"
-var tupleTopicName = "_tuple_topic_Test_"
-var blobTopicName = "_blob_topic_Test_"
-
 var subId string
 var connectorId string
-var dh = datahub.New(accessId, accessKey, endpoint)
-
-func ExampleNew() {
-    //var dh DataHub
-    dh = datahub.New(accessId, accessKey, endpoint)
-}
 
 func TestRun(t *testing.T) {
     fmt.Println("######################### project ###################################")
     /* create project */
-    err := dh.CreateProject(projectName, "project comment")
+    cp, err := client.CreateProject(projectName, "project comment")
     assert.Nil(t, err)
-    defer dh.DeleteProject(projectName)
-    gp, err := dh.GetProject(projectName)
+    assert.NotNil(t, cp)
+    fmt.Println(*cp)
+    defer client.DeleteProject(projectName)
+    gp, err := client.GetProject(projectName)
     assert.Nil(t, err)
+    assert.NotNil(t, gp)
+    fmt.Println(*gp)
     assert.Equal(t, "project comment", gp.Comment)
 
     /* list project */
-    lp, err := dh.ListProject()
+    lp, err := client.ListProject()
     assert.Nil(t, err)
     assert.NotNil(t, lp)
     fmt.Println("****** list project ****")
@@ -47,10 +38,12 @@ func TestRun(t *testing.T) {
 
     /* update project */
     time.Sleep(1 * time.Second)
-    err = dh.UpdateProject(projectName, "new project comment")
+    up, err := client.UpdateProject(projectName, "new project comment")
     assert.Nil(t, err)
+    assert.NotNil(t, up)
+    fmt.Println(*up)
     time.Sleep(1 * time.Second)
-    gp, err = dh.GetProject(projectName)
+    gp, err = client.GetProject(projectName)
     assert.Nil(t, err)
     assert.NotNil(t, gp)
     assert.Equal(t, "new project comment", gp.Comment)
@@ -64,25 +57,29 @@ func TestRun(t *testing.T) {
         AddField(datahub.Field{Name: "double_field", Type: datahub.DOUBLE}).
         AddField(datahub.Field{Name: "boolean_field", Type: datahub.BOOLEAN}).
         AddField(datahub.Field{Name: "decimal_field", Type: datahub.DECIMAL})
-    err = dh.CreateTupleTopic(projectName, tupleTopicName, "topic comment", 5, 7, recordSchema)
+    ctt, err := client.CreateTupleTopic(projectName, tupleTopicName, "topic comment", 5, 7, recordSchema)
     assert.Nil(t, err)
-    defer dh.DeleteTopic(projectName, tupleTopicName)
-    gt, err := dh.GetTopic(projectName, tupleTopicName)
+    assert.NotNil(t, ctt)
+    fmt.Println(*ctt)
+    defer client.DeleteTopic(projectName, tupleTopicName)
+    gt, err := client.GetTopic(projectName, tupleTopicName)
     assert.Nil(t, err)
     assert.NotNil(t, gt)
     assert.Equal(t, "topic comment", gt.Comment)
 
     /* create blob topic */
-    err = dh.CreateBlobTopic(projectName, blobTopicName, "topic comment", 5, 7)
+    cbt, err := client.CreateBlobTopic(projectName, blobTopicName, "topic comment", 5, 7)
     assert.Nil(t, err)
-    defer dh.DeleteTopic(projectName, blobTopicName)
-    gt, err = dh.GetTopic(projectName, blobTopicName)
+    assert.NotNil(t, cbt)
+    fmt.Println(*cbt)
+    defer client.DeleteTopic(projectName, blobTopicName)
+    gt, err = client.GetTopic(projectName, blobTopicName)
     assert.Nil(t, err)
     assert.NotNil(t, gt)
     assert.Equal(t, "topic comment", gt.Comment)
 
     /* list topic */
-    lt, err := dh.ListTopic(projectName)
+    lt, err := client.ListTopic(projectName)
     assert.Nil(t, err)
     assert.NotNil(t, lt)
     fmt.Println("****** list topic *****")
@@ -93,18 +90,25 @@ func TestRun(t *testing.T) {
 
     /* update topic */
     time.Sleep(1 * time.Second)
-    err = dh.UpdateTopic(projectName, tupleTopicName, "new topic comment")
+    ut, err := client.UpdateTopic(projectName, tupleTopicName, "new topic comment")
+    assert.Nil(t, err)
+    assert.NotNil(t, ut)
+    fmt.Println(*ut)
     time.Sleep(1 * time.Second)
-    gt, err = dh.GetTopic(projectName, tupleTopicName)
+    gt, err = client.GetTopic(projectName, tupleTopicName)
+    assert.Nil(t, err)
+    assert.NotNil(t, gt)
+    fmt.Println(*gt)
     assert.Nil(t, err)
     assert.NotNil(t, gt)
     assert.Equal(t, "new topic comment", gt.Comment)
 
     fmt.Println("######################### shard ###################################")
     /* list shard */
-    ls, err := dh.ListShard(projectName, tupleTopicName)
+    ls, err := client.ListShard(projectName, tupleTopicName)
     assert.Nil(t, err)
     assert.NotNil(t, ls)
+    fmt.Println(*ls)
     fmt.Println("****** list shard *****")
     for _, shard := range ls.Shards {
         fmt.Println(shard)
@@ -115,7 +119,7 @@ func TestRun(t *testing.T) {
     time.Sleep(5 * time.Second)
     shardId := "2"
     fmt.Println("****** split shard *****")
-    ss, err := dh.SplitShard(projectName, tupleTopicName, shardId)
+    ss, err := client.SplitShard(projectName, tupleTopicName, shardId)
     assert.Nil(t, err)
     assert.NotNil(t, ss)
     fmt.Println(*ss)
@@ -125,7 +129,7 @@ func TestRun(t *testing.T) {
     shardId = "3"
     adjacentShardId := "4"
     fmt.Println("****** merge shard *****")
-    ms, err := dh.MergeShard(projectName, tupleTopicName, shardId, adjacentShardId)
+    ms, err := client.MergeShard(projectName, tupleTopicName, shardId, adjacentShardId)
     assert.Nil(t, err)
     assert.NotNil(t, ms)
     fmt.Println(*ms)
@@ -139,21 +143,22 @@ func TestRun(t *testing.T) {
     //fmt.Println("######################### meter ###################################")
     //time.Sleep(5 * time.Second)
     //shardId = "0"
-    //gmi, err := dh.GetMeterInfo(projectName, tupleTopicName, shardId)
+    //gmi, err := client.GetMeterInfo(projectName, tupleTopicName, shardId)
     //assert.Nil(t, err)
     //assert.NotNil(t, gmi)
     //fmt.Println(*gmi)
 
     fmt.Println("######################### subscription ###################################")
     /* create subscription */
-    cs, err := dh.CreateSubscription(projectName, tupleTopicName, "sub comment")
+    cs, err := client.CreateSubscription(projectName, tupleTopicName, "sub comment")
     assert.NotNil(t, cs)
     assert.Nil(t, err)
+    fmt.Println(*cs)
 
     /* list subscription */
     pageIndex := 1
     pageSize := 5
-    lss, err := dh.ListSubscription(projectName, tupleTopicName, pageIndex, pageSize)
+    lss, err := client.ListSubscription(projectName, tupleTopicName, pageIndex, pageSize)
     assert.Nil(t, err)
     assert.NotNil(t, lss)
     fmt.Println("****** list subscription *****")
@@ -163,40 +168,48 @@ func TestRun(t *testing.T) {
     }
 
     /* get subscription */
-    gs, err := dh.GetSubscription(projectName, tupleTopicName, subId)
+    gs, err := client.GetSubscription(projectName, tupleTopicName, subId)
     assert.Nil(t, err)
     assert.NotNil(t, gs)
     assert.Equal(t, "sub comment", gs.Comment)
 
     /* update subscription */
-    err = dh.UpdateSubscription(projectName, tupleTopicName, subId, "new sub comment")
+    us, err := client.UpdateSubscription(projectName, tupleTopicName, subId, "new sub comment")
     assert.Nil(t, err)
-    gs, err = dh.GetSubscription(projectName, tupleTopicName, subId)
+    assert.NotNil(t, us)
+    fmt.Println(*us)
+    gs, err = client.GetSubscription(projectName, tupleTopicName, subId)
     assert.Nil(t, err)
     assert.NotNil(t, gs)
+    fmt.Println(*gs)
     assert.Equal(t, "new sub comment", gs.Comment)
 
     /* update subscription state */
-    err = dh.UpdateSubscriptionState(projectName, tupleTopicName, subId, datahub.SUB_OFFLINE)
+    uss, err := client.UpdateSubscriptionState(projectName, tupleTopicName, subId, datahub.SUB_OFFLINE)
     assert.Nil(t, err)
-    gs, err = dh.GetSubscription(projectName, tupleTopicName, subId)
+    assert.NotNil(t, uss)
+    fmt.Println(*uss)
+    gs, err = client.GetSubscription(projectName, tupleTopicName, subId)
     assert.Nil(t, err)
     assert.NotNil(t, gs)
+    fmt.Println(*gs)
     assert.Equal(t, datahub.SUB_OFFLINE, gs.State)
-    err = dh.UpdateSubscriptionState(projectName, tupleTopicName, subId, datahub.SUB_ONLINE)
+    uss, err = client.UpdateSubscriptionState(projectName, tupleTopicName, subId, datahub.SUB_ONLINE)
     assert.Nil(t, err)
+    assert.NotNil(t, uss)
+    fmt.Println(*uss)
     fmt.Println()
 
     fmt.Println("######################### offset ###################################")
     /* open session offset */
     shardIds := []string{"0", "1", "2"}
-    oss, err := dh.OpenSubscriptionSession(projectName, tupleTopicName, subId, shardIds)
+    oss, err := client.OpenSubscriptionSession(projectName, tupleTopicName, subId, shardIds)
     assert.Nil(t, err)
     assert.NotNil(t, oss)
     fmt.Println(*oss)
 
     /* get offset */
-    gss, err := dh.GetSubscriptionOffset(projectName, tupleTopicName, subId, shardIds)
+    gss, err := client.GetSubscriptionOffset(projectName, tupleTopicName, subId, shardIds)
     assert.Nil(t, err)
     assert.NotNil(t, gss)
     fmt.Println(*gss)
@@ -210,11 +223,14 @@ func TestRun(t *testing.T) {
     offsetMap := map[string]datahub.SubscriptionOffset{
         shardId: offset,
     }
-    err = dh.CommitSubscriptionOffset(projectName, tupleTopicName, subId, offsetMap)
+    cso, err := client.CommitSubscriptionOffset(projectName, tupleTopicName, subId, offsetMap)
     assert.Nil(t, err)
-    gss, err = dh.GetSubscriptionOffset(projectName, tupleTopicName, subId, shardIds)
+    assert.NotNil(t, cso)
+    fmt.Println(*cso)
+    gss, err = client.GetSubscriptionOffset(projectName, tupleTopicName, subId, shardIds)
     assert.Nil(t, err)
     assert.NotNil(t, gss)
+    fmt.Println(*gss)
     assert.Equal(t, offset.Sequence, gss.Offsets[shardId].Sequence)
     assert.Equal(t, offset.Timestamp, gss.Offsets[shardId].Timestamp)
 
@@ -225,21 +241,24 @@ func TestRun(t *testing.T) {
     offsetMap = map[string]datahub.SubscriptionOffset{
         shardId: offset,
     }
-    err = dh.ResetSubscriptionOffset(projectName, tupleTopicName, subId, offsetMap)
+    rso, err := client.ResetSubscriptionOffset(projectName, tupleTopicName, subId, offsetMap)
     assert.Nil(t, err)
-    gss, err = dh.GetSubscriptionOffset(projectName, tupleTopicName, subId, shardIds)
+    assert.NotNil(t, rso)
+    fmt.Println(*rso)
+    gss, err = client.GetSubscriptionOffset(projectName, tupleTopicName, subId, shardIds)
     assert.Nil(t, err)
     assert.NotNil(t, gss)
+    fmt.Println(*gss)
     assert.Equal(t, offset.Timestamp, gss.Offsets[shardId].Timestamp)
 
-    defer dh.DeleteSubscription(projectName, tupleTopicName, subId)
+    defer client.DeleteSubscription(projectName, tupleTopicName, subId)
     fmt.Println()
 }
 
 func PutRecords(t *testing.T) {
     /* put tuple data */
     fmt.Println("************** put tuple data **************")
-    topic, err := dh.GetTopic(projectName, tupleTopicName)
+    topic, err := client.GetTopic(projectName, tupleTopicName)
     assert.Nil(t, err)
     assert.NotNil(t, topic)
     fmt.Println(*topic.RecordSchema)
@@ -291,7 +310,7 @@ func PutRecords(t *testing.T) {
         }
     }
 
-    result, err := dh.PutRecords(projectName, tupleTopicName, records)
+    result, err := client.PutRecords(projectName, tupleTopicName, records)
     assert.Nil(t, err)
     assert.NotNil(t, result)
     assert.Equal(t, 33, result.FailedRecordCount)
@@ -333,7 +352,7 @@ func PutRecords2(t *testing.T) {
         }
     }
 
-    result, err := dh.PutRecords(projectName, blobTopicName, records)
+    result, err := client.PutRecords(projectName, blobTopicName, records)
     assert.Nil(t, err)
     assert.NotNil(t, result)
     assert.Equal(t, 0, result.FailedRecordCount)
@@ -349,16 +368,16 @@ func PutRecords2(t *testing.T) {
 func GetTupleRecords(t *testing.T) {
     fmt.Println("************** get tuple data **************")
     shardId := "0"
-    topic, err := dh.GetTopic(projectName, tupleTopicName)
+    topic, err := client.GetTopic(projectName, tupleTopicName)
     assert.Nil(t, err)
     assert.NotNil(t, topic)
 
-    cursor, err := dh.GetCursor(projectName, tupleTopicName, shardId, datahub.OLDEST)
+    cursor, err := client.GetCursor(projectName, tupleTopicName, shardId, datahub.OLDEST)
     assert.Nil(t, err)
     assert.NotNil(t, cursor)
 
     limitNum := 100
-    gr, err := dh.GetTupleRecords(projectName, tupleTopicName, shardId, cursor.Cursor, limitNum, topic.RecordSchema)
+    gr, err := client.GetTupleRecords(projectName, tupleTopicName, shardId, cursor.Cursor, limitNum, topic.RecordSchema)
     assert.Nil(t, err)
     assert.NotNil(t, gr)
 
@@ -379,12 +398,12 @@ func GetBlobRecords(t *testing.T) {
     fmt.Println("************** get blob data **************")
     shardId := "1"
 
-    cursor, err := dh.GetCursor(projectName, blobTopicName, shardId, datahub.OLDEST)
+    cursor, err := client.GetCursor(projectName, blobTopicName, shardId, datahub.OLDEST)
     assert.Nil(t, err)
     assert.NotNil(t, cursor)
 
     limitNum := 100
-    gr, err := dh.GetBlobRecords(projectName, blobTopicName, shardId, cursor.Cursor, limitNum)
+    gr, err := client.GetBlobRecords(projectName, blobTopicName, shardId, cursor.Cursor, limitNum)
     assert.Nil(t, err)
     assert.NotNil(t, gr)
 
@@ -393,7 +412,7 @@ func GetBlobRecords(t *testing.T) {
     for _, record := range gr.Records {
         data, ok := record.(*datahub.BlobRecord)
         assert.True(t, ok)
-        fmt.Println(data.StoreData)
+        fmt.Println(data.String())
     }
     fmt.Println()
 }

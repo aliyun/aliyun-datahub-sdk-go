@@ -27,8 +27,38 @@ func validateCompressorType(ct CompressorType) bool {
     return false
 }
 
+func getCompressTypeFromValue(value int) CompressorType {
+    switch value {
+    case 0:
+        return NOCOMPRESS
+    case 1:
+        return DEFLATE
+    case 2:
+        return LZ4
+    case 3:
+        return ZLIB
+    default:
+        return NOCOMPRESS
+    }
+}
+
 func (ct *CompressorType) String() string {
     return string(*ct)
+}
+
+func (ct *CompressorType) toValue() int {
+    switch *ct {
+    case NOCOMPRESS:
+        return 0
+    case DEFLATE:
+        return 1
+    case LZ4:
+        return 2
+    case ZLIB:
+        return 3
+    default:
+        return 0
+    }
 }
 
 // Compressor is a interface for the compress
@@ -89,7 +119,6 @@ func (lc *lz4Compressor) DeCompress(data []byte, rawSize int64) ([]byte, error) 
     buf := make([]byte, rawSize)
     _, err := lz4.UncompressBlock(data, buf)
     if err != nil {
-        //fmt.Println(err)
         return nil, err
     }
     return buf, nil
@@ -230,11 +259,10 @@ func getCompressor(c CompressorType) compressor {
     if c == NOCOMPRESS {
         return nil
     }
-    _, ok := compressorMap[c]
-    // TODO 这里最好做个单例
+    ret, ok := compressorMap[c]
     if !ok {
         com := newCompressor(c)
         compressorMap[c] = com
     }
-    return compressorMap[c]
+    return ret
 }

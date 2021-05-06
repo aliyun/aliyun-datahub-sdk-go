@@ -19,7 +19,7 @@ func main() {
 }
 
 func createProjet() {
-    if err := dh.CreateProject(projectName, "project comment"); err != nil {
+    if _, err := dh.CreateProject(projectName, "project comment"); err != nil {
         if _, ok := err.(*datahub.ResourceExistError); ok {
             fmt.Println("project already exists")
         } else {
@@ -32,7 +32,7 @@ func createProjet() {
 }
 
 func deleteProject() {
-    if err := dh.DeleteProject(projectName); err != nil {
+    if _, err := dh.DeleteProject(projectName); err != nil {
         if _, ok := err.(*datahub.ResourceNotFoundError); ok {
             fmt.Println("project not found")
         } else {
@@ -70,7 +70,7 @@ func getProject() {
 }
 
 func updateProject() {
-    if err := dh.UpdateProject(projectName, "new project comment"); err != nil {
+    if _, err := dh.UpdateProject(projectName, "new project comment"); err != nil {
         fmt.Println("update project comment failed")
         fmt.Println(err)
         return

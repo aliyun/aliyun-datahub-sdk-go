@@ -82,7 +82,7 @@ func getBlobData() {
             if !ok {
                 fmt.Printf("record type is not TupleRecord, is %v\n", reflect.TypeOf(record))
             } else {
-                fmt.Println(data.StoreData)
+                fmt.Println(data.RawData)
             }
         }
         break
@@ -271,7 +271,7 @@ func putDataByShard() {
     maxReTry := 3
     retryNum := 0
     for retryNum < maxReTry {
-        if err := dh.PutRecordsByShard(projectName, blobTopicName, shardId, records); err != nil {
+        if _, err := dh.PutRecordsByShard(projectName, blobTopicName, shardId, records); err != nil {
             if _, ok := err.(*datahub.LimitExceededError); ok {
                 fmt.Println("maybe qps exceed limit,retry")
                 retryNum++

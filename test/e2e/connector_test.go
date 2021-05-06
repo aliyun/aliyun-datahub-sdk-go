@@ -1,13 +1,12 @@
-package Test
+package e2e
 
 import (
     "fmt"
-    "github.com/stretchr/testify/assert"
+    "github.com/stretchr/Testify/assert"
     "github.com/aliyun/aliyun-datahub-sdk-go/datahub"
     "testing"
 )
 
-var dh datahub.DataHubApi
 var _accessId string = ""
 var _accessKey string = ""
 var _endpoint string = ""
@@ -61,13 +60,12 @@ var DATAHUB_ACCESSKEY string = ""
 
 
 
+// disable
+func testConnector(t *testing.T) {
 
-func Test_Connector(t *testing.T) {
-    dh = datahub.New(_accessId, _accessKey, _endpoint)
-
-    err := dh.CreateProject(test_connector_project, "comment")
+    _, err := client.CreateProject(test_connector_project, "comment")
     assert.Nil(t, err)
-    defer dh.DeleteProject(test_connector_project)
+    defer client.DeleteProject(test_connector_project)
 
     test_odps(t)
 
@@ -113,9 +111,9 @@ func test_odps(t *testing.T) {
         },
     }
 
-    err := dh.CreateTupleTopic(test_connector_project, topicName, "test", 3, 7, rs)
+    _, err := client.CreateTupleTopic(test_connector_project, topicName, "test", 3, 7, rs)
     assert.Nil(t, err)
-    defer dh.DeleteTopic(test_connector_project, topicName)
+    defer client.DeleteTopic(test_connector_project, topicName)
 
     odpsPartitionConfig := datahub.NewPartitionConfig()
     odpsPartitionConfig.AddConfig("ds", "%Y%m%d")
@@ -137,7 +135,7 @@ func test_odps(t *testing.T) {
 
     fmt.Println(fileds)
     /* create connector config */
-    ccr, err := dh.CreateConnector(test_connector_project, topicName, connectorType, fileds, *sinkOdpsConfig)
+    ccr, err := client.CreateConnector(test_connector_project, topicName, connectorType, fileds, *sinkOdpsConfig)
     assert.Nil(t, err)
     assert.NotNil(t, ccr)
 
@@ -145,43 +143,43 @@ func test_odps(t *testing.T) {
     fmt.Println()
     connectorId = ccr.ConnectorId
 
-    defer dh.DeleteConnector(test_connector_project, topicName, connectorId)
+    defer client.DeleteConnector(test_connector_project, topicName, connectorId)
 
     /* get connector */
-    gcr, err := dh.GetConnector(test_connector_project, topicName, connectorId)
+    gcr, err := client.GetConnector(test_connector_project, topicName, connectorId)
     assert.Nil(t, err)
     assert.NotNil(t, gcr)
     fmt.Println(*gcr)
     fmt.Println()
 
     /* list connector config */
-    lc, err := dh.ListConnector(test_connector_project, topicName)
+    lc, err := client.ListConnector(test_connector_project, topicName)
     assert.Nil(t, err)
     assert.NotNil(t, lc)
     fmt.Println(*lc)
     fmt.Println()
 
     /* get connector done time */
-    dt, err := dh.GetConnectorDoneTime(test_connector_project, topicName, connectorId)
+    dt, err := client.GetConnectorDoneTime(test_connector_project, topicName, connectorId)
     assert.Nil(t, err)
     assert.NotNil(t, dt)
     fmt.Println(*dt)
     fmt.Println()
 
     /* append connector config */
-    err = dh.AppendConnectorField(test_connector_project, topicName, connectorId, fieldName2)
+    _, err = client.AppendConnectorField(test_connector_project, topicName, connectorId, fieldName2)
     assert.Nil(t, err)
 
     /* update connector config */
-    gc, err := dh.GetConnector(test_connector_project, topicName, connectorId)
+    gc, err := client.GetConnector(test_connector_project, topicName, connectorId)
     assert.Nil(t, err)
     assert.NotNil(t, gc)
     config, ok := gc.Config.(datahub.SinkOdpsConfig)
     assert.True(t, ok)
     config.TimeRange = 100
-    err = dh.UpdateConnector(test_connector_project, topicName, connectorId, config)
+    _, err = client.UpdateConnector(test_connector_project, topicName, connectorId, config)
     assert.Nil(t, err)
-    gc, err = dh.GetConnector(test_connector_project, topicName, connectorId)
+    gc, err = client.GetConnector(test_connector_project, topicName, connectorId)
     assert.Nil(t, err)
     assert.NotNil(t, gc)
     config, ok = gc.Config.(datahub.SinkOdpsConfig)
@@ -189,7 +187,7 @@ func test_odps(t *testing.T) {
     assert.Equal(t, 100, config.TimeRange)
 
     //get connector shard status
-    gcs, err := dh.GetConnectorShardStatus(test_connector_project, topicName, connectorId)
+    gcs, err := client.GetConnectorShardStatus(test_connector_project, topicName, connectorId)
     assert.Nil(t, err)
     assert.NotNil(t, gcs)
     fmt.Println("****** list connector status *****")
@@ -198,16 +196,16 @@ func test_odps(t *testing.T) {
     }
     fmt.Println()
     shardId := "0"
-    gs, err := dh.GetConnectorShardStatusByShard(test_connector_project, topicName, connectorId, shardId)
+    gs, err := client.GetConnectorShardStatusByShard(test_connector_project, topicName, connectorId, shardId)
     assert.Nil(t, err)
     assert.NotNil(t, gs)
     fmt.Println(*gs)
     fmt.Println()
 
     /* update connector state */
-    err = dh.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorStopped)
+    _, err = client.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorStopped)
     assert.Nil(t, err)
-    err = dh.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorRunning)
+    _, err = client.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorRunning)
     assert.Nil(t, err)
     shardId = "0"
     ot := datahub.ConnectorOffset{
@@ -215,17 +213,17 @@ func test_odps(t *testing.T) {
         Sequence:  104,
     }
     // should update the state to stopped before update connector offset
-    err = dh.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorStopped)
+    _, err = client.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorStopped)
     assert.Nil(t, err)
-    err = dh.UpdateConnectorOffset(test_connector_project, topicName, connectorId, shardId, ot)
+    _, err = client.UpdateConnectorOffset(test_connector_project, topicName, connectorId, shardId, ot)
     assert.Nil(t, err)
-    err = dh.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorRunning)
+    _, err = client.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorRunning)
     assert.Nil(t, err)
 
     /* reload connector */
-    err = dh.ReloadConnector(test_connector_project, topicName, connectorId)
+    _, err = client.ReloadConnector(test_connector_project, topicName, connectorId)
     assert.Nil(t, err)
-    err = dh.ReloadConnectorByShard(test_connector_project, topicName, connectorId, shardId)
+    _, err = client.ReloadConnectorByShard(test_connector_project, topicName, connectorId, shardId)
     assert.Nil(t, err)
 
 }
@@ -257,9 +255,9 @@ func test_ads(t *testing.T) {
         },
     }
 
-    err := dh.CreateTupleTopic(test_connector_project, topicName, "test ods", 7, 3, rs)
+    _, err := client.CreateTupleTopic(test_connector_project, topicName, "test ods", 7, 3, rs)
     assert.Nil(t, err)
-    defer dh.DeleteTopic(test_connector_project, topicName)
+    defer client.DeleteTopic(test_connector_project, topicName)
 
     //port, err := strconv.Atoi(ADS_PORT)
     //assert.Nil(t, err)
@@ -276,21 +274,21 @@ func test_ads(t *testing.T) {
     }
 
     fileds := []string{fieldName1, fieldName2}
-    ccr, err := dh.CreateConnector(test_connector_project, topicName, datahub.SinkAds, fileds, conf)
+    ccr, err := client.CreateConnector(test_connector_project, topicName, datahub.SinkAds, fileds, conf)
     assert.Nil(t, err)
     assert.NotNil(t, ccr)
     connectorId = ccr.ConnectorId
-    defer dh.DeleteConnector(test_connector_project, topicName, connectorId)
+    defer client.DeleteConnector(test_connector_project, topicName, connectorId)
 
     /* get connector */
-    gcr, err := dh.GetConnector(test_connector_project, topicName, connectorId)
+    gcr, err := client.GetConnector(test_connector_project, topicName, connectorId)
     assert.Nil(t, err)
     assert.NotNil(t, gcr)
     fmt.Println(*gcr)
     fmt.Println()
 
     /* list connector config */
-    lc, err := dh.ListConnector(test_connector_project, topicName)
+    lc, err := client.ListConnector(test_connector_project, topicName)
     assert.Nil(t, err)
     assert.NotNil(t, lc)
     fmt.Println(*lc)
@@ -301,11 +299,11 @@ func test_ads(t *testing.T) {
 
     /* append connector config */
     // ads 在创建 connector  时必须要链接所有列，所以无法实时测试appendField
-    //err = dh.AppendConnectorField(test_connector_project, topicName, connectorId, fieldName2)
+    //err = client.AppendConnectorField(test_connector_project, topicName, connectorId, fieldName2)
     //assert.Nil(t, err)
 
     //get connector shard status
-    gcs, err := dh.GetConnectorShardStatus(test_connector_project, topicName, connectorId)
+    gcs, err := client.GetConnectorShardStatus(test_connector_project, topicName, connectorId)
     assert.Nil(t, err)
     assert.NotNil(t, gcs)
     fmt.Println("****** list connector status *****")
@@ -314,16 +312,16 @@ func test_ads(t *testing.T) {
     }
     fmt.Println()
     shardId := "0"
-    gs, err := dh.GetConnectorShardStatusByShard(test_connector_project, topicName, connectorId, shardId)
+    gs, err := client.GetConnectorShardStatusByShard(test_connector_project, topicName, connectorId, shardId)
     assert.Nil(t, err)
     assert.NotNil(t, gs)
     fmt.Println(*gs)
     fmt.Println()
 
     /* update connector state */
-    err = dh.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorStopped)
+    _, err = client.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorStopped)
     assert.Nil(t, err)
-    err = dh.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorRunning)
+    _, err = client.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorRunning)
     assert.Nil(t, err)
     shardId = "0"
     ot := datahub.ConnectorOffset{
@@ -331,17 +329,17 @@ func test_ads(t *testing.T) {
         Sequence:  104,
     }
     // should update the state to stopped before update connector offset
-    err = dh.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorStopped)
+    _, err = client.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorStopped)
     assert.Nil(t, err)
-    err = dh.UpdateConnectorOffset(test_connector_project, topicName, connectorId, shardId, ot)
+    _, err = client.UpdateConnectorOffset(test_connector_project, topicName, connectorId, shardId, ot)
     assert.Nil(t, err)
-    err = dh.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorRunning)
+    _, err = client.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorRunning)
     assert.Nil(t, err)
 
     /* reload connector */
-    err = dh.ReloadConnector(test_connector_project, topicName, connectorId)
+    _, err = client.ReloadConnector(test_connector_project, topicName, connectorId)
     assert.Nil(t, err)
-    err = dh.ReloadConnectorByShard(test_connector_project, topicName, connectorId, shardId)
+    _, err = client.ReloadConnectorByShard(test_connector_project, topicName, connectorId, shardId)
     assert.Nil(t, err)
 }
 
@@ -372,9 +370,9 @@ func test_mysql(t *testing.T) {
         },
     }
 
-    err := dh.CreateTupleTopic(test_connector_project, topicName, "test mysql", 7, 3, rs)
+    _, err := client.CreateTupleTopic(test_connector_project, topicName, "test mysql", 7, 3, rs)
     assert.Nil(t, err)
-    defer dh.DeleteTopic(test_connector_project, topicName)
+    defer client.DeleteTopic(test_connector_project, topicName)
 
     //port, err := strconv.Atoi(ADS_PORT)
     //assert.Nil(t, err)
@@ -389,21 +387,21 @@ func test_mysql(t *testing.T) {
     }
 
     fileds := []string{fieldName1, fieldName2}
-    ccr, err := dh.CreateConnector(test_connector_project, topicName, datahub.SinkMysql, fileds, conf)
+    ccr, err := client.CreateConnector(test_connector_project, topicName, datahub.SinkMysql, fileds, conf)
     assert.Nil(t, err)
     assert.NotNil(t, ccr)
     connectorId = ccr.ConnectorId
-    defer dh.DeleteConnector(test_connector_project, topicName, connectorId)
+    defer client.DeleteConnector(test_connector_project, topicName, connectorId)
 
     /* get connector */
-    gcr, err := dh.GetConnector(test_connector_project, topicName, connectorId)
+    gcr, err := client.GetConnector(test_connector_project, topicName, connectorId)
     assert.Nil(t, err)
     assert.NotNil(t, gcr)
     fmt.Println(*gcr)
     fmt.Println()
 
     /* list connector config */
-    lc, err := dh.ListConnector(test_connector_project, topicName)
+    lc, err := client.ListConnector(test_connector_project, topicName)
     assert.Nil(t, err)
     assert.NotNil(t, lc)
     fmt.Println(*lc)
@@ -414,11 +412,11 @@ func test_mysql(t *testing.T) {
 
     /* append connector config */
     // ads 在创建 connector  时必须要链接所有列，所以无法实时测试appendField
-    //err = dh.AppendConnectorField(test_connector_project, topicName, connectorId, fieldName2)
+    //err = client.AppendConnectorField(test_connector_project, topicName, connectorId, fieldName2)
     //assert.Nil(t, err)
 
     //get connector shard status
-    gcs, err := dh.GetConnectorShardStatus(test_connector_project, topicName, connectorId)
+    gcs, err := client.GetConnectorShardStatus(test_connector_project, topicName, connectorId)
     assert.Nil(t, err)
     assert.NotNil(t, gcs)
     fmt.Println("****** list connector status *****")
@@ -427,16 +425,16 @@ func test_mysql(t *testing.T) {
     }
     fmt.Println()
     shardId := "0"
-    gs, err := dh.GetConnectorShardStatusByShard(test_connector_project, topicName, connectorId, shardId)
+    gs, err := client.GetConnectorShardStatusByShard(test_connector_project, topicName, connectorId, shardId)
     assert.Nil(t, err)
     assert.NotNil(t, gs)
     fmt.Println(*gs)
     fmt.Println()
 
     /* update connector state */
-    err = dh.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorStopped)
+    _, err = client.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorStopped)
     assert.Nil(t, err)
-    err = dh.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorRunning)
+    _, err = client.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorRunning)
     assert.Nil(t, err)
     shardId = "0"
     ot := datahub.ConnectorOffset{
@@ -444,17 +442,17 @@ func test_mysql(t *testing.T) {
         Sequence:  104,
     }
     // should update the state to stopped before update connector offset
-    err = dh.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorStopped)
+    _, err = client.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorStopped)
     assert.Nil(t, err)
-    err = dh.UpdateConnectorOffset(test_connector_project, topicName, connectorId, shardId, ot)
+    _, err = client.UpdateConnectorOffset(test_connector_project, topicName, connectorId, shardId, ot)
     assert.Nil(t, err)
-    err = dh.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorRunning)
+    _, err = client.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorRunning)
     assert.Nil(t, err)
 
     /* reload connector */
-    err = dh.ReloadConnector(test_connector_project, topicName, connectorId)
+    _, err = client.ReloadConnector(test_connector_project, topicName, connectorId)
     assert.Nil(t, err)
-    err = dh.ReloadConnectorByShard(test_connector_project, topicName, connectorId, shardId)
+    _, err = client.ReloadConnectorByShard(test_connector_project, topicName, connectorId, shardId)
     assert.Nil(t, err)
 }
 
@@ -482,9 +480,9 @@ func test_oss(t *testing.T) {
         },
     }
 
-    err := dh.CreateTupleTopic(test_connector_project, topicName, "test mysql", 7, 3, rs)
+    _, err := client.CreateTupleTopic(test_connector_project, topicName, "test mysql", 7, 3, rs)
     assert.Nil(t, err)
-    defer dh.DeleteTopic(test_connector_project, topicName)
+    defer client.DeleteTopic(test_connector_project, topicName)
 
     //port, err := strconv.Atoi(ADS_PORT)
     //assert.Nil(t, err)
@@ -501,21 +499,21 @@ func test_oss(t *testing.T) {
     }
 
     fileds := []string{fieldName1, fieldName2}
-    ccr, err := dh.CreateConnector(test_connector_project, topicName, datahub.SinkOss, fileds, conf)
+    ccr, err := client.CreateConnector(test_connector_project, topicName, datahub.SinkOss, fileds, conf)
     assert.Nil(t, err)
     assert.NotNil(t, ccr)
     connectorId = ccr.ConnectorId
-    defer dh.DeleteConnector(test_connector_project, topicName, connectorId)
+    defer client.DeleteConnector(test_connector_project, topicName, connectorId)
 
     /* get connector */
-    gcr, err := dh.GetConnector(test_connector_project, topicName, connectorId)
+    gcr, err := client.GetConnector(test_connector_project, topicName, connectorId)
     assert.Nil(t, err)
     assert.NotNil(t, gcr)
     fmt.Println(*gcr)
     fmt.Println()
 
     /* list connector config */
-    lc, err := dh.ListConnector(test_connector_project, topicName)
+    lc, err := client.ListConnector(test_connector_project, topicName)
     assert.Nil(t, err)
     assert.NotNil(t, lc)
     fmt.Println(*lc)
@@ -526,11 +524,11 @@ func test_oss(t *testing.T) {
 
     /* append connector config */
     // ads 在创建 connector  时必须要链接所有列，所以无法实时测试appendField
-    //err = dh.AppendConnectorField(test_connector_project, topicName, connectorId, fieldName2)
+    //err = client.AppendConnectorField(test_connector_project, topicName, connectorId, fieldName2)
     //assert.Nil(t, err)
 
     //get connector shard status
-    gcs, err := dh.GetConnectorShardStatus(test_connector_project, topicName, connectorId)
+    gcs, err := client.GetConnectorShardStatus(test_connector_project, topicName, connectorId)
     assert.Nil(t, err)
     assert.NotNil(t, gcs)
     fmt.Println("****** list connector status *****")
@@ -539,16 +537,16 @@ func test_oss(t *testing.T) {
     }
     fmt.Println()
     shardId := "0"
-    gs, err := dh.GetConnectorShardStatusByShard(test_connector_project, topicName, connectorId, shardId)
+    gs, err := client.GetConnectorShardStatusByShard(test_connector_project, topicName, connectorId, shardId)
     assert.Nil(t, err)
     assert.NotNil(t, gs)
     fmt.Println(*gs)
     fmt.Println()
 
     /* update connector state */
-    err = dh.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorStopped)
+    _, err = client.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorStopped)
     assert.Nil(t, err)
-    err = dh.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorRunning)
+    _, err = client.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorRunning)
     assert.Nil(t, err)
     shardId = "0"
     ot := datahub.ConnectorOffset{
@@ -556,17 +554,17 @@ func test_oss(t *testing.T) {
         Sequence:  104,
     }
     // should update the state to stopped before update connector offset
-    err = dh.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorStopped)
+    _, err = client.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorStopped)
     assert.Nil(t, err)
-    err = dh.UpdateConnectorOffset(test_connector_project, topicName, connectorId, shardId, ot)
+    _, err = client.UpdateConnectorOffset(test_connector_project, topicName, connectorId, shardId, ot)
     assert.Nil(t, err)
-    err = dh.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorRunning)
+    _, err = client.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorRunning)
     assert.Nil(t, err)
 
     /* reload connector */
-    err = dh.ReloadConnector(test_connector_project, topicName, connectorId)
+    _, err = client.ReloadConnector(test_connector_project, topicName, connectorId)
     assert.Nil(t, err)
-    err = dh.ReloadConnectorByShard(test_connector_project, topicName, connectorId, shardId)
+    _, err = client.ReloadConnectorByShard(test_connector_project, topicName, connectorId, shardId)
     assert.Nil(t, err)
 }
 
@@ -594,9 +592,9 @@ func test_fc(t *testing.T) {
         },
     }
 
-    err := dh.CreateTupleTopic(test_connector_project, topicName, "test mysql", 7, 3, rs)
+    _, err := client.CreateTupleTopic(test_connector_project, topicName, "test mysql", 7, 3, rs)
     assert.Nil(t, err)
-    defer dh.DeleteTopic(test_connector_project, topicName)
+    defer client.DeleteTopic(test_connector_project, topicName)
 
     //port, err := strconv.Atoi(ADS_PORT)
     //assert.Nil(t, err)
@@ -611,21 +609,21 @@ func test_fc(t *testing.T) {
     }
 
     fileds := []string{fieldName1, fieldName2}
-    ccr, err := dh.CreateConnector(test_connector_project, topicName, datahub.SinkFc, fileds, conf)
+    ccr, err := client.CreateConnector(test_connector_project, topicName, datahub.SinkFc, fileds, conf)
     assert.Nil(t, err)
     assert.NotNil(t, ccr)
     connectorId = ccr.ConnectorId
-    defer dh.DeleteConnector(test_connector_project, topicName, connectorId)
+    defer client.DeleteConnector(test_connector_project, topicName, connectorId)
 
     /* get connector */
-    gcr, err := dh.GetConnector(test_connector_project, topicName, connectorId)
+    gcr, err := client.GetConnector(test_connector_project, topicName, connectorId)
     assert.Nil(t, err)
     assert.NotNil(t, gcr)
     fmt.Println(*gcr)
     fmt.Println()
 
     /* list connector config */
-    lc, err := dh.ListConnector(test_connector_project, topicName)
+    lc, err := client.ListConnector(test_connector_project, topicName)
     assert.Nil(t, err)
     assert.NotNil(t, lc)
     fmt.Println(*lc)
@@ -636,11 +634,11 @@ func test_fc(t *testing.T) {
 
     /* append connector config */
     // ads 在创建 connector  时必须要链接所有列，所以无法实时测试appendField
-    //err = dh.AppendConnectorField(test_connector_project, topicName, connectorId, fieldName2)
+    //err = client.AppendConnectorField(test_connector_project, topicName, connectorId, fieldName2)
     //assert.Nil(t, err)
 
     //get connector shard status
-    gcs, err := dh.GetConnectorShardStatus(test_connector_project, topicName, connectorId)
+    gcs, err := client.GetConnectorShardStatus(test_connector_project, topicName, connectorId)
     assert.Nil(t, err)
     assert.NotNil(t, gcs)
     fmt.Println("****** list connector status *****")
@@ -649,16 +647,16 @@ func test_fc(t *testing.T) {
     }
     fmt.Println()
     shardId := "0"
-    gs, err := dh.GetConnectorShardStatusByShard(test_connector_project, topicName, connectorId, shardId)
+    gs, err := client.GetConnectorShardStatusByShard(test_connector_project, topicName, connectorId, shardId)
     assert.Nil(t, err)
     assert.NotNil(t, gs)
     fmt.Println(*gs)
     fmt.Println()
 
     /* update connector state */
-    err = dh.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorStopped)
+    _, err = client.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorStopped)
     assert.Nil(t, err)
-    err = dh.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorRunning)
+    _, err = client.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorRunning)
     assert.Nil(t, err)
     shardId = "0"
     ot := datahub.ConnectorOffset{
@@ -666,17 +664,17 @@ func test_fc(t *testing.T) {
         Sequence:  104,
     }
     // should update the state to stopped before update connector offset
-    err = dh.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorStopped)
+    _, err = client.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorStopped)
     assert.Nil(t, err)
-    err = dh.UpdateConnectorOffset(test_connector_project, topicName, connectorId, shardId, ot)
+    _, err = client.UpdateConnectorOffset(test_connector_project, topicName, connectorId, shardId, ot)
     assert.Nil(t, err)
-    err = dh.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorRunning)
+    _, err = client.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorRunning)
     assert.Nil(t, err)
 
     /* reload connector */
-    err = dh.ReloadConnector(test_connector_project, topicName, connectorId)
+    _, err = client.ReloadConnector(test_connector_project, topicName, connectorId)
     assert.Nil(t, err)
-    err = dh.ReloadConnectorByShard(test_connector_project, topicName, connectorId, shardId)
+    _, err = client.ReloadConnectorByShard(test_connector_project, topicName, connectorId, shardId)
     assert.Nil(t, err)
 }
 
@@ -735,9 +733,9 @@ func test_ots(t *testing.T) {
         },
     }
 
-    err := dh.CreateTupleTopic(test_connector_project, topicName, "test mysql", 7, 3, rs)
+    _, err := client.CreateTupleTopic(test_connector_project, topicName, "test mysql", 7, 3, rs)
     assert.Nil(t, err)
-    defer dh.DeleteTopic(test_connector_project, topicName)
+    defer client.DeleteTopic(test_connector_project, topicName)
 
     //port, err := strconv.Atoi(ADS_PORT)
     //assert.Nil(t, err)
@@ -752,21 +750,21 @@ func test_ots(t *testing.T) {
     }
 
     fileds := []string{fieldName, fieldName1, fieldName2, fieldName3, fieldName4, fieldName5}
-    ccr, err := dh.CreateConnector(test_connector_project, topicName, datahub.SinkOts, fileds, conf)
+    ccr, err := client.CreateConnector(test_connector_project, topicName, datahub.SinkOts, fileds, conf)
     assert.Nil(t, err)
     assert.NotNil(t, ccr)
     connectorId = ccr.ConnectorId
-    defer dh.DeleteConnector(test_connector_project, topicName, connectorId)
+    defer client.DeleteConnector(test_connector_project, topicName, connectorId)
 
     /* get connector */
-    gcr, err := dh.GetConnector(test_connector_project, topicName, connectorId)
+    gcr, err := client.GetConnector(test_connector_project, topicName, connectorId)
     assert.Nil(t, err)
     assert.NotNil(t, gcr)
     fmt.Println(*gcr)
     fmt.Println()
 
     /* list connector config */
-    lc, err := dh.ListConnector(test_connector_project, topicName)
+    lc, err := client.ListConnector(test_connector_project, topicName)
     assert.Nil(t, err)
     assert.NotNil(t, lc)
     fmt.Println(*lc)
@@ -777,11 +775,11 @@ func test_ots(t *testing.T) {
 
     /* append connector config */
     // ads 在创建 connector  时必须要链接所有列，所以无法实时测试appendField
-    //err = dh.AppendConnectorField(test_connector_project, topicName, connectorId, fieldName2)
+    //err = client.AppendConnectorField(test_connector_project, topicName, connectorId, fieldName2)
     //assert.Nil(t, err)
 
     //get connector shard status
-    gcs, err := dh.GetConnectorShardStatus(test_connector_project, topicName, connectorId)
+    gcs, err := client.GetConnectorShardStatus(test_connector_project, topicName, connectorId)
     assert.Nil(t, err)
     assert.NotNil(t, gcs)
     fmt.Println("****** list connector status *****")
@@ -790,16 +788,16 @@ func test_ots(t *testing.T) {
     }
     fmt.Println()
     shardId := "0"
-    gs, err := dh.GetConnectorShardStatusByShard(test_connector_project, topicName, connectorId, shardId)
+    gs, err := client.GetConnectorShardStatusByShard(test_connector_project, topicName, connectorId, shardId)
     assert.Nil(t, err)
     assert.NotNil(t, gs)
     fmt.Println(*gs)
     fmt.Println()
 
     /* update connector state */
-    err = dh.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorStopped)
+    _, err = client.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorStopped)
     assert.Nil(t, err)
-    err = dh.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorRunning)
+    _, err = client.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorRunning)
     assert.Nil(t, err)
     shardId = "0"
     ot := datahub.ConnectorOffset{
@@ -807,17 +805,17 @@ func test_ots(t *testing.T) {
         Sequence:  104,
     }
     // should update the state to stopped before update connector offset
-    err = dh.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorStopped)
+    _, err = client.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorStopped)
     assert.Nil(t, err)
-    err = dh.UpdateConnectorOffset(test_connector_project, topicName, connectorId, shardId, ot)
+    _, err = client.UpdateConnectorOffset(test_connector_project, topicName, connectorId, shardId, ot)
     assert.Nil(t, err)
-    err = dh.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorRunning)
+    _, err = client.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorRunning)
     assert.Nil(t, err)
 
     /* reload connector */
-    err = dh.ReloadConnector(test_connector_project, topicName, connectorId)
+    _, err = client.ReloadConnector(test_connector_project, topicName, connectorId)
     assert.Nil(t, err)
-    err = dh.ReloadConnectorByShard(test_connector_project, topicName, connectorId, shardId)
+    _, err = client.ReloadConnectorByShard(test_connector_project, topicName, connectorId, shardId)
     assert.Nil(t, err)
 }
 
@@ -847,19 +845,19 @@ func test_datahub(t *testing.T) {
         },
     }
 
-    err := dh.CreateTupleTopic(test_connector_project, topicName, "test mysql", 7, 3, rs)
+    _, err := client.CreateTupleTopic(test_connector_project, topicName, "test mysql", 7, 3, rs)
     assert.Nil(t, err)
-    defer dh.DeleteTopic(test_connector_project, topicName)
+    defer client.DeleteTopic(test_connector_project, topicName)
 
     //port, err := strconv.Atoi(ADS_PORT)
     //assert.Nil(t, err)
 
-    err = dh.CreateProject(DATAHUB_PROJECT,"test")
+    _, err = client.CreateProject(DATAHUB_PROJECT,"test")
     assert.Nil(t,err)
-    defer dh.DeleteProject(DATAHUB_PROJECT)
-    err = dh.CreateTupleTopic(DATAHUB_PROJECT,DATAHUB_TOPIC,"test",7,3,rs)
+    defer client.DeleteProject(DATAHUB_PROJECT)
+    _, err = client.CreateTupleTopic(DATAHUB_PROJECT,DATAHUB_TOPIC,"test",7,3,rs)
     assert.Nil(t,err)
-    defer dh.DeleteTopic(DATAHUB_PROJECT,DATAHUB_TOPIC)
+    defer client.DeleteTopic(DATAHUB_PROJECT,DATAHUB_TOPIC)
 
     conf := datahub.SinkDatahubConfig{
         Endpoint:_endpoint,
@@ -871,21 +869,21 @@ func test_datahub(t *testing.T) {
     }
 
     fileds := []string{fieldName1, fieldName2}
-    ccr, err := dh.CreateConnector(test_connector_project, topicName, datahub.SinkDatahub, fileds, conf)
+    ccr, err := client.CreateConnector(test_connector_project, topicName, datahub.SinkDatahub, fileds, conf)
     assert.Nil(t, err)
     assert.NotNil(t, ccr)
     connectorId = ccr.ConnectorId
-    defer dh.DeleteConnector(test_connector_project, topicName, connectorId)
+    defer client.DeleteConnector(test_connector_project, topicName, connectorId)
 
     /* get connector */
-    gcr, err := dh.GetConnector(test_connector_project, topicName, connectorId)
+    gcr, err := client.GetConnector(test_connector_project, topicName, connectorId)
     assert.Nil(t, err)
     assert.NotNil(t, gcr)
     fmt.Println(*gcr)
     fmt.Println()
 
     /* list connector config */
-    lc, err := dh.ListConnector(test_connector_project, topicName)
+    lc, err := client.ListConnector(test_connector_project, topicName)
     assert.Nil(t, err)
     assert.NotNil(t, lc)
     fmt.Println(*lc)
@@ -896,11 +894,11 @@ func test_datahub(t *testing.T) {
 
     /* append connector config */
     // ads 在创建 connector  时必须要链接所有列，所以无法实时测试appendField
-    //err = dh.AppendConnectorField(test_connector_project, topicName, connectorId, fieldName2)
+    //err = client.AppendConnectorField(test_connector_project, topicName, connectorId, fieldName2)
     //assert.Nil(t, err)
 
     //get connector shard status
-    gcs, err := dh.GetConnectorShardStatus(test_connector_project, topicName, connectorId)
+    gcs, err := client.GetConnectorShardStatus(test_connector_project, topicName, connectorId)
     assert.Nil(t, err)
     assert.NotNil(t, gcs)
     fmt.Println("****** list connector status *****")
@@ -909,16 +907,16 @@ func test_datahub(t *testing.T) {
     }
     fmt.Println()
     shardId := "0"
-    gs, err := dh.GetConnectorShardStatusByShard(test_connector_project, topicName, connectorId, shardId)
+    gs, err := client.GetConnectorShardStatusByShard(test_connector_project, topicName, connectorId, shardId)
     assert.Nil(t, err)
     assert.NotNil(t, gs)
     fmt.Println(*gs)
     fmt.Println()
 
     /* update connector state */
-    err = dh.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorStopped)
+    _, err = client.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorStopped)
     assert.Nil(t, err)
-    err = dh.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorRunning)
+    _, err = client.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorRunning)
     assert.Nil(t, err)
     shardId = "0"
     ot := datahub.ConnectorOffset{
@@ -926,16 +924,16 @@ func test_datahub(t *testing.T) {
         Sequence:  104,
     }
     // should update the state to stopped before update connector offset
-    err = dh.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorStopped)
+    _, err = client.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorStopped)
     assert.Nil(t, err)
-    err = dh.UpdateConnectorOffset(test_connector_project, topicName, connectorId, shardId, ot)
+    _, err = client.UpdateConnectorOffset(test_connector_project, topicName, connectorId, shardId, ot)
     assert.Nil(t, err)
-    err = dh.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorRunning)
+    _, err = client.UpdateConnectorState(test_connector_project, topicName, connectorId, datahub.ConnectorRunning)
     assert.Nil(t, err)
 
     /* reload connector */
-    err = dh.ReloadConnector(test_connector_project, topicName, connectorId)
+    _, err = client.ReloadConnector(test_connector_project, topicName, connectorId)
     assert.Nil(t, err)
-    err = dh.ReloadConnectorByShard(test_connector_project, topicName, connectorId, shardId)
+    _, err = client.ReloadConnectorByShard(test_connector_project, topicName, connectorId, shardId)
     assert.Nil(t, err)
 }

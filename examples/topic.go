@@ -19,24 +19,22 @@ func main() {
 
     deleteTopic()
 
-
-
 }
 
 func createTupleTopic() {
     fields := []datahub.Field{
-        {"string_field", datahub.STRING, true},
-        {"bigint_field", datahub.BIGINT, false},
-        {"timestamp_field", datahub.TIMESTAMP, true},
-        {"double_field", datahub.DOUBLE, true},
-        {"boolean_field", datahub.BOOLEAN, true},
-        {"decimal_field", datahub.DECIMAL, true},
+        {"string_field", datahub.STRING, true, "comment1"},
+        {"bigint_field", datahub.BIGINT, false, ""},
+        {"timestamp_field", datahub.TIMESTAMP, true, ""},
+        {"double_field", datahub.DOUBLE, true, ""},
+        {"boolean_field", datahub.BOOLEAN, true, ""},
+        {"decimal_field", datahub.DECIMAL, true, ""},
     }
     schema := &datahub.RecordSchema{
         fields,
     }
 
-    if err := dh.CreateTupleTopic(projectName, topicName, "topic comment", 7, 3, schema); err != nil {
+    if _, err := dh.CreateTupleTopic(projectName, topicName, "topic comment", 7, 3, schema); err != nil {
         if _, ok := err.(*datahub.ResourceExistError); ok {
             fmt.Println("topic already exists")
         } else {
@@ -49,7 +47,7 @@ func createTupleTopic() {
 }
 
 func createBlobTopic() {
-    if err := dh.CreateBlobTopic(projectName, blobTopicName, "topic comment", 7, 3); err != nil {
+    if _, err := dh.CreateBlobTopic(projectName, blobTopicName, "topic comment", 7, 3); err != nil {
         if _, ok := err.(*datahub.ResourceExistError); ok {
             fmt.Println("topic already exists")
         } else {
@@ -83,7 +81,7 @@ func getTopic() {
 }
 
 func updateTopic() {
-    if err := dh.UpdateTopic(projectName, topicName, "new topic comment"); err != nil {
+    if _, err := dh.UpdateTopic(projectName, topicName, "new topic comment"); err != nil {
         fmt.Println("update topic comment failed")
         fmt.Println(err)
         return
@@ -92,7 +90,7 @@ func updateTopic() {
 }
 
 func deleteTopic() {
-    if err := dh.DeleteTopic(projectName, topicName); err != nil {
+    if _, err := dh.DeleteTopic(projectName, topicName); err != nil {
         if _, ok := err.(*datahub.ResourceNotFoundError); ok {
             fmt.Println("topic not found")
         } else {
@@ -102,7 +100,7 @@ func deleteTopic() {
     }
     fmt.Println("delete successful")
 
-    if err := dh.DeleteTopic(projectName, blobTopicName); err != nil {
+    if _, err := dh.DeleteTopic(projectName, blobTopicName); err != nil {
         if _, ok := err.(*datahub.ResourceNotFoundError); ok {
             fmt.Println("topic not found")
         } else {
@@ -119,7 +117,7 @@ func appendField() {
         Type:      datahub.STRING,
         AllowNull: true,
     }
-    err := dh.AppendField(projectName, topicName, field)
+    _, err := dh.AppendField(projectName, topicName, field)
     fmt.Println(err)
 }
 
@@ -137,8 +135,8 @@ func getSchema(dh datahub.DataHub, projectName, topicName string) {
 
 func createSchema1() {
     fields := []datahub.Field{
-        {"field1", datahub.STRING, true},
-        {"field2", datahub.BIGINT, false},
+        {"field1", datahub.STRING, true, "comment"},
+        {"field2", datahub.BIGINT, false, ""},
     }
     schema := datahub.RecordSchema{
         fields,

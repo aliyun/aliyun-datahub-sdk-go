@@ -10,7 +10,7 @@ func example_error() {
     maxRetry := 3
     dh = datahub.New(accessId, accessKey, endpoint)
 
-    if err := dh.CreateProject(projectName, "project comment"); err != nil {
+    if _, err := dh.CreateProject(projectName, "project comment"); err != nil {
         if _, ok := err.(*datahub.InvalidParameterError); ok {
             fmt.Println("invalid parameter,please check your input parameter")
         } else if _, ok := err.(*datahub.ResourceExistError); ok {
@@ -22,7 +22,7 @@ func example_error() {
             for i := 0; i < maxRetry; i++ {
                 // wait 5 seconds
                 time.Sleep(5 * time.Second)
-                if err := dh.CreateProject(projectName, "project comment"); err != nil {
+                if _, err := dh.CreateProject(projectName, "project comment"); err != nil {
                     fmt.Println("create project failed")
                     fmt.Println(err)
                 } else {

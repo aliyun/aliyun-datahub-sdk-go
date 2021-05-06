@@ -94,7 +94,7 @@ func offset_consumption() {
                 ms := map[string]datahub.SubscriptionOffset{
                     shardId: so,
                 }
-                if err := dh.CommitSubscriptionOffset(projectName, topicName, subId, ms); err != nil {
+                if _, err := dh.CommitSubscriptionOffset(projectName, topicName, subId, ms); err != nil {
                     if _, ok := err.(*datahub.SubscriptionOffsetResetError); ok {
                         fmt.Println("subscription is reset in elsewhere")
                         return

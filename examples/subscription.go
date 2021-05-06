@@ -32,7 +32,7 @@ func getSubscription() {
 }
 
 func delSubscription() {
-    if err := dh.DeleteSubscription(projectName, topicName, subId); err != nil {
+    if _, err := dh.DeleteSubscription(projectName, topicName, subId); err != nil {
         if _, ok := err.(*datahub.ResourceNotFoundError); ok {
             fmt.Println("subscription not found")
         } else {
@@ -59,7 +59,7 @@ func listSubscription() {
 }
 
 func updateSubscription() {
-    if err := dh.UpdateSubscription(projectName, topicName, subId, "new sub comment"); err != nil {
+    if _, err := dh.UpdateSubscription(projectName, topicName, subId, "new sub comment"); err != nil {
         fmt.Println("update subscription comment failed")
         fmt.Println(err)
         return
@@ -68,7 +68,7 @@ func updateSubscription() {
 }
 
 func updateSubState() {
-    if err := dh.UpdateSubscriptionState(projectName, topicName, subId, datahub.SUB_OFFLINE); err != nil {
+    if _, err := dh.UpdateSubscriptionState(projectName, topicName, subId, datahub.SUB_OFFLINE); err != nil {
         fmt.Println("update subscription state failed")
         fmt.Println(err)
         return

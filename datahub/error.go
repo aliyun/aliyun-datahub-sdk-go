@@ -53,10 +53,14 @@ const (
     commentInvalid       string = "comment can not be empty and length must less than 1024"
     topicNameInvalid     string = "topic name should start with letter, only contains [a-zA-Z0-9_], 1 < length < 128"
     shardIdInvalid       string = "shardId is invalid"
-    shardListInvalid     string = "shard list is emtpy"
+    shardListInvalid     string = "shard list is empty"
+    lifecycleInvalid     string = "lifecycle is invalid"
+    parameterInvalid     string = "parameter is invalid"
+    parameterNull        string = "parameter is nil"
     parameterNumInvalid  string = "parameter num invalid"
     parameterTypeInvalid string = "parameter type is invalid,please check your input parameter type"
     missingRecordSchema  string = "missing record schema for tuple record type"
+    recordsInvalid       string = "records is invalid, nil, empty or other invalid reason"
 )
 
 // return the specific err type by errCode,

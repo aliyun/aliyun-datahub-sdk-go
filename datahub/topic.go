@@ -9,6 +9,7 @@ type Field struct {
     Name      string    `json:"name"`
     Type      FieldType `json:"type"`
     AllowNull bool      `json:"notnull"`
+    Comment   string    `json:"comment"`
 }
 
 // RecordSchema
@@ -37,11 +38,25 @@ func NewRecordSchemaFromJson(SchemaJson string) (recordSchema *RecordSchema, err
 }
 
 func (rs *RecordSchema) String() string {
-    for idx := range rs.Fields {
-        rs.Fields[idx].AllowNull = !rs.Fields[idx].AllowNull
+    type FieldHelper struct {
+        Name    string    `json:"name"`
+        Type    FieldType `json:"type"`
+        NotNull bool      `json:"notnull,omitempty"`
+        Comment string    `json:"comment,omitempty"`
     }
-    byts, _ := json.Marshal(rs)
-    return string(byts)
+
+    fields := make([]FieldHelper, 0, rs.Size())
+    for _, field := range rs.Fields {
+        tmpField := FieldHelper{field.Name, field.Type, !field.AllowNull, field.Comment}
+        fields = append(fields, tmpField)
+    }
+
+    tmpSchema := struct {
+        Fields []FieldHelper `json:"fields"`
+    }{fields}
+
+    buf, _ := json.Marshal(tmpSchema)
+    return string(buf)
 }
 
 // AddField add a field
@@ -71,4 +86,9 @@ func (rs *RecordSchema) GetFieldIndex(fname string) int {
 // Size get record schema fields size
 func (rs *RecordSchema) Size() int {
     return len(rs.Fields)
+}
+
+type RecordSchemaInfo struct {
+    VersionId    int          `json:"VersionId"`
+    RecordSchema RecordSchema `json:"RecordSchema"`
 }
