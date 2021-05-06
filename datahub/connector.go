@@ -19,14 +19,15 @@ const (
 type ConnectorType string
 
 const (
-    SinkOdps    ConnectorType = "sink_odps"
-    SinkOss     ConnectorType = "sink_oss"
-    SinkEs      ConnectorType = "sink_es"
-    SinkAds     ConnectorType = "sink_ads"
-    SinkMysql   ConnectorType = "sink_mysql"
-    SinkFc      ConnectorType = "sink_fc"
-    SinkOts     ConnectorType = "sink_ots"
-    SinkDatahub ConnectorType = "sink_datahub"
+    SinkOdps     ConnectorType = "sink_odps"
+    SinkOss      ConnectorType = "sink_oss"
+    SinkEs       ConnectorType = "sink_es"
+    SinkAds      ConnectorType = "sink_ads"
+    SinkMysql    ConnectorType = "sink_mysql"
+    SinkFc       ConnectorType = "sink_fc"
+    SinkOts      ConnectorType = "sink_ots"
+    SinkDatahub  ConnectorType = "sink_datahub"
+    SinkHologres ConnectorType = "sink_hologres"
 )
 
 func (ct *ConnectorType) String() string {
@@ -35,7 +36,7 @@ func (ct *ConnectorType) String() string {
 
 func validateConnectorType(ct ConnectorType) bool {
     switch ct {
-    case SinkOdps, SinkOss, SinkEs, SinkAds, SinkMysql, SinkFc, SinkOts, SinkDatahub:
+    case SinkOdps, SinkOss, SinkEs, SinkAds, SinkMysql, SinkFc, SinkOts, SinkDatahub, SinkHologres:
         return true
     default:
         return false
@@ -45,7 +46,7 @@ func validateConnectorType(ct ConnectorType) bool {
 type ConnectorState string
 
 const (
-    ConnectorStopped ConnectorState = "CONNECTOR_PAUSED"
+    ConnectorStopped ConnectorState = "CONNECTOR_STOPPED"
     ConnectorRunning ConnectorState = "CONNECTOR_RUNNING"
 )
 
@@ -56,6 +57,18 @@ func validateConnectorState(ct ConnectorState) bool {
     default:
         return false
     }
+}
+
+type ConnectorTimestampUnit string
+
+const (
+    ConnectorMicrosecond ConnectorTimestampUnit = "MICROSECOND"
+    ConnectorMillisecond ConnectorTimestampUnit = "MILLISECOND"
+    ConnectorSecond      ConnectorTimestampUnit = "SECOND"
+)
+
+type ConnectorConfig struct {
+    TimestampUnit ConnectorTimestampUnit `json:"TimestampUnit"`
 }
 
 type PartitionMode string
@@ -136,16 +149,19 @@ func (pc *PartitionConfig) UnmarshalJSON(data []byte) error {
 
 /** ODPS CONFIG **/
 type SinkOdpsConfig struct {
+    ConnectorConfig
     Endpoint        string          `json:"OdpsEndpoint"`
     Project         string          `json:"Project"`
     Table           string          `json:"Table"`
     AccessId        string          `json:"AccessId"`
     AccessKey       string          `json:"AccessKey"`
     TimeRange       int             `json:"TimeRange"`
-    TimeZone        string          `json:"TimeZone"`
+    TimeZone        string          `json:"TimeZone,omitempty"`
     PartitionMode   PartitionMode   `json:"PartitionMode"`
     PartitionConfig PartitionConfig `json:"PartitionConfig"`
     TunnelEndpoint  string          `json:"TunnelEndpoint,omitempty"`
+    SplitKey        string          `json:"SplitKey,omitempty"`
+    Base64Encode    bool            `json:"Base64Encode,omitempty"`
 }
 
 func marshalCreateOdpsConnector(ccr *CreateConnectorRequest) ([]byte, error) {
@@ -153,22 +169,31 @@ func marshalCreateOdpsConnector(ccr *CreateConnectorRequest) ([]byte, error) {
     if !ok {
         return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkOdpsConfig", reflect.TypeOf(ccr.Config)))
     }
+
+    // set default value
+    if soConf.TimestampUnit == "" {
+        soConf.TimestampUnit = ConnectorMicrosecond
+    }
+
     ct := &struct {
-        Action       string         `json:"Action"`
-        Type         string         `json:"Type"`
-        ColumnFields []string       `json:"ColumnFields"`
-        Config       SinkOdpsConfig `json:"Config"`
+        Action        string            `json:"Action"`
+        Type          string            `json:"Type"`
+        SinkStartTime int64             `json:"SinkStartTime"`
+        ColumnFields  []string          `json:"ColumnFields"`
+        ColumnNameMap map[string]string `json:"ColumnNameMap,omitempty"`
+        Config        SinkOdpsConfig    `json:"Config"`
     }{
-        Action:       ccr.Action,
-        Type:         ccr.Type.String(),
-        ColumnFields: ccr.ColumnFields,
-        Config:       soConf,
+        Action:        ccr.Action,
+        Type:          ccr.Type.String(),
+        SinkStartTime: ccr.SinkStartTime,
+        ColumnFields:  ccr.ColumnFields,
+        ColumnNameMap: ccr.ColumnNameMap,
+        Config:        soConf,
     }
     return json.Marshal(ct)
 }
 
-func unmarshalGetOdpsConnector(gcr *GetConnectorResult, data []byte) error {
-
+func unmarshalGetOdpsConnector(commonResp *CommonResponseResult, data []byte) (*GetConnectorResult, error) {
     //the api return TimeRange is string, so need to convert to int64
     type SinkOdpsConfigHelper struct {
         SinkOdpsConfig
@@ -180,21 +205,34 @@ func unmarshalGetOdpsConnector(gcr *GetConnectorResult, data []byte) error {
     }{}
 
     if err := json.Unmarshal(data, ct); err != nil {
-        return err
+        return nil, err
     }
-    //if gcr == nil {
-    //    *gcr = GetConnectorResult{}
-    //}
-    *gcr = ct.GetConnectorResult
 
-    soConf := ct.Config.SinkOdpsConfig
+    conf := ct.Config.SinkOdpsConfig
     t, err := strconv.Atoi(ct.Config.TimeRange)
     if err != nil {
-        return err
+        return nil, err
     }
-    soConf.TimeRange = t
-    gcr.Config = soConf
-    return nil
+    conf.TimeRange = t
+
+    ret := &ct.GetConnectorResult
+    ret.Config = conf
+    ret.CommonResponseResult = *commonResp
+    return ret, nil
+}
+
+// no config update
+func marshalUpdateConnector(ucr *UpdateConnectorRequest) ([]byte, error) {
+    ct := &struct {
+        Action        string            `json:"Action"`
+        ColumnFields  []string          `json:"ColumnFields,omitempty"`
+        ColumnNameMap map[string]string `json:"ColumnNameMap,omitempty"`
+    }{
+        Action:        ucr.Action,
+        ColumnFields:  ucr.ColumnFields,
+        ColumnNameMap: ucr.ColumnNameMap,
+    }
+    return json.Marshal(ct)
 }
 
 func marshalUpdateOdpsConnector(ucr *UpdateConnectorRequest) ([]byte, error) {
@@ -202,26 +240,38 @@ func marshalUpdateOdpsConnector(ucr *UpdateConnectorRequest) ([]byte, error) {
     if !ok {
         return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkOdpsConfig", reflect.TypeOf(ucr.Config)))
     }
+
+    // set default value
+    if soConf.TimestampUnit == "" {
+        soConf.TimestampUnit = ConnectorMicrosecond
+    }
+
     ct := &struct {
-        Action string         `json:"Action"`
-        Config SinkOdpsConfig `json:"Config"`
+        Action        string            `json:"Action"`
+        ColumnFields  []string          `json:"ColumnFields,omitempty"`
+        ColumnNameMap map[string]string `json:"ColumnNameMap,omitempty"`
+        Config        SinkOdpsConfig    `json:"Config,omitempty"`
     }{
-        Action: ucr.Action,
-        Config: soConf,
+        Action:        ucr.Action,
+        ColumnFields:  ucr.ColumnFields,
+        ColumnNameMap: ucr.ColumnNameMap,
+        Config:        soConf,
     }
     return json.Marshal(ct)
 }
 
 /*  Oss Config */
 type SinkOssConfig struct {
-    Endpoint   string   `json:"Endpoint"`
-    Bucket     string   `json:"Bucket"`
-    Prefix     string   `json:"Prefix"`
-    TimeFormat string   `json:"TimeFormat"`
-    TimeRange  int      `json:"TimeRange"`
-    AuthMode   AuthMode `json:"AuthMode"`
-    AccessId   string   `json:"AccessId"`
-    AccessKey  string   `json:"AccessKey"`
+    ConnectorConfig
+    Endpoint    string   `json:"Endpoint"`
+    Bucket      string   `json:"Bucket"`
+    Prefix      string   `json:"Prefix"`
+    TimeFormat  string   `json:"TimeFormat"`
+    TimeRange   int      `json:"TimeRange"`
+    AuthMode    AuthMode `json:"AuthMode"`
+    AccessId    string   `json:"AccessId,omitempty"`
+    AccessKey   string   `json:"AccessKey,omitempty"`
+    MaxFileSize int64    `json:"MaxFileSize,omitempty"`
 }
 
 func marshalCreateOssConnector(ccr *CreateConnectorRequest) ([]byte, error) {
@@ -230,21 +280,30 @@ func marshalCreateOssConnector(ccr *CreateConnectorRequest) ([]byte, error) {
         return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkOssConfig", reflect.TypeOf(ccr.Config)))
     }
 
+    // set default value
+    if soConf.TimestampUnit == "" {
+        soConf.TimestampUnit = ConnectorMicrosecond
+    }
+
     ct := &struct {
-        Action       string        `json:"Action"`
-        Type         ConnectorType `json:"Type"`
-        ColumnFields []string      `json:"ColumnFields"`
-        Config       SinkOssConfig `json:"Config"`
+        Action        string            `json:"Action"`
+        Type          ConnectorType     `json:"Type"`
+        SinkStartTime int64             `json:"SinkStartTime"`
+        ColumnFields  []string          `json:"ColumnFields"`
+        ColumnNameMap map[string]string `json:"ColumnNameMap,omitempty"`
+        Config        SinkOssConfig     `json:"Config"`
     }{
-        Action:       "create",
-        Type:         ccr.Type,
-        ColumnFields: ccr.ColumnFields,
-        Config:       soConf,
+        Action:        "create",
+        Type:          ccr.Type,
+        SinkStartTime: ccr.SinkStartTime,
+        ColumnFields:  ccr.ColumnFields,
+        ColumnNameMap: ccr.ColumnNameMap,
+        Config:        soConf,
     }
     return json.Marshal(ct)
 }
 
-func unmarshalGetOssConnector(gcr *GetConnectorResult, data []byte) error {
+func unmarshalGetOssConnector(commonResp *CommonResponseResult, data []byte) (*GetConnectorResult, error) {
     type SinkOssConfigHelper struct {
         SinkOssConfig
         TimeRange string `json:"TimeRange"`
@@ -255,18 +314,20 @@ func unmarshalGetOssConnector(gcr *GetConnectorResult, data []byte) error {
     }{}
 
     if err := json.Unmarshal(data, ct); err != nil {
-        return err
+        return nil, err
     }
 
-    *gcr = ct.GetConnectorResult
     soConf := ct.Config.SinkOssConfig
     t, err := strconv.Atoi(ct.Config.TimeRange)
     if err != nil {
-        return err
+        return nil, err
     }
     soConf.TimeRange = t
-    gcr.Config = soConf
-    return nil
+
+    ret := &ct.GetConnectorResult
+    ret.Config = soConf
+    ret.CommonResponseResult = *commonResp
+    return ret, nil
 }
 
 func marshalUpdateOssConnector(ucr *UpdateConnectorRequest) ([]byte, error) {
@@ -275,18 +336,28 @@ func marshalUpdateOssConnector(ucr *UpdateConnectorRequest) ([]byte, error) {
         return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkOssConfig", reflect.TypeOf(ucr.Config)))
     }
 
+    // set default value
+    if soConf.TimestampUnit == "" {
+        soConf.TimestampUnit = ConnectorMicrosecond
+    }
+
     ct := &struct {
-        Action string        `json:"Action"`
-        Config SinkOssConfig `json:"Config"`
+        Action        string            `json:"Action"`
+        ColumnFields  []string          `json:"ColumnFields,omitempty"`
+        ColumnNameMap map[string]string `json:"ColumnNameMap,omitempty"`
+        Config        SinkOssConfig     `json:"Config,omitempty"`
     }{
-        Action: "create",
-        Config: soConf,
+        Action:        "create",
+        ColumnFields:  ucr.ColumnFields,
+        ColumnNameMap: ucr.ColumnNameMap,
+        Config:        soConf,
     }
     return json.Marshal(ct)
 }
 
 /*  mysql Config */
 type SinkMysqlConfig struct {
+    ConnectorConfig
     Host     string     `json:"Host"`
     Port     string     `json:"Port"`
     Database string     `json:"Database"`
@@ -309,33 +380,48 @@ func marshalCreateMysqlConnector(ccr *CreateConnectorRequest) ([]byte, error) {
         return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkMysqlConfig", reflect.TypeOf(ccr.Config)))
     }
 
+    // set default value
+    if soConf.TimestampUnit == "" {
+        soConf.TimestampUnit = ConnectorMicrosecond
+    }
+
+    // set default value
+    if soConf.TimestampUnit == "" {
+        soConf.TimestampUnit = ConnectorMicrosecond
+    }
+
     ct := &struct {
-        Action       string          `json:"Action"`
-        Type         ConnectorType   `json:"Type"`
-        ColumnFields []string        `json:"ColumnFields"`
-        Config       SinkMysqlConfig `json:"Config"`
+        Action        string            `json:"Action"`
+        Type          ConnectorType     `json:"Type"`
+        SinkStartTime int64             `json:"SinkStartTime"`
+        ColumnFields  []string          `json:"ColumnFields"`
+        ColumnNameMap map[string]string `json:"ColumnNameMap,omitempty"`
+        Config        SinkMysqlConfig   `json:"Config"`
     }{
-        Action:       "create",
-        Type:         ccr.Type,
-        ColumnFields: ccr.ColumnFields,
-        Config:       soConf,
+        Action:        "create",
+        Type:          ccr.Type,
+        SinkStartTime: ccr.SinkStartTime,
+        ColumnFields:  ccr.ColumnFields,
+        ColumnNameMap: ccr.ColumnNameMap,
+        Config:        soConf,
     }
     return json.Marshal(ct)
 }
 
-func unmarshalGetMysqlConnector(gcr *GetConnectorResult, data []byte) error {
+func unmarshalGetMysqlConnector(commonResp *CommonResponseResult, data []byte) (*GetConnectorResult, error) {
     ct := &struct {
         GetConnectorResult
         Config SinkMysqlConfig `json:"Config"`
     }{}
 
     if err := json.Unmarshal(data, ct); err != nil {
-        return err
+        return nil, err
     }
 
-    *gcr = ct.GetConnectorResult
-    gcr.Config = ct.Config
-    return nil
+    ret := &ct.GetConnectorResult
+    ret.Config = ct.Config
+    ret.CommonResponseResult = *commonResp
+    return ret, nil
 }
 
 func marshalUpdateMysqlConnector(ucr *UpdateConnectorRequest) ([]byte, error) {
@@ -344,12 +430,21 @@ func marshalUpdateMysqlConnector(ucr *UpdateConnectorRequest) ([]byte, error) {
         return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkMysqlConfig", reflect.TypeOf(ucr.Config)))
     }
 
+    // set default value
+    if soConf.TimestampUnit == "" {
+        soConf.TimestampUnit = ConnectorMicrosecond
+    }
+
     ct := &struct {
-        Action string          `json:"Action"`
-        Config SinkMysqlConfig `json:"Config"`
+        Action        string            `json:"Action"`
+        ColumnFields  []string          `json:"ColumnFields,omitempty"`
+        ColumnNameMap map[string]string `json:"ColumnNameMap,omitempty"`
+        Config        SinkMysqlConfig   `json:"Config,omitempty"`
     }{
-        Action: "create",
-        Config: soConf,
+        Action:        "create",
+        ColumnFields:  ucr.ColumnFields,
+        ColumnNameMap: ucr.ColumnNameMap,
+        Config:        soConf,
     }
     return json.Marshal(ct)
 }
@@ -365,59 +460,79 @@ func marshalCreateAdsConnector(ccr *CreateConnectorRequest) ([]byte, error) {
         return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkAdsConfig", reflect.TypeOf(ccr.Config)))
     }
 
+    // set default value
+    if soConf.TimestampUnit == "" {
+        soConf.TimestampUnit = ConnectorMicrosecond
+    }
+
     ct := &struct {
-        Action       string        `json:"Action"`
-        Type         ConnectorType `json:"Type"`
-        ColumnFields []string      `json:"ColumnFields"`
-        Config       SinkAdsConfig `json:"Config"`
+        Action        string            `json:"Action"`
+        Type          ConnectorType     `json:"Type"`
+        SinkStartTime int64             `json:"SinkStartTime"`
+        ColumnFields  []string          `json:"ColumnFields"`
+        ColumnNameMap map[string]string `json:"ColumnNameMap,omitempty"`
+        Config        SinkAdsConfig     `json:"Config"`
     }{
-        Action:       "create",
-        Type:         ccr.Type,
-        ColumnFields: ccr.ColumnFields,
-        Config:       soConf,
+        Action:        "create",
+        Type:          ccr.Type,
+        SinkStartTime: ccr.SinkStartTime,
+        ColumnFields:  ccr.ColumnFields,
+        ColumnNameMap: ccr.ColumnNameMap,
+        Config:        soConf,
     }
     return json.Marshal(ct)
 }
 
-func unmarshalGetAdsConnector(gcr *GetConnectorResult, data []byte) error {
+func unmarshalGetAdsConnector(commonResp *CommonResponseResult, data []byte) (*GetConnectorResult, error) {
     ct := &struct {
         GetConnectorResult
         Config SinkMysqlConfig `json:"Config"`
     }{}
 
     if err := json.Unmarshal(data, ct); err != nil {
-        return err
+        return nil, err
     }
 
-    *gcr = ct.GetConnectorResult
-    gcr.Config = ct.Config
-    return nil
+    ret := &ct.GetConnectorResult
+    ret.Config = ct.Config
+    ret.CommonResponseResult = *commonResp
+    return ret, nil
 }
 
 func marshalUpdateAdsConnector(ucr *UpdateConnectorRequest) ([]byte, error) {
-    soConf, ok := ucr.Config.(SinkMysqlConfig)
+    soConf, ok := ucr.Config.(SinkAdsConfig)
     if !ok {
         return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkAdsConfig", reflect.TypeOf(ucr.Config)))
     }
 
+    // set default value
+    if soConf.TimestampUnit == "" {
+        soConf.TimestampUnit = ConnectorMicrosecond
+    }
+
     ct := &struct {
-        Action string          `json:"Action"`
-        Config SinkMysqlConfig `json:"Config"`
+        Action        string            `json:"Action"`
+        ColumnFields  []string          `json:"ColumnFields,omitempty"`
+        ColumnNameMap map[string]string `json:"ColumnNameMap,omitempty"`
+        Config        SinkAdsConfig     `json:"Config,omitempty"`
     }{
-        Action: "create",
-        Config: soConf,
+        Action:        "create",
+        ColumnFields:  ucr.ColumnFields,
+        ColumnNameMap: ucr.ColumnNameMap,
+        Config:        soConf,
     }
     return json.Marshal(ct)
 }
 
 /*  datahub Config */
 type SinkDatahubConfig struct {
+    ConnectorConfig
     Endpoint  string   `json:"Endpoint"`
     Project   string   `json:"Project"`
     Topic     string   `json:"Topic"`
     AuthMode  AuthMode `json:"AuthMode"`
-    AccessId  string   `json:"AccessId"`
-    AccessKey string   `json:"AccessKey"`
+    AccessId  string   `json:"AccessId,omitempty"`
+    AccessKey string   `json:"AccessKey,omitempty"`
 }
 
 func marshalCreateDatahubConnector(ccr *CreateConnectorRequest) ([]byte, error) {
@@ -426,33 +541,43 @@ func marshalCreateDatahubConnector(ccr *CreateConnectorRequest) ([]byte, error) 
         return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkDatahubConfig", reflect.TypeOf(ccr.Config)))
     }
 
+    // set default value
+    if soConf.TimestampUnit == "" {
+        soConf.TimestampUnit = ConnectorMicrosecond
+    }
+
     ct := &struct {
-        Action       string            `json:"Action"`
-        Type         ConnectorType     `json:"Type"`
-        ColumnFields []string          `json:"ColumnFields"`
-        Config       SinkDatahubConfig `json:"Config"`
+        Action        string            `json:"Action"`
+        Type          ConnectorType     `json:"Type"`
+        SinkStartTime int64             `json:"SinkStartTime"`
+        ColumnFields  []string          `json:"ColumnFields"`
+        ColumnNameMap map[string]string `json:"ColumnNameMap,omitempty"`
+        Config        SinkDatahubConfig `json:"Config"`
     }{
-        Action:       "create",
-        Type:         ccr.Type,
-        ColumnFields: ccr.ColumnFields,
-        Config:       soConf,
+        Action:        "create",
+        Type:          ccr.Type,
+        SinkStartTime: ccr.SinkStartTime,
+        ColumnFields:  ccr.ColumnFields,
+        ColumnNameMap: ccr.ColumnNameMap,
+        Config:        soConf,
     }
     return json.Marshal(ct)
 }
 
-func unmarshalGetDatahubConnector(gcr *GetConnectorResult, data []byte) error {
+func unmarshalGetDatahubConnector(commonResp *CommonResponseResult, data []byte) (*GetConnectorResult, error) {
     ct := &struct {
         GetConnectorResult
         Config SinkDatahubConfig `json:"Config"`
     }{}
 
     if err := json.Unmarshal(data, ct); err != nil {
-        return err
+        return nil, err
     }
 
-    *gcr = ct.GetConnectorResult
-    gcr.Config = ct.Config
-    return nil
+    ret := &ct.GetConnectorResult
+    ret.Config = ct.Config
+    ret.CommonResponseResult = *commonResp
+    return ret, nil
 }
 
 func marshalUpdateDatahubConnector(ucr *UpdateConnectorRequest) ([]byte, error) {
@@ -461,25 +586,36 @@ func marshalUpdateDatahubConnector(ucr *UpdateConnectorRequest) ([]byte, error) 
         return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkDatahubConfig", reflect.TypeOf(ucr.Config)))
     }
 
+    // set default value
+    if soConf.TimestampUnit == "" {
+        soConf.TimestampUnit = ConnectorMicrosecond
+    }
+
     ct := &struct {
-        Action string            `json:"Action"`
-        Config SinkDatahubConfig `json:"Config"`
+        Action        string            `json:"Action"`
+        ColumnFields  []string          `json:"ColumnFields,omitempty"`
+        ColumnNameMap map[string]string `json:"ColumnNameMap,omitempty"`
+        Config        SinkDatahubConfig `json:"Config,omitempty"`
     }{
-        Action: "create",
-        Config: soConf,
+        Action:        "create",
+        ColumnFields:  ucr.ColumnFields,
+        ColumnNameMap: ucr.ColumnNameMap,
+        Config:        soConf,
     }
     return json.Marshal(ct)
 }
 
 /*  ES Config */
 type SinkEsConfig struct {
-    Index      string   `json:"Index"`
-    Endpoint   string   `json:"Endpoint"`
-    User       string   `json:"User"`
-    Password   string   `json:"Password"`
-    IDFields   []string `json:"IDFields"`
-    TypeFields []string `json:"TypeFields"`
-    ProxyMode  bool     `json:"ProxyMode"`
+    ConnectorConfig
+    Index        string   `json:"Index"`
+    Endpoint     string   `json:"Endpoint"`
+    User         string   `json:"User"`
+    Password     string   `json:"Password"`
+    IDFields     []string `json:"IDFields"`
+    TypeFields   []string `json:"TypeFields"`
+    RouterFields []string `json:"RouterFields"`
+    ProxyMode    bool     `json:"ProxyMode"`
 }
 
 func marshalCreateEsConnector(ccr *CreateConnectorRequest) ([]byte, error) {
@@ -488,33 +624,95 @@ func marshalCreateEsConnector(ccr *CreateConnectorRequest) ([]byte, error) {
         return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkEsConfig", reflect.TypeOf(ccr.Config)))
     }
 
+    // set default value
+    if soConf.TimestampUnit == "" {
+        soConf.TimestampUnit = ConnectorMicrosecond
+    }
+
+    // server need ProxyMode be string
+    type SinkEsConfigHelper struct {
+        SinkEsConfig
+        ProxyMode string `json:"ProxyMode"`
+    }
+    confHelper := SinkEsConfigHelper{
+        SinkEsConfig: soConf,
+        ProxyMode:    strconv.FormatBool(soConf.ProxyMode),
+    }
+
     ct := &struct {
-        Action       string        `json:"Action"`
-        Type         ConnectorType `json:"Type"`
-        ColumnFields []string      `json:"ColumnFields"`
-        Config       SinkEsConfig  `json:"Config"`
+        Action        string             `json:"Action"`
+        Type          ConnectorType      `json:"Type"`
+        SinkStartTime int64              `json:"SinkStartTime"`
+        ColumnFields  []string           `json:"ColumnFields"`
+        ColumnNameMap map[string]string  `json:"ColumnNameMap,omitempty"`
+        Config        SinkEsConfigHelper `json:"Config"`
     }{
-        Action:       "create",
-        Type:         ccr.Type,
-        ColumnFields: ccr.ColumnFields,
-        Config:       soConf,
+        Action:        "create",
+        Type:          ccr.Type,
+        SinkStartTime: ccr.SinkStartTime,
+        ColumnFields:  ccr.ColumnFields,
+        ColumnNameMap: ccr.ColumnNameMap,
+        Config:        confHelper,
     }
     return json.Marshal(ct)
 }
 
-func unmarshalGetEsConnector(gcr *GetConnectorResult, data []byte) error {
+func unmarshalGetEsConnector(commonResp *CommonResponseResult, data []byte) (*GetConnectorResult, error) {
+    type SinkEsConfigHelper struct {
+        SinkEsConfig
+        IDFields     string `json:"IDFields"`
+        TypeFields   string `json:"TypeFields"`
+        RouterFields string `json:"RouterFields"`
+        ProxyMode    string `json:"ProxyMode"`
+    }
+
     ct := &struct {
         GetConnectorResult
-        Config SinkEsConfig `json:"Config"`
+        Config SinkEsConfigHelper `json:"Config"`
     }{}
 
     if err := json.Unmarshal(data, ct); err != nil {
-        return err
+        return nil, err
     }
 
-    *gcr = ct.GetConnectorResult
-    gcr.Config = ct.Config
-    return nil
+    conf := ct.Config.SinkEsConfig
+    if ct.Config.ProxyMode != "" {
+        proxy, err := strconv.ParseBool(ct.Config.ProxyMode)
+        if err != nil {
+            return nil, err
+        }
+        conf.ProxyMode = proxy
+    }
+
+    idFields := make([]string, 0)
+    if ct.Config.IDFields != "" {
+        if err := json.Unmarshal([]byte(ct.Config.IDFields), &idFields); err != nil {
+            return nil, err
+        }
+    }
+    conf.IDFields = idFields
+
+    typeFields := make([]string, 0)
+    if ct.Config.TypeFields != "" {
+        if err := json.Unmarshal([]byte(ct.Config.TypeFields), &typeFields); err != nil {
+            return nil, err
+        }
+        conf.TypeFields = typeFields
+    }
+    conf.TypeFields = typeFields
+
+    routerFields := make([]string, 0)
+    if ct.Config.RouterFields != "" {
+        if err := json.Unmarshal([]byte(ct.Config.RouterFields), &routerFields); err != nil {
+            return nil, err
+        }
+    }
+    conf.RouterFields = routerFields
+
+    ret := &ct.GetConnectorResult
+    ret.CommonResponseResult = *commonResp
+    ret.Config = conf
+    return ret, nil
 }
 
 func marshalUpdateEsConnector(ucr *UpdateConnectorRequest) ([]byte, error) {
@@ -523,24 +721,42 @@ func marshalUpdateEsConnector(ucr *UpdateConnectorRequest) ([]byte, error) {
         return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkEsConfig", reflect.TypeOf(ucr.Config)))
     }
 
+    // set default value
+    if soConf.TimestampUnit == "" {
+        soConf.TimestampUnit = ConnectorMicrosecond
+    }
+
     ct := &struct {
-        Action string       `json:"Action"`
-        Config SinkEsConfig `json:"Config"`
+        Action        string            `json:"Action"`
+        ColumnFields  []string          `json:"ColumnFields,omitempty"`
+        ColumnNameMap map[string]string `json:"ColumnNameMap,omitempty"`
+        Config        SinkEsConfig      `json:"Config,omitempty"`
     }{
-        Action: "create",
-        Config: soConf,
+        Action:        "create",
+        ColumnFields:  ucr.ColumnFields,
+        ColumnNameMap: ucr.ColumnNameMap,
+        Config:        soConf,
     }
     return json.Marshal(ct)
 }
 
+type FcInvokeType string
+
+const (
+    FcSync  FcInvokeType = "sync"
+    FcAsync FcInvokeType = "async"
+)
+
 /*  FC Config */
 type SinkFcConfig struct {
-    Endpoint  string   `json:"Endpoint"`
-    Service   string   `json:"Service"`
-    Function  string   `json:"Function"`
-    AuthMode  AuthMode `json:"AuthMode"`
-    AccessId  string   `json:"AccessId"`
-    AccessKey string   `json:"AccessKey"`
+    ConnectorConfig
+    Endpoint   string       `json:"Endpoint"`
+    Service    string       `json:"Service"`
+    Function   string       `json:"Function"`
+    AuthMode   AuthMode     `json:"AuthMode"`
+    AccessId   string       `json:"AccessId,omitempty"`
+    AccessKey  string       `json:"AccessKey,omitempty"`
+    InvokeType FcInvokeType `json:"InvokeType"`
 }
 
 func marshalCreateFcConnector(ccr *CreateConnectorRequest) ([]byte, error) {
@@ -549,33 +765,46 @@ func marshalCreateFcConnector(ccr *CreateConnectorRequest) ([]byte, error) {
         return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkFcConfig", reflect.TypeOf(ccr.Config)))
     }
 
+    // set default value
+    if soConf.TimestampUnit == "" {
+        soConf.TimestampUnit = ConnectorMicrosecond
+    }
+    if soConf.InvokeType == "" {
+        soConf.InvokeType = FcSync
+    }
+
     ct := &struct {
-        Action       string        `json:"Action"`
-        Type         ConnectorType `json:"Type"`
-        ColumnFields []string      `json:"ColumnFields"`
-        Config       SinkFcConfig  `json:"Config"`
+        Action        string            `json:"Action"`
+        Type          ConnectorType     `json:"Type"`
+        SinkStartTime int64             `json:"SinkStartTime"`
+        ColumnFields  []string          `json:"ColumnFields"`
+        ColumnNameMap map[string]string `json:"ColumnNameMap,omitempty"`
+        Config        SinkFcConfig      `json:"Config"`
     }{
-        Action:       "create",
-        Type:         ccr.Type,
-        ColumnFields: ccr.ColumnFields,
-        Config:       soConf,
+        Action:        "create",
+        Type:          ccr.Type,
+        SinkStartTime: ccr.SinkStartTime,
+        ColumnFields:  ccr.ColumnFields,
+        ColumnNameMap: ccr.ColumnNameMap,
+        Config:        soConf,
     }
     return json.Marshal(ct)
 }
 
-func unmarshalGetFcConnector(gcr *GetConnectorResult, data []byte) error {
+func unmarshalGetFcConnector(commonResp *CommonResponseResult, data []byte) (*GetConnectorResult, error) {
     ct := &struct {
         GetConnectorResult
         Config SinkFcConfig `json:"Config"`
     }{}
 
     if err := json.Unmarshal(data, ct); err != nil {
-        return err
+        return nil, err
     }
 
-    *gcr = ct.GetConnectorResult
-    gcr.Config = ct.Config
-    return nil
+    ret := &ct.GetConnectorResult
+    ret.Config = ct.Config
+    ret.CommonResponseResult = *commonResp
+    return ret, nil
 }
 
 func marshalUpdateFcConnector(ucr *UpdateConnectorRequest) ([]byte, error) {
@@ -584,24 +813,42 @@ func marshalUpdateFcConnector(ucr *UpdateConnectorRequest) ([]byte, error) {
         return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkFcConfig", reflect.TypeOf(ucr.Config)))
     }
 
+    // set default value
+    if soConf.TimestampUnit == "" {
+        soConf.TimestampUnit = ConnectorMicrosecond
+    }
+
     ct := &struct {
-        Action string       `json:"Action"`
-        Config SinkFcConfig `json:"Config"`
+        Action        string            `json:"Action"`
+        ColumnFields  []string          `json:"ColumnFields,omitempty"`
+        ColumnNameMap map[string]string `json:"ColumnNameMap,omitempty"`
+        Config        SinkFcConfig      `json:"Config,omitempty"`
     }{
-        Action: "create",
-        Config: soConf,
+        Action:        "create",
+        ColumnFields:  ucr.ColumnFields,
+        ColumnNameMap: ucr.ColumnNameMap,
+        Config:        soConf,
     }
     return json.Marshal(ct)
 }
 
+type OtsWriteMode string
+
+const (
+    OtsPut    OtsWriteMode = "PUT"
+    OtsUpdate OtsWriteMode = "UPDATE"
+)
+
 /*  Ots Config */
 type SinkOtsConfig struct {
-    Endpoint     string   `json:"Endpoint"`
-    InstanceName string   `json:"InstanceName"`
-    TableName    string   `json:"TableName"`
-    AuthMode     AuthMode `json:"AuthMode"`
-    AccessId     string   `json:"AccessId"`
-    AccessKey    string   `json:"AccessKey"`
+    ConnectorConfig
+    Endpoint     string       `json:"Endpoint"`
+    InstanceName string       `json:"InstanceName"`
+    TableName    string       `json:"TableName"`
+    AuthMode     AuthMode     `json:"AuthMode"`
+    AccessId     string       `json:"AccessId,omitempty"`
+    AccessKey    string       `json:"AccessKey,omitempty"`
+    WriteMode    OtsWriteMode `json:"WriteMode"`
 }
 
 func marshalCreateOtsConnector(ccr *CreateConnectorRequest) ([]byte, error) {
@@ -610,33 +857,46 @@ func marshalCreateOtsConnector(ccr *CreateConnectorRequest) ([]byte, error) {
         return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkOtsConfig", reflect.TypeOf(ccr.Config)))
     }
 
+    // set default value
+    if soConf.TimestampUnit == "" {
+        soConf.TimestampUnit = ConnectorMicrosecond
+    }
+    if soConf.WriteMode == "" {
+        soConf.WriteMode = OtsPut
+    }
+
     ct := &struct {
-        Action       string        `json:"Action"`
-        Type         ConnectorType `json:"Type"`
-        ColumnFields []string      `json:"ColumnFields"`
-        Config       SinkOtsConfig `json:"Config"`
+        Action        string            `json:"Action"`
+        Type          ConnectorType     `json:"Type"`
+        SinkStartTime int64             `json:"SinkStartTime"`
+        ColumnFields  []string          `json:"ColumnFields"`
+        ColumnNameMap map[string]string `json:"ColumnNameMap,omitempty"`
+        Config        SinkOtsConfig     `json:"Config"`
     }{
-        Action:       "create",
-        Type:         ccr.Type,
-        ColumnFields: ccr.ColumnFields,
-        Config:       soConf,
+        Action:        "create",
+        Type:          ccr.Type,
+        SinkStartTime: ccr.SinkStartTime,
+        ColumnFields:  ccr.ColumnFields,
+        ColumnNameMap: ccr.ColumnNameMap,
+        Config:        soConf,
     }
     return json.Marshal(ct)
 }
 
-func unmarshalGetOtsConnector(gcr *GetConnectorResult, data []byte) error {
+func unmarshalGetOtsConnector(commonResp *CommonResponseResult, data []byte) (*GetConnectorResult, error) {
     ct := &struct {
         GetConnectorResult
         Config SinkOtsConfig `json:"Config"`
     }{}
 
     if err := json.Unmarshal(data, ct); err != nil {
-        return err
+        return nil, err
     }
 
-    *gcr = ct.GetConnectorResult
-    gcr.Config = ct.Config
-    return nil
+    ret := &ct.GetConnectorResult
+    ret.Config = ct.Config
+    ret.CommonResponseResult = *commonResp
+    return ret, nil
 }
 
 func marshalUpdateOtsConnector(ucr *UpdateConnectorRequest) ([]byte, error) {
@@ -645,12 +905,97 @@ func marshalUpdateOtsConnector(ucr *UpdateConnectorRequest) ([]byte, error) {
         return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkMysqlConfig", reflect.TypeOf(ucr.Config)))
     }
 
+    // set default value
+    if soConf.TimestampUnit == "" {
+        soConf.TimestampUnit = ConnectorMicrosecond
+    }
+
     ct := &struct {
-        Action string        `json:"Action"`
-        Config SinkOtsConfig `json:"Config"`
+        Action        string            `json:"Action"`
+        ColumnFields  []string          `json:"ColumnFields,omitempty"`
+        ColumnNameMap map[string]string `json:"ColumnNameMap,omitempty"`
+        Config        SinkOtsConfig     `json:"Config,omitempty"`
     }{
-        Action: "create",
-        Config: soConf,
+        Action:        "create",
+        ColumnFields:  ucr.ColumnFields,
+        ColumnNameMap: ucr.ColumnNameMap,
+        Config:        soConf,
+    }
+    return json.Marshal(ct)
+}
+
+/*  datahub Config */
+type SinkHologresConfig struct {
+    SinkDatahubConfig
+    InstanceId string `json:"InstanceId,omitempty"`
+}
+
+func marshalCreateHologresConnector(ccr *CreateConnectorRequest) ([]byte, error) {
+    soConf, ok := ccr.Config.(SinkHologresConfig)
+    if !ok {
+        return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkHologresConfig", reflect.TypeOf(ccr.Config)))
+    }
+
+    // set default value
+    if soConf.TimestampUnit == "" {
+        soConf.TimestampUnit = ConnectorMicrosecond
+    }
+
+    ct := &struct {
+        Action        string             `json:"Action"`
+        Type          ConnectorType      `json:"Type"`
+        SinkStartTime int64              `json:"SinkStartTime"`
+        ColumnFields  []string           `json:"ColumnFields"`
+        ColumnNameMap map[string]string  `json:"ColumnNameMap,omitempty"`
+        Config        SinkHologresConfig `json:"Config"`
+    }{
+        Action:        "create",
+        Type:          ccr.Type,
+        SinkStartTime: ccr.SinkStartTime,
+        ColumnFields:  ccr.ColumnFields,
+        ColumnNameMap: ccr.ColumnNameMap,
+        Config:        soConf,
+    }
+    return json.Marshal(ct)
+}
+
+func unmarshalGetHologresConnector(commonResp *CommonResponseResult, data []byte) (*GetConnectorResult, error) {
+    ct := &struct {
+        GetConnectorResult
+        Config SinkHologresConfig `json:"Config"`
+    }{}
+
+    if err := json.Unmarshal(data, ct); err != nil {
+        return nil, err
+    }
+
+    ret := &ct.GetConnectorResult
+    ret.Config = ct.Config
+    ret.CommonResponseResult = *commonResp
+    return ret, nil
+}
+
+func marshalUpdateHologresConnector(ucr *UpdateConnectorRequest) ([]byte, error) {
+    soConf, ok := ucr.Config.(SinkHologresConfig)
+    if !ok {
+        return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkHologresConfig", reflect.TypeOf(ucr.Config)))
+    }
+
+    // set default value
+    if soConf.TimestampUnit == "" {
+        soConf.TimestampUnit = ConnectorMicrosecond
+    }
+
+    ct := &struct {
+        Action        string             `json:"Action"`
+        ColumnFields  []string           `json:"ColumnFields,omitempty"`
+        ColumnNameMap map[string]string  `json:"ColumnNameMap,omitempty"`
+        Config        SinkHologresConfig `json:"Config,omitempty"`
+    }{
+        Action:        "create",
+        ColumnFields:  ucr.ColumnFields,
+        ColumnNameMap: ucr.ColumnNameMap,
+        Config:        soConf,
     }
     return json.Marshal(ct)
 }
@@ -662,11 +1007,20 @@ type ConnectorOffset struct {
 
 type ConnectorShardState string
 
+// Deprecated, will be removed in a future version
 const (
     Created   ConnectorShardState = "CONTEXT_PLANNED"
     Eexcuting ConnectorShardState = "CONTEXT_EXECUTING"
     Stopped   ConnectorShardState = "CONTEXT_PAUSED"
     Finished  ConnectorShardState = "CONTEXT_FINISHED"
+)
+
+const (
+    ConnectorShardHang      ConnectorShardState = "CONTEXT_HANG"
+    ConnectorShardPlanned   ConnectorShardState = "CONTEXT_PLANNED"
+    ConnectorShardExecuting ConnectorShardState = "CONTEXT_EXECUTING"
+    ConnectorShardStopped   ConnectorShardState = "CONTEXT_STOPPED"
+    ConnectorShardFinished  ConnectorShardState = "CONTEXT_FINISHED"
 )
 
 type ConnectorShardStatusEntry struct {

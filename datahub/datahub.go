@@ -1,15 +1,5 @@
 package datahub
 
-func New(accessId, accessKey, endpoint string) DataHubApi {
-    config := NewDefaultConfig()
-    return &DataHubPB{
-        DataHub: DataHub{
-            Client: NewRestClient(endpoint, config.UserAgent, config.HttpClient,
-                NewAliyunAccount(accessId, accessKey), config.CompressorType),
-        },
-    }
-}
-
 func NewClientWithConfig(endpoint string, config *Config, account Account) DataHubApi {
     if config.UserAgent == "" {
         config.UserAgent = DefaultUserAgent()
@@ -24,33 +14,65 @@ func NewClientWithConfig(endpoint string, config *Config, account Account) DataH
     dh := &DataHub{
         Client: NewRestClient(endpoint, config.UserAgent, config.HttpClient,
             account, config.CompressorType),
-    }
-    if !config.EnableBinary {
-        return dh
+        cType: config.CompressorType,
     }
 
-    //return &DataHubJson{}
-    return &DataHubPB{
-        DataHub: *dh,
+    if config.EnableSchemaRegistry {
+        dh.schemaClient = NewSchemaClient(dh)
+
+        // compress data in batch record, no need to compress http body
+        if config.CompressorType != NOCOMPRESS {
+            dh.Client.CompressorType = NOCOMPRESS
+        }
+
+        return &DataHubBatch{
+            DataHub: *dh,
+        }
+    } else {
+        if config.EnableBinary {
+            return &DataHubPB{
+                DataHub: *dh,
+            }
+        } else {
+            return dh
+        }
     }
+}
+
+func New(accessId, accessKey, endpoint string) DataHubApi {
+    config := NewDefaultConfig()
+    return NewClientWithConfig(endpoint, config, NewAliyunAccount(accessId, accessKey))
+}
+
+func NewBatchClient(accessId, accessKey, endpoint string) DataHubApi {
+    config := NewDefaultConfig()
+    config.EnableSchemaRegistry = true
+    config.CompressorType = LZ4
+    return NewClientWithConfig(endpoint, config, NewAliyunAccount(accessId, accessKey))
 }
 
 // Datahub provides restful apis for visiting examples service.
 type DataHubApi interface {
-    // Get the information of the specified project.
-    GetProject(projectName string) (*GetProjectResult, error)
-
     // List all projects the user owns.
     ListProject() (*ListProjectResult, error)
 
+    // List all projects the user owns with filter.
+    ListProjectWithFilter(filter string) (*ListProjectResult, error)
+
     // Create a examples project.
-    CreateProject(projectName, comment string) error
+    CreateProject(projectName, comment string) (*CreateProjectResult, error)
 
     // Update project information. Only support comment
-    UpdateProject(projectName, comment string) error
+    UpdateProject(projectName, comment string) (*UpdateProjectResult, error)
 
     // Delete the specified project. If any topics exist in the project, the delete operation will fail.
-    DeleteProject(projectName string) error
+    DeleteProject(projectName string) (*DeleteProjectResult, error)
+
+    // Get the information of the specified project.
+    GetProject(projectName string) (*GetProjectResult, error)
+
+    // Update project vpc white list.
+    UpdateProjectVpcWhitelist(projectName, vpcIds string) (*UpdateProjectVpcWhitelistResult, error)
 
     // Wait for all shards' status of this topic is ACTIVE. Default timeout is 60s.
     WaitAllShardsReady(projectName, topicName string) bool
@@ -60,23 +82,32 @@ type DataHubApi interface {
     // If timeout < 0, it will block util all shards ready
     WaitAllShardsReadyWithTime(projectName, topicName string, timeout int64) bool
 
+    // List all topics in the project.
+    ListTopic(projectName string) (*ListTopicResult, error)
+
+    // List all topics in the project with filter.
+    ListTopicWithFilter(projectName, filter string) (*ListTopicResult, error)
+
     // Create a examples topic with type: BLOB
-    CreateBlobTopic(projectName, topicName, comment string, shardCount, lifeCycle int) error
+    CreateBlobTopic(projectName, topicName, comment string, shardCount, lifeCycle int) (*CreateBlobTopicResult, error)
 
     // Create a examples topic with type: TUPLE
-    CreateTupleTopic(projectName, topicName, comment string, shardCount, lifeCycle int, recordSchema *RecordSchema) error
+    CreateTupleTopic(projectName, topicName, comment string, shardCount, lifeCycle int, recordSchema *RecordSchema) (*CreateTupleTopicResult, error)
 
-    // Update topic meta information. Now only support modify comment info.
-    UpdateTopic(projectName, topicName, comment string) error
+    // Create topic with specific parameter
+    CreateTopicWithPara(projectName, topicName string, para *CreateTopicParameter) (*CreateTopicWithParaResult, error)
+
+    // Update topic meta information.
+    UpdateTopic(projectName, topicName, comment string) (*UpdateTopicResult, error)
+
+    // Update topic meta information. Only support comment and lifeCycle now.
+    UpdateTopicWithPara(projectName, topicName string, para *UpdateTopicParameter) (*UpdateTopicResult, error)
+
+    // Delete a specified topic.
+    DeleteTopic(projectName, topicName string) (*DeleteTopicResult, error)
 
     // Get the information of the specified topic.
     GetTopic(projectName, topicName string) (*GetTopicResult, error)
-
-    // Delete a specified topic.
-    DeleteTopic(projectName, topicName string) error
-
-    // List all topics in the project.
-    ListTopic(projectName string) (*ListTopicResult, error)
 
     // List shard information {ShardEntry} of a topic.
     ListShard(projectName, topicName string) (*ListShardResult, error)
@@ -90,6 +121,9 @@ type DataHubApi interface {
     // Merge the specified shard and its adjacent shard. Only adjacent shards can be merged.
     MergeShard(projectName, topicName, shardId, adjacentShardId string) (*MergeShardResult, error)
 
+    // Extend shard num.
+    ExtendShard(projectName, topicName string, shardCount int) (*ExtendShardResult, error)
+
     // Get the data cursor of a shard. This function support OLDEST, LATEST, SYSTEM_TIME and SEQUENCE.
     // If choose OLDEST or LATEST, the last parameter will not be needed.
     // if choose SYSTEM_TIME or SEQUENCE. it needs to a parameter as sequence num or timestamp.
@@ -101,7 +135,7 @@ type DataHubApi interface {
     // A single record failure does not stop the processing of subsequent records.
     PutRecords(projectName, topicName string, records []IRecord) (*PutRecordsResult, error)
 
-    PutRecordsByShard(projectName, topicName, shardId string, records []IRecord) error
+    PutRecordsByShard(projectName, topicName, shardId string, records []IRecord) (*PutRecordsByShardResult, error)
 
     // Get the TUPLE records of a shard.
     GetTupleRecords(projectName, topicName, shardId, cursor string, limit int, recordSchema *RecordSchema) (*GetRecordsResult, error)
@@ -111,10 +145,13 @@ type DataHubApi interface {
 
     // Append a field to a TUPLE topic.
     // Field AllowNull should be true.
-    AppendField(projectName, topicName string, field Field) error
+    AppendField(projectName, topicName string, field Field) (*AppendFieldResult, error)
 
     // Get metering info of the specified shard
     GetMeterInfo(projectName, topicName, shardId string) (*GetMeterInfoResult, error)
+
+    // List name of connectors.
+    ListConnector(projectName, topicName string) (*ListConnectorResult, error)
 
     // Create data connectors.
     CreateConnector(projectName, topicName string, cType ConnectorType, columnFields []string, config interface{}) (*CreateConnectorResult, error)
@@ -123,62 +160,65 @@ type DataHubApi interface {
     CreateConnectorWithStartTime(projectName, topicName string, cType ConnectorType,
         columnFields []string, sinkStartTime int64, config interface{}) (*CreateConnectorResult, error)
 
-    // Get information of the specified data connector.
-    GetConnector(projectName, topicName, connectorId string) (*GetConnectorResult, error)
+    // Create connector with parameter
+    CreateConnectorWithPara(projectName, topicName string, para *CreateConnectorParameter) (*CreateConnectorResult, error)
 
     // Update connector config of the specified data connector.
     // Config should be SinkOdpsConfig, SinkOssConfig ...
-    UpdateConnector(projectName, topicName, connectorId string, config interface{}) error
+    UpdateConnector(projectName, topicName, connectorId string, config interface{}) (*UpdateConnectorResult, error)
 
-    // List name of connectors.
-    ListConnector(projectName, topicName string) (*ListConnectorResult, error)
+    // Update connector with parameter
+    UpdateConnectorWithPara(projectName, topicName, connectorId string, para *UpdateConnectorParameter) (*UpdateConnectorResult, error)
 
     // Delete a data connector.
-    DeleteConnector(projectName, topicName, connectorId string) error
+    DeleteConnector(projectName, topicName, connectorId string) (*DeleteConnectorResult, error)
+
+    // Get information of the specified data connector.
+    GetConnector(projectName, topicName, connectorId string) (*GetConnectorResult, error)
 
     // Get the done time of a data connector. This method mainly used to get MaxCompute synchronize point.
     GetConnectorDoneTime(projectName, topicName, connectorId string) (*GetConnectorDoneTimeResult, error)
-
-    // Reload a data connector.
-    ReloadConnector(projectName, topicName, connectorId string) error
-
-    // Reload the specified shard of the data connector.
-    ReloadConnectorByShard(projectName, topicName, connectorId, shardId string) error
-
-    // Update the state of the data connector
-    UpdateConnectorState(projectName, topicName, connectorId string, state ConnectorState) error
-
-    // Update connector sink offset. The operation must be operated after connector stopped.
-    UpdateConnectorOffset(projectName, topicName, connectorId, shardId string, offset ConnectorOffset) error
 
     // Get the detail information of the shard task which belongs to the specified data connector.
     GetConnectorShardStatus(projectName, topicName, connectorId string) (*GetConnectorShardStatusResult, error)
 
     // Get the detail information of the shard task which belongs to the specified data connector.
-    GetConnectorShardStatusByShard(projectName, topicName, connectorId, shardId string) (*ConnectorShardStatusEntry, error)
+    GetConnectorShardStatusByShard(projectName, topicName, connectorId, shardId string) (*GetConnectorShardStatusByShardResult, error)
+
+    // Reload a data connector.
+    ReloadConnector(projectName, topicName, connectorId string) (*ReloadConnectorResult, error)
+
+    // Reload the specified shard of the data connector.
+    ReloadConnectorByShard(projectName, topicName, connectorId, shardId string) (*ReloadConnectorByShardResult, error)
+
+    // Update the state of the data connector
+    UpdateConnectorState(projectName, topicName, connectorId string, state ConnectorState) (*UpdateConnectorStateResult, error)
+
+    // Update connector sink offset. The operation must be operated after connector stopped.
+    UpdateConnectorOffset(projectName, topicName, connectorId, shardId string, offset ConnectorOffset) (*UpdateConnectorOffsetResult, error)
 
     // Append data connector field.
     // Before run this method, you should ensure that this field is in both the topic and the connector.
-    AppendConnectorField(projectName, topicName, connectorId, fieldName string) error
-
-    // Create a subscription, and then you should commit offsets with this subscription.
-    CreateSubscription(projectName, topicName, comment string) (*CreateSubscriptionResult, error)
-
-    // Get the detail information of a subscription.
-    GetSubscription(projectName, topicName, subId string) (*GetSubscriptionResult, error)
-
-    // Delete a subscription.
-    DeleteSubscription(projectName, topicName, subId string) error
+    AppendConnectorField(projectName, topicName, connectorId, fieldName string) (*AppendConnectorFieldResult, error)
 
     // List subscriptions in the topic.
     ListSubscription(projectName, topicName string, pageIndex, pageSize int) (*ListSubscriptionResult, error)
 
+    // Create a subscription, and then you should commit offsets with this subscription.
+    CreateSubscription(projectName, topicName, comment string) (*CreateSubscriptionResult, error)
+
     // Update a subscription. Now only support update comment information.
-    UpdateSubscription(projectName, topicName, subId, comment string) error
+    UpdateSubscription(projectName, topicName, subId, comment string) (*UpdateSubscriptionResult, error)
+
+    // Delete a subscription.
+    DeleteSubscription(projectName, topicName, subId string) (*DeleteSubscriptionResult, error)
+
+    // Get the detail information of a subscription.
+    GetSubscription(projectName, topicName, subId string) (*GetSubscriptionResult, error)
 
     // Update a subscription' state. You can change the state of a subscription to SUB_ONLINE or SUB_OFFLINE.
     // When offline, you can not commit offsets of the subscription.
-    UpdateSubscriptionState(projectName, topicName, subId string, state SubscriptionState) error
+    UpdateSubscriptionState(projectName, topicName, subId string, state SubscriptionState) (*UpdateSubscriptionStateResult, error)
 
     // Init and get a subscription session, and returns offset if any offset stored before.
     // Subscription should be initialized before use. This operation makes sure that only one client use this subscription.
@@ -190,10 +230,10 @@ type DataHubApi interface {
     GetSubscriptionOffset(projectName, topicName, subId string, shardIds []string) (*GetSubscriptionOffsetResult, error)
 
     // Update offsets of shards to server. This operation allows you store offsets on the server side.
-    CommitSubscriptionOffset(projectName, topicName, subId string, offsets map[string]SubscriptionOffset) error
+    CommitSubscriptionOffset(projectName, topicName, subId string, offsets map[string]SubscriptionOffset) (*CommitSubscriptionOffsetResult, error)
 
     // Reset offsets of shards to server. This operation allows you reset offsets on the server side.
-    ResetSubscriptionOffset(projectName, topicName, subId string, offsets map[string]SubscriptionOffset) error
+    ResetSubscriptionOffset(projectName, topicName, subId string, offsets map[string]SubscriptionOffset) (*ResetSubscriptionOffsetResult, error)
 
     // Heartbeat request to let server know consumer status.
     Heartbeat(projectName, topicName, consumerGroup, consumerId string, versionId int64, holdShardList, readEndShardList []string) (*HeartbeatResult, error)
@@ -202,8 +242,23 @@ type DataHubApi interface {
     JoinGroup(projectName, topicName, consumerGroup string, sessionTimeout int64) (*JoinGroupResult, error)
 
     // Sync consumer group info.
-    SyncGroup(projectName, topicName, consumerGroup, consumerId string, versionId int64, releaseShardList, readEndShardList []string) error
+    SyncGroup(projectName, topicName, consumerGroup, consumerId string, versionId int64, releaseShardList, readEndShardList []string) (*SyncGroupResult, error)
 
     // Leave consumer group info.
-    LeaveGroup(projectName, topicName, consumerGroup, consumerId string, versionId int64) error
+    LeaveGroup(projectName, topicName, consumerGroup, consumerId string, versionId int64) (*LeaveGroupResult, error)
+
+    // List topic schema.
+    ListTopicSchema(projectName, topicName string) (*ListTopicSchemaResult, error)
+
+    // Get topic schema by versionId.
+    GetTopicSchemaByVersion(projectName, topicName string, versionId int) (*GetTopicSchemaResult, error)
+
+    // Get topic schema by schema string.
+    GetTopicSchemaBySchema(projectName, topicName string, recordSchema *RecordSchema) (*GetTopicSchemaResult, error)
+
+    // Register schema to a topic.
+    RegisterTopicSchema(projectName, topicName string, recordSchema *RecordSchema) (*RegisterTopicSchemaResult, error)
+
+    // Delete topic schema by versionId
+    DeleteTopicSchema(projectName, topicName string, versionId int) (*DeleteTopicSchemaResult, error)
 }

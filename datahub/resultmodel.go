@@ -7,12 +7,12 @@ import (
     "github.com/golang/protobuf/proto"
     "net/http"
 
-    pbmodel "github.com/aliyun/aliyun-datahub-sdk-go/datahub/pbmodel"
+    "github.com/aliyun/aliyun-datahub-sdk-go/datahub/pbmodel"
     "github.com/aliyun/aliyun-datahub-sdk-go/datahub/util"
 )
 
 // for the common response and detect error
-type commonResponseResult struct {
+type CommonResponseResult struct {
     // StatusCode http return code
     StatusCode int
 
@@ -20,8 +20,8 @@ type commonResponseResult struct {
     RequestId string
 }
 
-func newCommonResponseResult(code int, header *http.Header, body []byte) (*commonResponseResult, error) {
-    result := &commonResponseResult{
+func newCommonResponseResult(code int, header *http.Header, body []byte) (*CommonResponseResult, error) {
+    result := &CommonResponseResult{
         StatusCode: code,
         RequestId:  header.Get(httpHeaderRequestId),
     }
@@ -41,21 +41,58 @@ func newCommonResponseResult(code int, header *http.Header, body []byte) (*commo
 
 //  the result of ListProject
 type ListProjectResult struct {
+    CommonResponseResult
     ProjectNames []string `json:"ProjectNames"`
 }
 
 // convert the response body to ListProjectResult
-func NewListProjectResult(data []byte) (*ListProjectResult, error) {
-    lpr := &ListProjectResult{}
-    lpr.ProjectNames = make([]string, 0, 0)
+func NewListProjectResult(data []byte, commonResp *CommonResponseResult) (*ListProjectResult, error) {
+    lpr := &ListProjectResult{
+        CommonResponseResult: *commonResp,
+        ProjectNames:         make([]string, 0, 0),
+    }
     if err := json.Unmarshal(data, lpr); err != nil {
         return nil, err
     }
     return lpr, nil
 }
 
+type CreateProjectResult struct {
+    CommonResponseResult
+}
+
+func NewCreateProjectResult(commonResp *CommonResponseResult) (*CreateProjectResult, error) {
+    cpr := &CreateProjectResult{
+        CommonResponseResult: *commonResp,
+    }
+    return cpr, nil
+}
+
+type UpdateProjectResult struct {
+    CommonResponseResult
+}
+
+func NewUpdateProjectResult(commonResp *CommonResponseResult) (*UpdateProjectResult, error) {
+    upr := &UpdateProjectResult{
+        CommonResponseResult: *commonResp,
+    }
+    return upr, nil
+}
+
+type DeleteProjectResult struct {
+    CommonResponseResult
+}
+
+func NewDeleteProjectResult(commonResp *CommonResponseResult) (*DeleteProjectResult, error) {
+    dpr := &DeleteProjectResult{
+        CommonResponseResult: *commonResp,
+    }
+    return dpr, nil
+}
+
 // the result of GetProject
 type GetProjectResult struct {
+    CommonResponseResult
     ProjectName    string
     CreateTime     int64  `json:"CreateTime"`
     LastModifyTime int64  `json:"LastModifyTime"`
@@ -63,27 +100,99 @@ type GetProjectResult struct {
 }
 
 // convert the response body to GetProjectResult
-func NewGetProjectResult(data []byte) (*GetProjectResult, error) {
-    gpr := &GetProjectResult{}
+func NewGetProjectResult(data []byte, commonResp *CommonResponseResult) (*GetProjectResult, error) {
+    gpr := &GetProjectResult{
+        CommonResponseResult: *commonResp,
+    }
     if err := json.Unmarshal(data, gpr); err != nil {
         return nil, err
     }
     return gpr, nil
 }
 
+type UpdateProjectVpcWhitelistResult struct {
+    CommonResponseResult
+}
+
+func NewUpdateProjectVpcWhitelistResult(commonResp *CommonResponseResult) (*UpdateProjectVpcWhitelistResult, error) {
+    upvw := &UpdateProjectVpcWhitelistResult{
+        CommonResponseResult: *commonResp,
+    }
+    return upvw, nil
+}
+
 type ListTopicResult struct {
+    CommonResponseResult
     TopicNames [] string `json:"TopicNames"`
 }
 
-func NewListTopicResult(data []byte) (*ListTopicResult, error) {
-    lt := &ListTopicResult{}
+func NewListTopicResult(data []byte, commonResp *CommonResponseResult) (*ListTopicResult, error) {
+    lt := &ListTopicResult{
+        CommonResponseResult: *commonResp,
+    }
     if err := json.Unmarshal(data, lt); err != nil {
         return nil, err
     }
     return lt, nil
 }
 
+type CreateBlobTopicResult struct {
+    CommonResponseResult
+}
+
+func NewCreateBlobTopicResult(commonResp *CommonResponseResult) (*CreateBlobTopicResult, error) {
+    cbrt := &CreateBlobTopicResult{
+        CommonResponseResult: *commonResp,
+    }
+    return cbrt, nil
+}
+
+type CreateTupleTopicResult struct {
+    CommonResponseResult
+}
+
+func NewCreateTupleTopicResult(commonResp *CommonResponseResult) (*CreateTupleTopicResult, error) {
+    cttr := &CreateTupleTopicResult{
+        CommonResponseResult: *commonResp,
+    }
+    return cttr, nil
+}
+
+type CreateTopicWithParaResult struct {
+    CommonResponseResult
+}
+
+func NewCreateTopicWithParaResult(commonResp *CommonResponseResult) (*CreateTopicWithParaResult, error) {
+    ctwp := &CreateTopicWithParaResult{
+        CommonResponseResult: *commonResp,
+    }
+    return ctwp, nil
+}
+
+type UpdateTopicResult struct {
+    CommonResponseResult
+}
+
+func NewUpdateTopicResult(commonResp *CommonResponseResult) (*UpdateTopicResult, error) {
+    utr := &UpdateTopicResult{
+        CommonResponseResult: *commonResp,
+    }
+    return utr, nil
+}
+
+type DeleteTopicResult struct {
+    CommonResponseResult
+}
+
+func NewDeleteTopicResult(commonResp *CommonResponseResult) (*DeleteTopicResult, error) {
+    dtr := &DeleteTopicResult{
+        CommonResponseResult: *commonResp,
+    }
+    return dtr, nil
+}
+
 type GetTopicResult struct {
+    CommonResponseResult
     ProjectName    string
     TopicName      string
     ShardCount     int           `json:"ShardCount"`
@@ -93,18 +202,22 @@ type GetTopicResult struct {
     Comment        string        `json:"Comment"`
     CreateTime     int64         `json:"CreateTime"`
     LastModifyTime int64         `json:"LastModifyTime"`
+    TopicStatus    TopicStatus   `json:"Status"`
+    ExpandMode     ExpandMode    `json:"ExpandMode"`
 }
 
 // for deserialize the RecordSchema
 func (gtr *GetTopicResult) UnmarshalJSON(data []byte) error {
     msg := &struct {
-        ShardCount     int        `json:"ShardCount"`
-        LifeCycle      int        `json:"LifeCycle"`
-        RecordType     RecordType `json:"RecordType"`
-        RecordSchema   string     `json:"RecordSchema"`
-        Comment        string     `json:"Comment"`
-        CreateTime     int64      `json:"CreateTime"`
-        LastModifyTime int64      `json:"LastModifyTime"`
+        ShardCount     int         `json:"ShardCount"`
+        LifeCycle      int         `json:"LifeCycle"`
+        RecordType     RecordType  `json:"RecordType"`
+        RecordSchema   string      `json:"RecordSchema"`
+        Comment        string      `json:"Comment"`
+        CreateTime     int64       `json:"CreateTime"`
+        LastModifyTime int64       `json:"LastModifyTime"`
+        TopicStatus    TopicStatus `json:"Status"`
+        ExpandMode     ExpandMode  `json:"ExpandMode"`
     }{}
     if err := json.Unmarshal(data, msg); err != nil {
         return err
@@ -116,6 +229,8 @@ func (gtr *GetTopicResult) UnmarshalJSON(data []byte) error {
     gtr.Comment = msg.Comment
     gtr.CreateTime = msg.CreateTime
     gtr.LastModifyTime = msg.LastModifyTime
+    gtr.TopicStatus = msg.TopicStatus
+    gtr.ExpandMode = msg.ExpandMode
     if msg.RecordType == TUPLE {
         rs := &RecordSchema{}
         if err := json.Unmarshal([]byte(msg.RecordSchema), rs); err != nil {
@@ -129,8 +244,10 @@ func (gtr *GetTopicResult) UnmarshalJSON(data []byte) error {
     return nil
 }
 
-func NewGetTopicResult(data []byte) (*GetTopicResult, error) {
-    gr := &GetTopicResult{}
+func NewGetTopicResult(data []byte, commonResp *CommonResponseResult) (*GetTopicResult, error) {
+    gr := &GetTopicResult{
+        CommonResponseResult: *commonResp,
+    }
     if err := json.Unmarshal(data, gr); err != nil {
         return nil, err
     }
@@ -138,11 +255,16 @@ func NewGetTopicResult(data []byte) (*GetTopicResult, error) {
 }
 
 type ListShardResult struct {
-    Shards []ShardEntry `json:"Shards"`
+    CommonResponseResult
+    Shards     []ShardEntry `json:"Shards"`
+    Protocol   string       `json:"Protocol"`
+    IntervalMs int64        `json:"Interval"`
 }
 
-func NewListShardResult(data []byte) (*ListShardResult, error) {
-    lsr := &ListShardResult{}
+func NewListShardResult(data []byte, commonResp *CommonResponseResult) (*ListShardResult, error) {
+    lsr := &ListShardResult{
+        CommonResponseResult: *commonResp,
+    }
     if err := json.Unmarshal(data, lsr); err != nil {
         return nil, err
     }
@@ -150,11 +272,14 @@ func NewListShardResult(data []byte) (*ListShardResult, error) {
 }
 
 type SplitShardResult struct {
+    CommonResponseResult
     NewShards []ShardEntry `json:"NewShards"`
 }
 
-func NewSplitShardResult(data []byte) (*SplitShardResult, error) {
-    ssr := &SplitShardResult{}
+func NewSplitShardResult(data []byte, commonResp *CommonResponseResult) (*SplitShardResult, error) {
+    ssr := &SplitShardResult{
+        CommonResponseResult: *commonResp,
+    }
     if err := json.Unmarshal(data, ssr); err != nil {
         return nil, err
     }
@@ -162,27 +287,44 @@ func NewSplitShardResult(data []byte) (*SplitShardResult, error) {
 }
 
 type MergeShardResult struct {
+    CommonResponseResult
     ShardId      string `json:"ShardId"`
     BeginHashKey string `json:"BeginHashKey"`
     EndHashKey   string `json:"EndHashKey"`
 }
 
-func NewMergeShardResult(data []byte) (*MergeShardResult, error) {
-    ssr := &MergeShardResult{}
+func NewMergeShardResult(data []byte, commonResp *CommonResponseResult) (*MergeShardResult, error) {
+    ssr := &MergeShardResult{
+        CommonResponseResult: *commonResp,
+    }
     if err := json.Unmarshal(data, ssr); err != nil {
         return nil, err
     }
     return ssr, nil
 }
 
+type ExtendShardResult struct {
+    CommonResponseResult
+}
+
+func NewExtendShardResult(commonResp *CommonResponseResult) (*ExtendShardResult, error) {
+    esr := &ExtendShardResult{
+        CommonResponseResult: *commonResp,
+    }
+    return esr, nil
+}
+
 type GetCursorResult struct {
+    CommonResponseResult
     Cursor     string `json:"Cursor"`
     RecordTime int64  `json:"RecordTime"`
     Sequence   int64  `json:"Sequence"`
 }
 
-func NewGetCursorResult(data []byte) (*GetCursorResult, error) {
-    gcr := &GetCursorResult{}
+func NewGetCursorResult(data []byte, commonResp *CommonResponseResult) (*GetCursorResult, error) {
+    gcr := &GetCursorResult{
+        CommonResponseResult: *commonResp,
+    }
     if err := json.Unmarshal(data, gcr); err != nil {
         return nil, err
     }
@@ -190,20 +332,25 @@ func NewGetCursorResult(data []byte) (*GetCursorResult, error) {
 }
 
 type PutRecordsResult struct {
+    CommonResponseResult
     FailedRecordCount int            `json:"FailedRecordCount"`
     FailedRecords     []FailedRecord `json:"FailedRecords"`
 }
 
-func NewPutRecordsResult(data []byte) (*PutRecordsResult, error) {
-    prr := &PutRecordsResult{}
+func NewPutRecordsResult(data []byte, commonResp *CommonResponseResult) (*PutRecordsResult, error) {
+    prr := &PutRecordsResult{
+        CommonResponseResult: *commonResp,
+    }
     if err := json.Unmarshal(data, prr); err != nil {
         return nil, err
     }
     return prr, nil
 }
 
-func NewPutPBRecordsResult(data []byte) (*PutRecordsResult, error) {
-    pr := &PutRecordsResult{}
+func NewPutPBRecordsResult(data []byte, commonResp *CommonResponseResult) (*PutRecordsResult, error) {
+    pr := &PutRecordsResult{
+        CommonResponseResult: *commonResp,
+    }
     data, err := util.UnwrapMessage(data)
     if err != nil {
         return nil, err
@@ -226,19 +373,36 @@ func NewPutPBRecordsResult(data []byte) (*PutRecordsResult, error) {
     return pr, nil
 }
 
+type PutRecordsByShardResult struct {
+    CommonResponseResult
+}
+
+func NewPutRecordsByShardResult(commonResp *CommonResponseResult) (*PutRecordsByShardResult, error) {
+    prbs := &PutRecordsByShardResult{
+        CommonResponseResult: *commonResp,
+    }
+    return prbs, nil
+}
+
 type GetRecordsResult struct {
-    NextCursor    string        `json:"NextCursor"`
-    RecordCount   int           `json:"RecordCount"`
-    StartSequence int64         `json:"StartSeq"`
-    Records       []IRecord     `json:"Records"`
-    RecordSchema  *RecordSchema `json:"-"`
+    CommonResponseResult
+    NextCursor     string        `json:"NextCursor"`
+    RecordCount    int           `json:"RecordCount"`
+    StartSequence  int64         `json:"StartSeq"`
+    LatestSequence int64         `json:"LatestSeq"`
+    LatestTime     int64         `json:"LatestTime"`
+    Records        []IRecord     `json:"Records"`
+    RecordSchema   *RecordSchema `json:"-"`
 }
 
 func (grr *GetRecordsResult) UnmarshalJSON(data []byte) error {
     msg := &struct {
-        NextCursor  string `json:"NextCursor"`
-        RecordCount int    `json:"RecordCount"`
-        Records     []*struct {
+        NextCursor     string `json:"NextCursor"`
+        RecordCount    int    `json:"RecordCount"`
+        StartSequence  int64  `json:"StartSeq"`
+        LatestSequence int64  `json:"LatestSeq"`
+        LatestTime     int64  `json:"LatestTime"`
+        Records        []*struct {
             SystemTime    int64                  `json:"SystemTime"`
             NextCursor    string                 `json:"NextCursor"`
             CurrentCursor string                 `json:"Cursor"`
@@ -249,13 +413,19 @@ func (grr *GetRecordsResult) UnmarshalJSON(data []byte) error {
     }{}
     err := json.Unmarshal(data, msg)
     if err != nil {
-        fmt.Printf("%v\n", err)
         return err
     }
     grr.NextCursor = msg.NextCursor
     grr.RecordCount = msg.RecordCount
+    grr.StartSequence = msg.StartSequence
+    grr.LatestSequence = msg.LatestSequence
+    grr.LatestTime = msg.LatestTime
     grr.Records = make([]IRecord, len(msg.Records))
     for idx, record := range msg.Records {
+        if record.Data == nil {
+            return errors.New("invalid record response, record data is nil")
+        }
+
         switch dt := record.Data.(type) {
         case []interface{}, []string:
             if grr.RecordSchema == nil {
@@ -285,9 +455,10 @@ func (grr *GetRecordsResult) UnmarshalJSON(data []byte) error {
     return nil
 }
 
-func NewGetRecordsResult(data []byte, schema *RecordSchema) (*GetRecordsResult, error) {
+func NewGetRecordsResult(data []byte, schema *RecordSchema, commonResp *CommonResponseResult) (*GetRecordsResult, error) {
     grr := &GetRecordsResult{
-        RecordSchema: schema,
+        CommonResponseResult: *commonResp,
+        RecordSchema:         schema,
     }
     if err := json.Unmarshal(data, grr); err != nil {
         return nil, err
@@ -295,7 +466,7 @@ func NewGetRecordsResult(data []byte, schema *RecordSchema) (*GetRecordsResult, 
     return grr, nil
 }
 
-func NewGetPBRecordsResult(data []byte, schema *RecordSchema) (*GetRecordsResult, error) {
+func NewGetPBRecordsResult(data []byte, schema *RecordSchema, commonResp *CommonResponseResult) (*GetRecordsResult, error) {
     data, err := util.UnwrapMessage(data)
     if err != nil {
         return nil, err
@@ -306,7 +477,8 @@ func NewGetPBRecordsResult(data []byte, schema *RecordSchema) (*GetRecordsResult
     }
 
     result := &GetRecordsResult{
-        RecordSchema: schema,
+        CommonResponseResult: *commonResp,
+        RecordSchema:         schema,
     }
     if grr.NextCursor != nil {
         result.NextCursor = *(grr.NextCursor)
@@ -314,13 +486,18 @@ func NewGetPBRecordsResult(data []byte, schema *RecordSchema) (*GetRecordsResult
     if grr.StartSequence != nil {
         result.StartSequence = *grr.StartSequence
     }
+    if grr.LatestSequence != nil {
+        result.LatestSequence = *grr.LatestSequence
+    }
+    if grr.LatestTime != nil {
+        result.LatestTime = *grr.LatestTime
+    }
     if grr.RecordCount != nil {
         result.RecordCount = int(*grr.RecordCount)
         if result.RecordCount > 0 {
             result.Records = make([]IRecord, result.RecordCount)
             for idx, record := range grr.Records {
                 //Tuple topic
-
                 if result.RecordSchema != nil {
                     tr := NewTupleRecord(result.RecordSchema, *record.SystemTime)
                     if err := fillTupleData(tr, record); err != nil {
@@ -339,6 +516,7 @@ func NewGetPBRecordsResult(data []byte, schema *RecordSchema) (*GetRecordsResult
     }
     return result, nil
 }
+
 func fillTupleData(tr *TupleRecord, recordEntry *pbmodel.RecordEntry) error {
     if recordEntry.ShardId != nil {
         tr.ShardId = *recordEntry.ShardId
@@ -363,7 +541,7 @@ func fillTupleData(tr *TupleRecord, recordEntry *pbmodel.RecordEntry) error {
     }
     if recordEntry.Attributes != nil {
         for _, pair := range recordEntry.Attributes.Attributes {
-            tr.Attributes[*pair.Key] = pair.Value
+            tr.Attributes[*pair.Key] = *pair.Value
         }
     }
     data := recordEntry.Data.Data
@@ -378,7 +556,6 @@ func fillTupleData(tr *TupleRecord, recordEntry *pbmodel.RecordEntry) error {
         }
     }
     return nil
-
 }
 
 func fillBlobData(br *BlobRecord, recordEntry *pbmodel.RecordEntry) error {
@@ -405,40 +582,147 @@ func fillBlobData(br *BlobRecord, recordEntry *pbmodel.RecordEntry) error {
     }
     if recordEntry.Attributes != nil {
         for _, pair := range recordEntry.Attributes.Attributes {
-            br.Attributes[*pair.Key] = pair.Value
+            br.Attributes[*pair.Key] = *pair.Value
         }
     }
     br.RawData = recordEntry.Data.Data[0].Value
-    br.StoreData = string(br.RawData)
     return nil
 }
 
+func NewGetBatchRecordsResult(data []byte, schema *RecordSchema, commonResp *CommonResponseResult, deserializer *batchDeserializer) (*GetRecordsResult, error) {
+    data, err := util.UnwrapMessage(data)
+    if err != nil {
+        return nil, err
+    }
+    gbr := &pbmodel.GetBinaryRecordsResponse{}
+    if err := proto.Unmarshal(data, gbr); err != nil {
+        return nil, err
+    }
+
+    result := &GetRecordsResult{
+        CommonResponseResult: *commonResp,
+        RecordSchema:         schema,
+    }
+
+    if gbr.NextCursor != nil {
+        result.NextCursor = *(gbr.NextCursor)
+    }
+    if gbr.StartSequence != nil {
+        result.StartSequence = *gbr.StartSequence
+    }
+    if gbr.LatestSequence != nil {
+        result.LatestSequence = *gbr.LatestSequence
+    }
+    if gbr.LatestTime != nil {
+        result.LatestTime = *gbr.LatestTime
+    }
+
+    // 这里的RecordCount不是record数量，而是batch的数量
+    if gbr.RecordCount != nil {
+        if *gbr.RecordCount > 0 {
+            result.Records = make([]IRecord, 0, *gbr.RecordCount)
+            for _, record := range gbr.Records {
+                meta := &respMeta{
+                    cursor:     record.GetCursor(),
+                    nextCursor: record.GetNextCursor(),
+                    sequence:   record.GetSequence(),
+                    systemTime: record.GetSystemTime(),
+                    serial:     int64(record.GetSerial()),
+                }
+
+                recordList, err := deserializer.deserialize(record.Data, meta)
+                if err != nil {
+                    return nil, err
+                }
+                result.Records = append(result.Records, recordList...)
+            }
+        }
+    }
+    result.RecordCount = len(result.Records)
+    return result, nil
+}
+
+type AppendFieldResult struct {
+    CommonResponseResult
+}
+
+func NewAppendFieldResult(commonResp *CommonResponseResult) (*AppendFieldResult, error) {
+    afr := &AppendFieldResult{
+        CommonResponseResult: *commonResp,
+    }
+    return afr, nil
+}
+
 type GetMeterInfoResult struct {
+    CommonResponseResult
     ActiveTime int64 `json:"ActiveTime"`
     Storage    int64 `json:"Storage"`
 }
 
-func NewGetMeterInfoResult(data []byte) (*GetMeterInfoResult, error) {
-    gmir := &GetMeterInfoResult{}
+func NewGetMeterInfoResult(data []byte, commonResp *CommonResponseResult) (*GetMeterInfoResult, error) {
+    gmir := &GetMeterInfoResult{
+        CommonResponseResult: *commonResp,
+    }
     if err := json.Unmarshal(data, gmir); err != nil {
         return nil, err
     }
     return gmir, nil
 }
 
+type ListConnectorResult struct {
+    CommonResponseResult
+    ConnectorIds []string `json:"Connectors"`
+}
+
+func NewListConnectorResult(data []byte, commonResp *CommonResponseResult) (*ListConnectorResult, error) {
+    lcr := &ListConnectorResult{
+        CommonResponseResult: *commonResp,
+    }
+    if err := json.Unmarshal(data, lcr); err != nil {
+        return nil, err
+    }
+    return lcr, nil
+}
+
 type CreateConnectorResult struct {
+    CommonResponseResult
     ConnectorId string `json:"ConnectorId"`
 }
 
-func NewCreateConnectorResult(data []byte) (*CreateConnectorResult, error) {
-    ccr := &CreateConnectorResult{}
+func NewCreateConnectorResult(data []byte, commonResp *CommonResponseResult) (*CreateConnectorResult, error) {
+    ccr := &CreateConnectorResult{
+        CommonResponseResult: *commonResp,
+    }
     if err := json.Unmarshal(data, ccr); err != nil {
         return nil, err
     }
     return ccr, nil
 }
 
+type UpdateConnectorResult struct {
+    CommonResponseResult
+}
+
+func NewUpdateConnectorResult(commonResp *CommonResponseResult) (*UpdateConnectorResult, error) {
+    ucr := &UpdateConnectorResult{
+        CommonResponseResult: *commonResp,
+    }
+    return ucr, nil
+}
+
+type DeleteConnectorResult struct {
+    CommonResponseResult
+}
+
+func NewDeleteConnectorResult(commonResp *CommonResponseResult) (*DeleteConnectorResult, error) {
+    dcr := &DeleteConnectorResult{
+        CommonResponseResult: *commonResp,
+    }
+    return dcr, nil
+}
+
 type GetConnectorResult struct {
+    CommonResponseResult
     CreateTime     int64             `json:"CreateTime"`
     LastModifyTime int64             `json:"LastModifyTime"`
     ConnectorId    string            `json:"ConnectorId"`
@@ -452,80 +736,49 @@ type GetConnectorResult struct {
     Config         interface{}       `json:"Config"`
 }
 
-func NewGetConnectorResult(data []byte) (*GetConnectorResult, error) {
-    gcr := &GetConnectorResult{}
+func NewGetConnectorResult(data []byte, commonResp *CommonResponseResult) (*GetConnectorResult, error) {
     cType := &struct {
         Type ConnectorType `json:"Type"`
     }{}
     if err := json.Unmarshal(data, cType); err != nil {
         return nil, err
     }
+
     switch cType.Type {
     case SinkOdps:
-        if err := unmarshalGetOdpsConnector(gcr, data); err != nil {
-            return nil, err
-        }
-        return gcr, nil
+        return unmarshalGetOdpsConnector(commonResp, data)
     case SinkOss:
-        if err := unmarshalGetOssConnector(gcr, data); err != nil {
-            return nil, err
-        }
-        return gcr, nil
+        return unmarshalGetOssConnector(commonResp, data)
     case SinkEs:
-        if err := unmarshalGetEsConnector(gcr, data); err != nil {
-            return nil, err
-        }
-        return gcr, nil
+        return unmarshalGetEsConnector(commonResp, data)
     case SinkAds:
-        if err := unmarshalGetAdsConnector(gcr, data); err != nil {
-            return nil, err
-        }
-        return gcr, nil
+        return unmarshalGetAdsConnector(commonResp, data)
     case SinkMysql:
-        if err := unmarshalGetMysqlConnector(gcr, data); err != nil {
-            return nil, err
-        }
-        return gcr, nil
+        return unmarshalGetMysqlConnector(commonResp, data)
     case SinkFc:
-        if err := unmarshalGetFcConnector(gcr, data); err != nil {
-            return nil, err
-        }
-        return gcr, nil
+        return unmarshalGetFcConnector(commonResp, data)
     case SinkOts:
-        if err := unmarshalGetOtsConnector(gcr, data); err != nil {
-            return nil, err
-        }
-        return gcr, nil
+        return unmarshalGetOtsConnector(commonResp, data)
     case SinkDatahub:
-        if err := unmarshalGetDatahubConnector(gcr, data); err != nil {
-            return nil, err
-        }
-        return gcr, nil
+        return unmarshalGetDatahubConnector(commonResp, data)
+    case SinkHologres:
+        return unmarshalGetHologresConnector(commonResp, data)
     default:
         return nil, errors.New(fmt.Sprintf("not support connector type %s", cType.Type.String()))
-
     }
-}
-
-type ListConnectorResult struct {
-    ConnectorIds []string `json:"Connectors"`
-}
-
-func NewListConnectorResult(data []byte) (*ListConnectorResult, error) {
-    lcr := &ListConnectorResult{}
-    if err := json.Unmarshal(data, lcr); err != nil {
-        return nil, err
-    }
-    return lcr, nil
 }
 
 type GetConnectorDoneTimeResult struct {
-    DoneTime int64  `json:"DoneTime"`
-    TimeZone string `json:"TimeZone"`
+    CommonResponseResult
+    DoneTime   int64  `json:"DoneTime"`
+    TimeZone   string `json:"TimeZone"`
+    TimeWindow int    `json:"TimeWindow"`
 }
 
-func NewGetConnectorDoneTimeResult(data []byte) (*GetConnectorDoneTimeResult, error) {
-    gcdt := &GetConnectorDoneTimeResult{}
+func NewGetConnectorDoneTimeResult(data []byte, commonResp *CommonResponseResult) (*GetConnectorDoneTimeResult, error) {
+    gcdt := &GetConnectorDoneTimeResult{
+        CommonResponseResult: *commonResp,
+    }
     if err := json.Unmarshal(data, gcdt); err != nil {
         return nil, err
     }
@@ -533,60 +786,181 @@ func NewGetConnectorDoneTimeResult(data []byte) (*GetConnectorDoneTimeResult, er
 }
 
 type GetConnectorShardStatusResult struct {
+    CommonResponseResult
     ShardStatus map[string]ConnectorShardStatusEntry `json:"ShardStatusInfos"`
 }
 
-func NewGetConnectorShardStatusResult(data []byte) (*GetConnectorShardStatusResult, error) {
-    gcss := &GetConnectorShardStatusResult{}
+func NewGetConnectorShardStatusResult(data []byte, commonResp *CommonResponseResult) (*GetConnectorShardStatusResult, error) {
+    gcss := &GetConnectorShardStatusResult{
+        CommonResponseResult: *commonResp,
+    }
     if err := json.Unmarshal(data, gcss); err != nil {
         return nil, err
     }
     return gcss, nil
 }
 
-type CreateSubscriptionResult struct {
-    SubId string `json:"SubId"`
+type GetConnectorShardStatusByShardResult struct {
+    CommonResponseResult
+    ConnectorShardStatusEntry
 }
 
-func NewCreateSubscriptionResult(data []byte) (*CreateSubscriptionResult, error) {
-    csr := &CreateSubscriptionResult{}
-    if err := json.Unmarshal(data, csr); err != nil {
+func NewGetConnectorShardStatusByShardResult(data []byte, commonResp *CommonResponseResult) (*GetConnectorShardStatusByShardResult, error) {
+    csse := &ConnectorShardStatusEntry{}
+    if err := json.Unmarshal(data, csse); err != nil {
         return nil, err
     }
-    return csr, nil
-}
 
-type GetSubscriptionResult struct {
-    SubscriptionEntry
-}
-
-func NewGetSubscriptionResult(data []byte) (*GetSubscriptionResult, error) {
-    gsr := &GetSubscriptionResult{}
-    if err := json.Unmarshal(data, gsr); err != nil {
-        return nil, err
+    gcss := &GetConnectorShardStatusByShardResult{
+        CommonResponseResult:      *commonResp,
+        ConnectorShardStatusEntry: *csse,
     }
-    return gsr, nil
+    return gcss, nil
+}
+
+type ReloadConnectorResult struct {
+    CommonResponseResult
+}
+
+func NewReloadConnectorResult(commonResp *CommonResponseResult) (*ReloadConnectorResult, error) {
+    rcr := &ReloadConnectorResult{
+        CommonResponseResult: *commonResp,
+    }
+    return rcr, nil
+}
+
+type ReloadConnectorByShardResult struct {
+    CommonResponseResult
+}
+
+func NewReloadConnectorByShardResult(commonResp *CommonResponseResult) (*ReloadConnectorByShardResult, error) {
+    rcsr := &ReloadConnectorByShardResult{
+        CommonResponseResult: *commonResp,
+    }
+    return rcsr, nil
+}
+
+type UpdateConnectorStateResult struct {
+    CommonResponseResult
+}
+
+func NewUpdateConnectorStateResult(commonResp *CommonResponseResult) (*UpdateConnectorStateResult, error) {
+    ucsr := &UpdateConnectorStateResult{
+        CommonResponseResult: *commonResp,
+    }
+    return ucsr, nil
+}
+
+type UpdateConnectorOffsetResult struct {
+    CommonResponseResult
+}
+
+func NewUpdateConnectorOffsetResult(commonResp *CommonResponseResult) (*UpdateConnectorOffsetResult, error) {
+    ucor := &UpdateConnectorOffsetResult{
+        CommonResponseResult: *commonResp,
+    }
+    return ucor, nil
+}
+
+type AppendConnectorFieldResult struct {
+    CommonResponseResult
+}
+
+func NewAppendConnectorFieldResult(commonResp *CommonResponseResult) (*AppendConnectorFieldResult, error) {
+    acfr := &AppendConnectorFieldResult{
+        CommonResponseResult: *commonResp,
+    }
+    return acfr, nil
 }
 
 type ListSubscriptionResult struct {
+    CommonResponseResult
     TotalCount    int64               `json:"TotalCount"`
     Subscriptions []SubscriptionEntry `json:"Subscriptions"`
 }
 
-func NewListSubscriptionResult(data []byte) (*ListSubscriptionResult, error) {
-    lsr := &ListSubscriptionResult{}
+func NewListSubscriptionResult(data []byte, commonResp *CommonResponseResult) (*ListSubscriptionResult, error) {
+    lsr := &ListSubscriptionResult{
+        CommonResponseResult: *commonResp,
+    }
     if err := json.Unmarshal(data, lsr); err != nil {
         return nil, err
     }
     return lsr, nil
 }
 
+type CreateSubscriptionResult struct {
+    CommonResponseResult
+    SubId string `json:"SubId"`
+}
+
+func NewCreateSubscriptionResult(data []byte, commonResp *CommonResponseResult) (*CreateSubscriptionResult, error) {
+    csr := &CreateSubscriptionResult{
+        CommonResponseResult: *commonResp,
+    }
+    if err := json.Unmarshal(data, csr); err != nil {
+        return nil, err
+    }
+    return csr, nil
+}
+
+type UpdateSubscriptionResult struct {
+    CommonResponseResult
+}
+
+func NewUpdateSubscriptionResult(commonResp *CommonResponseResult) (*UpdateSubscriptionResult, error) {
+    usr := &UpdateSubscriptionResult{
+        CommonResponseResult: *commonResp,
+    }
+    return usr, nil
+}
+
+type DeleteSubscriptionResult struct {
+    CommonResponseResult
+}
+
+func NewDeleteSubscriptionResult(commonResp *CommonResponseResult) (*DeleteSubscriptionResult, error) {
+    dsr := &DeleteSubscriptionResult{
+        CommonResponseResult: *commonResp,
+    }
+    return dsr, nil
+}
+
+type GetSubscriptionResult struct {
+    CommonResponseResult
+    SubscriptionEntry
+}
+
+func NewGetSubscriptionResult(data []byte, commonResp *CommonResponseResult) (*GetSubscriptionResult, error) {
+    gsr := &GetSubscriptionResult{
+        CommonResponseResult: *commonResp,
+    }
+    if err := json.Unmarshal(data, gsr); err != nil {
+        return nil, err
+    }
+    return gsr, nil
+}
+
+type UpdateSubscriptionStateResult struct {
+    CommonResponseResult
+}
+
+func NewUpdateSubscriptionStateResult(commonResp *CommonResponseResult) (*UpdateSubscriptionStateResult, error) {
+    ussr := &UpdateSubscriptionStateResult{
+        CommonResponseResult: *commonResp,
+    }
+    return ussr, nil
+}
+
 type OpenSubscriptionSessionResult struct {
+    CommonResponseResult
     Offsets map[string]SubscriptionOffset `json:"Offsets"`
 }
 
-func NewOpenSubscriptionSessionResult(data []byte) (*OpenSubscriptionSessionResult, error) {
-    ossr := &OpenSubscriptionSessionResult{}
+func NewOpenSubscriptionSessionResult(data []byte, commonResp *CommonResponseResult) (*OpenSubscriptionSessionResult, error) {
+    ossr := &OpenSubscriptionSessionResult{
+        CommonResponseResult: *commonResp,
+    }
     if err := json.Unmarshal(data, ossr); err != nil {
         return nil, err
     }
@@ -594,25 +968,53 @@ func NewOpenSubscriptionSessionResult(data []byte) (*OpenSubscriptionSessionResu
 }
 
 type GetSubscriptionOffsetResult struct {
+    CommonResponseResult
     Offsets map[string]SubscriptionOffset `json:"Offsets"`
 }
 
-func NewGetSubscriptionOffsetResult(data []byte) (*GetSubscriptionOffsetResult, error) {
-    gsor := &GetSubscriptionOffsetResult{}
+func NewGetSubscriptionOffsetResult(data []byte, commonResp *CommonResponseResult) (*GetSubscriptionOffsetResult, error) {
+    gsor := &GetSubscriptionOffsetResult{
+        CommonResponseResult: *commonResp,
+    }
     if err := json.Unmarshal(data, gsor); err != nil {
         return nil, err
     }
     return gsor, nil
 }
 
+type CommitSubscriptionOffsetResult struct {
+    CommonResponseResult
+}
+
+func NewCommitSubscriptionOffsetResult(commonResp *CommonResponseResult) (*CommitSubscriptionOffsetResult, error) {
+    csor := &CommitSubscriptionOffsetResult{
+        CommonResponseResult: *commonResp,
+    }
+    return csor, nil
+}
+
+type ResetSubscriptionOffsetResult struct {
+    CommonResponseResult
+}
+
+func NewResetSubscriptionOffsetResult(commonResp *CommonResponseResult) (*ResetSubscriptionOffsetResult, error) {
+    rsor := &ResetSubscriptionOffsetResult{
+        CommonResponseResult: *commonResp,
+    }
+    return rsor, nil
+}
+
 type HeartbeatResult struct {
+    CommonResponseResult
     PlanVersion int64    `json:"PlanVersion"`
     ShardList   []string `json:"ShardList"`
     TotalPlan   string   `json:"TotalPlan"`
 }
 
-func NewHeartbeatResult(data []byte) (*HeartbeatResult, error) {
-    hr := &HeartbeatResult{}
+func NewHeartbeatResult(data []byte, commonResp *CommonResponseResult) (*HeartbeatResult, error) {
+    hr := &HeartbeatResult{
+        CommonResponseResult: *commonResp,
+    }
     if err := json.Unmarshal(data, hr); err != nil {
         return nil, err
     }
@@ -620,15 +1022,153 @@ func NewHeartbeatResult(data []byte) (*HeartbeatResult, error) {
 }
 
 type JoinGroupResult struct {
+    CommonResponseResult
     ConsumerId     string `json:"ConsumerId"`
     VersionId      int64  `json:"VersionId"`
     SessionTimeout int64  `json:"SessionTimeout"`
 }
 
-func NewJoinGroupResult(data []byte) (*JoinGroupResult, error) {
-    jgr := &JoinGroupResult{}
+func NewJoinGroupResult(data []byte, commonResp *CommonResponseResult) (*JoinGroupResult, error) {
+    jgr := &JoinGroupResult{
+        CommonResponseResult: *commonResp,
+    }
     if err := json.Unmarshal(data, jgr); err != nil {
         return nil, err
     }
     return jgr, nil
+}
+
+type SyncGroupResult struct {
+    CommonResponseResult
+}
+
+func NewSyncGroupResult(commonResp *CommonResponseResult) (*SyncGroupResult, error) {
+    sgr := &SyncGroupResult{
+        CommonResponseResult: *commonResp,
+    }
+    return sgr, nil
+}
+
+type LeaveGroupResult struct {
+    CommonResponseResult
+}
+
+func NewLeaveGroupResult(commonResp *CommonResponseResult) (*LeaveGroupResult, error) {
+    lgr := &LeaveGroupResult{
+        CommonResponseResult: *commonResp,
+    }
+    return lgr, nil
+}
+
+type ListTopicSchemaResult struct {
+    CommonResponseResult
+    SchemaInfoList []RecordSchemaInfo `json:"RecordSchemaList"`
+}
+
+// for deserialize the RecordSchema
+func (gtr *ListTopicSchemaResult) UnmarshalJSON(data []byte) error {
+    type RecordSchemaInfoHelper struct {
+        VersionId    int    `json:"VersionId"`
+        RecordSchema string `json:"RecordSchema"`
+    }
+
+    msg := &struct {
+        SchemaInfoList []RecordSchemaInfoHelper `json:"RecordSchemaList"`
+    }{}
+
+    if err := json.Unmarshal(data, msg); err != nil {
+        return err
+    }
+
+    for _, info := range msg.SchemaInfoList {
+        schema := &RecordSchema{}
+        if err := json.Unmarshal([]byte(info.RecordSchema), schema); err != nil {
+            return err
+        }
+        for idx := range schema.Fields {
+            schema.Fields[idx].AllowNull = !schema.Fields[idx].AllowNull
+        }
+
+        schemaInfo := RecordSchemaInfo{
+            VersionId:    info.VersionId,
+            RecordSchema: *schema,
+        }
+        gtr.SchemaInfoList = append(gtr.SchemaInfoList, schemaInfo)
+    }
+    return nil
+}
+
+func NewListTopicSchemaResult(data []byte, commonResp *CommonResponseResult) (*ListTopicSchemaResult, error) {
+    ret := &ListTopicSchemaResult{
+        CommonResponseResult: *commonResp,
+    }
+    if err := json.Unmarshal(data, ret); err != nil {
+        return nil, err
+    }
+    return ret, nil
+}
+
+type GetTopicSchemaResult struct {
+    CommonResponseResult
+    VersionId    int          `json:"VersionId"`
+    RecordSchema RecordSchema `json:"RecordSchema"`
+}
+
+func (gtr *GetTopicSchemaResult) UnmarshalJSON(data []byte) error {
+    msg := &struct {
+        VersionId    int    `json:"VersionId"`
+        RecordSchema string `json:"RecordSchema"`
+    }{}
+
+    if err := json.Unmarshal(data, msg); err != nil {
+        return err
+    }
+
+    schema := &RecordSchema{}
+    if err := json.Unmarshal([]byte(msg.RecordSchema), schema); err != nil {
+        return err
+    }
+    for idx := range schema.Fields {
+        schema.Fields[idx].AllowNull = !schema.Fields[idx].AllowNull
+    }
+
+    gtr.VersionId = msg.VersionId
+    gtr.RecordSchema = *schema
+    return nil
+}
+
+func NewGetTopicSchemaResult(data []byte, commonResp *CommonResponseResult) (*GetTopicSchemaResult, error) {
+    ret := &GetTopicSchemaResult{
+        CommonResponseResult: *commonResp,
+    }
+    if err := json.Unmarshal(data, ret); err != nil {
+        return nil, err
+    }
+    return ret, nil
+}
+
+type RegisterTopicSchemaResult struct {
+    CommonResponseResult
+    VersionId int `json:"VersionId"`
+}
+
+func NewRegisterTopicSchemaResult(data []byte, commonResp *CommonResponseResult) (*RegisterTopicSchemaResult, error) {
+    ret := &RegisterTopicSchemaResult{
+        CommonResponseResult: *commonResp,
+    }
+    if err := json.Unmarshal(data, ret); err != nil {
+        return nil, err
+    }
+    return ret, nil
+}
+
+type DeleteTopicSchemaResult struct {
+    CommonResponseResult
+}
+
+func NewDeleteTopicSchemaResult(commonResp *CommonResponseResult) (*DeleteTopicSchemaResult, error) {
+    ret := &DeleteTopicSchemaResult{
+        CommonResponseResult: *commonResp,
+    }
+    return ret, nil
 }

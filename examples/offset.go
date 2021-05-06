@@ -50,7 +50,7 @@ func updateOffset() {
     offsetMap := map[string]datahub.SubscriptionOffset{
         "0": offset,
     }
-    if err := dh.CommitSubscriptionOffset(projectName, topicName, subId, offsetMap); err != nil {
+    if _, err := dh.CommitSubscriptionOffset(projectName, topicName, subId, offsetMap); err != nil {
         if _, ok := err.(*datahub.SubscriptionOfflineError); ok {
             fmt.Println("the subscription has offline")
         } else if _, ok := err.(*datahub.SubscriptionSessionInvalidError); ok {
@@ -75,7 +75,7 @@ func resetOffset() {
         "1": offset,
     }
 
-    if err := dh.ResetSubscriptionOffset(projectName, topicName, subId, offsetMap); err != nil {
+    if _, err := dh.ResetSubscriptionOffset(projectName, topicName, subId, offsetMap); err != nil {
         fmt.Println("reset offset failed")
         fmt.Println(err)
         return

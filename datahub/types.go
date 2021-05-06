@@ -5,6 +5,7 @@ import (
     "errors"
     "fmt"
     "github.com/shopspring/decimal"
+    "math"
     "strconv"
 )
 
@@ -49,8 +50,33 @@ func (t Timestamp) String() string {
 
 // DECIMAL
 type Decimal decimal.Decimal
-func (d Decimal) String() string{
+
+func (d Decimal) String() string {
     return decimal.Decimal(d).String()
+}
+
+type Integer int32
+
+func (i Integer) String() string {
+    return strconv.FormatInt(int64(i), 10)
+}
+
+type Float float32
+
+func (f Float) String() string {
+    return strconv.FormatFloat(float64(f), 'f', -1, 32)
+}
+
+type Tinyint int8
+
+func (ti Tinyint) String() string {
+    return strconv.FormatInt(int64(ti), 10)
+}
+
+type Smallint int16
+
+func (si Smallint) String() string {
+    return strconv.FormatInt(int64(si), 10)
 }
 
 // FieldType
@@ -84,62 +110,89 @@ const (
     // DECIMAL
     // can "only" represent numbers with a maximum of 2^31 digits after the decimal point.
     DECIMAL FieldType = "DECIMAL"
+
+    // 4-byte signed integer
+    INTEGER FieldType = "INTEGER"
+
+    // Float type
+    FLOAT FieldType = "FLOAT"
+
+    // 1-byte signed integer
+    TINYINT FieldType = "TINYINT"
+
+    // 2-byte signed integer
+    SMALLINT FieldType = "SMALLINT"
 )
 
 // validateFieldType validate field type
 func validateFieldType(ft FieldType) bool {
     switch ft {
-    case BIGINT, STRING, BOOLEAN, DOUBLE, TIMESTAMP, DECIMAL:
+    case BIGINT, STRING, BOOLEAN, DOUBLE, TIMESTAMP, DECIMAL, INTEGER, FLOAT, TINYINT, SMALLINT:
         return true
     default:
         return false
     }
 }
 
+func getIntegerValue(val interface{}) (int64, error) {
+    var realval int64
+    switch v := val.(type) {
+    case int:
+        realval = int64(v)
+    case int8:
+        realval = int64(v)
+    case int16:
+        realval = int64(v)
+    case int32:
+        realval = int64(v)
+    case int64:
+        realval = int64(v)
+    case uint:
+        realval = int64(v)
+    case uint8:
+        realval = int64(v)
+    case uint16:
+        realval = int64(v)
+    case uint32:
+        realval = int64(v)
+    case Bigint:
+        realval = int64(v)
+    case Integer:
+        realval = int64(v)
+    case Smallint:
+        realval = int64(v)
+    case Tinyint:
+        realval = int64(v)
+    case uint64:
+        if v > 9223372036854775807 {
+            return 0, errors.New("Integer type field must be in [-9223372036854775807,9223372036854775807]")
+        }
+        realval = int64(v)
+    case json.Number:
+        nval, err := v.Int64()
+        if err != nil {
+            return 0, err
+        }
+        realval = int64(nval)
+    default:
+        return 0, errors.New(fmt.Sprintf("value type[%T] not match field type", val))
+    }
+    return realval, nil
+}
+
 // validateFieldValue validate field value
 func validateFieldValue(ft FieldType, val interface{}) (DataType, error) {
     switch ft {
     case BIGINT:
-        var realval Bigint
-        switch v := val.(type) {
-        case Bigint:
-            realval = v
-        case int:
-            realval = Bigint(v)
-        case int8:
-            realval = Bigint(v)
-        case int16:
-            realval = Bigint(v)
-        case int32:
-            realval = Bigint(v)
-        case int64:
-            realval = Bigint(v)
-        case uint:
-            realval = Bigint(v)
-        case uint8:
-            realval = Bigint(v)
-        case uint16:
-            realval = Bigint(v)
-        case uint32:
-            realval = Bigint(v)
-        case uint64:
-            if v > 9223372036854775807 {
-                return nil, errors.New("BIGINT type field must be in [-9223372036854775807,9223372036854775807]")
-            }
-            realval = Bigint(v)
-        case json.Number:
-            nval, err := v.Int64()
-            if err != nil {
-                return nil, err
-            }
-            realval = Bigint(nval)
-        default:
-            return nil, errors.New(fmt.Sprintf("value type[%T] not match field type[BIGINT]", val))
+        realval, err := getIntegerValue(val)
+        if err != nil {
+            return nil, err
         }
+
         if int64(realval) < -9223372036854775807 || int64(realval) > 9223372036854775807 {
             return nil, errors.New("BIGINT type field must be in [-9223372036854775807,9223372036854775807]")
         }
-        return realval, nil
+        return Bigint(realval), nil
     case STRING:
         var realval String
         switch v := val.(type) {
@@ -237,6 +290,48 @@ func validateFieldValue(ft FieldType, val interface{}) (DataType, error) {
             return nil, errors.New(fmt.Sprintf("value type[%T] not match field type[DECIMAL]", val))
         }
         return realval, nil
+    case INTEGER:
+        realval, err := getIntegerValue(val)
+        if err != nil {
+            return nil, err
+        }
+        if realval > math.MaxInt32 || realval < math.MinInt32 {
+            return nil, errors.New(fmt.Sprintf("%T exceed the range of INTEGER", val))
+        }
+        return Integer(realval), nil
+    case FLOAT:
+        switch v := val.(type) {
+        case Float:
+            return v, nil
+        case float32:
+            return Float(v), nil
+        case json.Number:
+            nval, err := v.Float64()
+            if err != nil {
+                return nil, err
+            }
+            return Float(nval), nil
+        default:
+            return nil, errors.New(fmt.Sprintf("value type[%T] not match field type[FLOAT]", val))
+        }
+    case TINYINT:
+        realval, err := getIntegerValue(val)
+        if err != nil {
+            return nil, err
+        }
+        if realval > math.MaxInt8 || realval < math.MinInt8 {
+            return nil, errors.New(fmt.Sprintf("%T exceed the range of TINYINT", val))
+        }
+        return Tinyint(realval), nil
+    case SMALLINT:
+        realval, err := getIntegerValue(val)
+        if err != nil {
+            return nil, err
+        }
+        if realval > math.MaxInt16 || realval < math.MinInt16 {
+            return nil, errors.New(fmt.Sprintf("%T exceed the range of TINYINT", val))
+        }
+        return Smallint(realval), nil
     default:
         return nil, errors.New(fmt.Sprintf("field type[%T] is not illegal", ft))
     }
@@ -277,6 +372,30 @@ func castValueFromString(str string, ft FieldType) (DataType, error) {
             return Decimal(v), nil
         }
         return nil, err
+    case INTEGER:
+        v, err := strconv.ParseInt(str, 10, 32)
+        if err == nil {
+            return Integer(v), nil
+        }
+        return nil, err
+    case FLOAT:
+        v, err := strconv.ParseFloat(str, 32)
+        if err == nil {
+            return Float(v), nil
+        }
+        return nil, err
+    case TINYINT:
+        v, err := strconv.ParseInt(str, 10, 32)
+        if err == nil {
+            return Tinyint(v), nil
+        }
+        return nil, err
+    case SMALLINT:
+        v, err := strconv.ParseInt(str, 10, 32)
+        if err == nil {
+            return Smallint(v), nil
+        }
+        return nil, err
     default:
         return nil, errors.New(fmt.Sprintf("not support field type %s", string(ft)))
     }
@@ -306,6 +425,29 @@ func validateRecordType(rt RecordType) bool {
         return false
     }
 }
+
+type TopicStatus string
+
+func (ts TopicStatus) String() string {
+    return string(ts)
+}
+
+const (
+    TOPIC_ON  TopicStatus = "on"
+    TOPIC_OFF TopicStatus = "off"
+)
+
+type ExpandMode string
+
+func (ft ExpandMode) String() string {
+    return string(ft)
+}
+
+const (
+    SPLIT_EXTEND ExpandMode = ""
+    ONLY_SPLIT   ExpandMode = "split"
+    ONLY_EXTEND  ExpandMode = "extend"
+)
 
 // ShardState
 type ShardState string

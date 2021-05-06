@@ -5,6 +5,7 @@ import (
     "encoding/json"
     "errors"
     "fmt"
+    "reflect"
 )
 
 // BaseRecord
@@ -12,12 +13,12 @@ type BaseRecord struct {
     ShardId      string                 `json:"ShardId,omitempty"`
     PartitionKey string                 `json:"PartitionKey,omitempty"`
     HashKey      string                 `json:"HashKey,omitempty"`
-    SystemTime   int64                  `json:"SystemTime"`
+    SystemTime   int64                  `json:"SystemTime,omitempty"`
     Sequence     int64                  `json:"Sequence,omitempty"`
-    Cursor       string                 `json:"Cursor"`
-    NextCursor   string                 `json:"NextCursor"`
-    Serial       int64                  `json:"Serial"`
-    Attributes   map[string]interface{} `json:"Attributes"`
+    Cursor       string                 `json:"Cursor,omitempty"`
+    NextCursor   string                 `json:"NextCursor,omitempty"`
+    Serial       int64                  `json:"Serial,omitempty"`
+    Attributes   map[string]interface{} `json:"Attributes,omitempty"`
 }
 
 func (br *BaseRecord) GetSystemTime() int64 {
@@ -36,6 +37,10 @@ func (br *BaseRecord) SetAttribute(key string, val interface{}) {
     br.Attributes[key] = val
 }
 
+func (br *BaseRecord) GetAttributes() map[string]interface{} {
+    return br.Attributes
+}
+
 //RecordEntry
 type RecordEntry struct {
     Data interface{} `json:"Data"`
@@ -52,12 +57,12 @@ type IRecord interface {
     GetBaseRecord() BaseRecord
     SetBaseRecord(baseRecord BaseRecord)
     SetAttribute(key string, val interface{})
+    GetAttributes() map[string]interface{}
 }
 
 // BlobRecord blob type record
 type BlobRecord struct {
-    RawData   []byte
-    StoreData string
+    RawData []byte
     BaseRecord
 }
 
@@ -65,7 +70,6 @@ type BlobRecord struct {
 func NewBlobRecord(bytedata []byte, systemTime int64) *BlobRecord {
     br := &BlobRecord{}
     br.RawData = bytedata
-    br.StoreData = base64.StdEncoding.EncodeToString(bytedata)
     br.Attributes = make(map[string]interface{})
     br.SystemTime = systemTime
     return br
@@ -76,7 +80,7 @@ func (br *BlobRecord) String() string {
         Data       string                 `json:"Data"`
         Attributes map[string]interface{} `json:"Attributes"`
     }{
-        Data:       br.StoreData,
+        Data:       string(br.RawData),
         Attributes: br.Attributes,
     }
     byts, _ := json.Marshal(record)
@@ -85,24 +89,25 @@ func (br *BlobRecord) String() string {
 
 // FillData implement of IRecord interface
 func (br *BlobRecord) FillData(data interface{}) error {
-    str, ok := data.(string)
-    if !ok {
-        return errors.New("data must be string")
+    switch data.(type) {
+    case string:
+        bytedata, err := base64.StdEncoding.DecodeString(data.(string))
+        if err != nil {
+            return err
+        }
+        br.RawData = bytedata
+    case []byte:
+        br.RawData = data.([]byte)
+    default:
+        return errors.New(fmt.Sprintf("invalid data type: %s", reflect.TypeOf(data)))
     }
-    bytedata, err := base64.StdEncoding.DecodeString(str)
-    if err != nil {
-        return err
-    }
-    br.StoreData = str
-    br.RawData = bytedata
     return nil
 }
 
 // GetData implement of IRecord interface
 func (br *BlobRecord) GetData() interface{} {
-    return br.StoreData
+    return br.RawData
 }
-
 
 // GetBaseRecord get base record enbry
 func (br *BlobRecord) GetBaseRecord() BaseRecord {
@@ -154,7 +159,13 @@ func (tr *TupleRecord) SetValueByIdx(idx int, val interface{}) *TupleRecord {
     if idx < 0 || idx >= tr.RecordSchema.Size() {
         panic(fmt.Sprintf("index[%d] out range", idx))
     }
-    v, err := validateFieldValue(tr.RecordSchema.Fields[idx].Type, val)
+
+    field := tr.RecordSchema.Fields[idx]
+    if val == nil && !field.AllowNull {
+        panic(fmt.Sprintf("[%s] not allow null", field.Name))
+    }
+
+    v, err := validateFieldValue(field.Type, val)
     if err != nil {
         panic(err)
     }

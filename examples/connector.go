@@ -70,7 +70,7 @@ func updateConnector() {
     // modify the config
     config.TimeRange = 200
 
-    if err := dh.UpdateConnector(projectName, topicName, connectorId, config); err != nil {
+    if _, err := dh.UpdateConnector(projectName, topicName, connectorId, config); err != nil {
         fmt.Println("update odps config failed")
         fmt.Println(err)
         return
@@ -90,7 +90,7 @@ func listConnector() {
 }
 
 func deleteConnector() {
-    if err := dh.DeleteConnector(projectName, topicName, connectorId); err != nil {
+    if _, err := dh.DeleteConnector(projectName, topicName, connectorId); err != nil {
         if _, ok := err.(*datahub.ResourceNotFoundError); ok {
             fmt.Println("odps connector not found")
         } else {
@@ -103,7 +103,7 @@ func deleteConnector() {
 }
 
 func reloadConnector() {
-    if err := dh.ReloadConnector(projectName, topicName, connectorId); err != nil {
+    if _, err := dh.ReloadConnector(projectName, topicName, connectorId); err != nil {
         fmt.Println("reload connector shard failed")
         fmt.Println(err)
         return
@@ -111,7 +111,7 @@ func reloadConnector() {
     fmt.Println("reload connector shard successful")
 
     shardId := "2"
-    if err := dh.ReloadConnectorByShard(projectName, topicName, connectorId, shardId); err != nil {
+    if _, err := dh.ReloadConnectorByShard(projectName, topicName, connectorId, shardId); err != nil {
         fmt.Println("reload connector shard failed")
         fmt.Println(err)
         return
@@ -120,14 +120,14 @@ func reloadConnector() {
 }
 
 func updateConnectorState() {
-    if err := dh.UpdateConnectorState(projectName, topicName, connectorId, datahub.ConnectorStopped); err != nil {
+    if _, err := dh.UpdateConnectorState(projectName, topicName, connectorId, datahub.ConnectorStopped); err != nil {
         fmt.Println("update connector state failed")
         fmt.Println(err)
         return
     }
     fmt.Println("update connector state successful")
 
-    if err := dh.UpdateConnectorState(projectName, topicName, connectorId, datahub.ConnectorRunning); err != nil {
+    if _, err := dh.UpdateConnectorState(projectName, topicName, connectorId, datahub.ConnectorRunning); err != nil {
         fmt.Println("update connector state failed")
         fmt.Println(err)
         return
@@ -167,7 +167,7 @@ func updateConnectorOffset() {
 
     dh.UpdateConnectorState(projectName, topicName, connectorId, datahub.ConnectorStopped)
     defer dh.UpdateConnectorState(projectName, topicName, connectorId, datahub.ConnectorRunning)
-    if err := dh.UpdateConnectorOffset(projectName, topicName, connectorId, shardId, offset); err != nil {
+    if err, _ := dh.UpdateConnectorOffset(projectName, topicName, connectorId, shardId, offset); err != nil {
         fmt.Println("update connector offset failed")
         fmt.Println(err)
         return
@@ -188,7 +188,7 @@ func doneTime() {
 }
 
 func appendConnectorField(dh datahub.DataHub, projectName, topicName, connectorId string) {
-    if err := dh.AppendConnectorField(projectName, topicName, connectorId, "field2"); err != nil {
+    if _, err := dh.AppendConnectorField(projectName, topicName, connectorId, "field2"); err != nil {
         fmt.Println("append filed failed")
         fmt.Println(err)
         return

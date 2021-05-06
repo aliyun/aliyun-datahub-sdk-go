@@ -44,6 +44,16 @@ const (
     httpHeaderSecurityToken      = "x-datahub-security-token"
     httpHeaderTransferEncoding   = "Transfer-Encoding"
     httpHeaderUserAgent          = "User-Agent"
+    httpHeaderConnectorMode      = "mode"
+)
+
+const (
+    httpFilterQuery       = "filter"
+    httpJsonContent       = "application/json"
+    httpProtoContent      = "application/x-protobuf"
+    httpProtoBatchContent = "application/x-binary"
+    httpPublistContent    = "pub"
+    httpSubscribeContent  = "sub"
 )
 
 const (
@@ -102,90 +112,104 @@ type RestClient struct {
 }
 
 // NewRestClient create a new rest client
-func NewRestClient(endpoint string, useragent string, httpclient *http.Client, account Account, ctype CompressorType) *RestClient {
+func NewRestClient(endpoint string, useragent string, httpClient *http.Client, account Account, cType CompressorType) *RestClient {
     if strings.HasSuffix(endpoint, "/") {
         endpoint = endpoint[0 : len(endpoint)-1]
     }
     return &RestClient{
         Endpoint:       endpoint,
         Useragent:      useragent,
-        HttpClient:     httpclient,
+        HttpClient:     httpClient,
         Account:        account,
-        CompressorType: ctype,
+        CompressorType: cType,
     }
 }
 
+type RequestParameter struct {
+    Header map[string]string
+    Query  map[string]string
+}
+
 // Get send HTTP Get method request
-func (client *RestClient) Get(resource string) ([]byte, error) {
-    return client.request(http.MethodGet, resource, &EmptyRequest{})
+func (client *RestClient) Get(resource string, para *RequestParameter) ([]byte, *CommonResponseResult, error) {
+    return client.request(http.MethodGet, resource, &EmptyRequest{}, para)
 }
 
 // Post send HTTP Post method request
-func (client *RestClient) Post(resource string, model RequestModel) ([]byte, error) {
-    return client.request(http.MethodPost, resource, model)
+func (client *RestClient) Post(resource string, model RequestModel, para *RequestParameter) ([]byte, *CommonResponseResult, error) {
+    return client.request(http.MethodPost, resource, model, para)
 }
 
 // Put send HTTP Put method request
-func (client *RestClient) Put(resource string, model RequestModel) (interface{}, error) {
-    return client.request(http.MethodPut, resource, model)
+func (client *RestClient) Put(resource string, model RequestModel, para *RequestParameter) (interface{}, *CommonResponseResult, error) {
+    return client.request(http.MethodPut, resource, model, para)
 }
 
 // Delete send HTTP Delete method request
-func (client *RestClient) Delete(resource string) (interface{}, error) {
-    return client.request(http.MethodDelete, resource, &EmptyRequest{})
+func (client *RestClient) Delete(resource string, para *RequestParameter) (interface{}, *CommonResponseResult, error) {
+    return client.request(http.MethodDelete, resource, &EmptyRequest{}, para)
 }
 
-func (client *RestClient) request(method, resource string, requestModel RequestModel) ([]byte, error) {
+func (client *RestClient) request(method, resource string, requestModel RequestModel, para *RequestParameter) ([]byte, *CommonResponseResult, error) {
     url := fmt.Sprintf("%s%s", client.Endpoint, resource)
 
     header := map[string]string{
         httpHeaderClientVersion: DATAHUB_CLIENT_VERSION,
         httpHeaderDate:          time.Now().UTC().Format(http.TimeFormat),
         httpHeaderUserAgent:     client.Useragent,
-
-        //TODO ContentType 和 RequestAction 应该以参数传进来
-        //httpHeaderContentType:   "application/x-protobuf",
-        //httpHeaderRequestAction: "pub",
     }
 
     //serialization
-    reqBody, err := requestModel.requestBodyEncode(header)
+    reqBody, err := requestModel.requestBodyEncode()
     if err != nil {
-        return nil, err
+        return nil, nil, err
     }
 
     //compress
-    client.compress(header, &reqBody)
+    client.compressIfNeed(header, &reqBody)
 
     if client.Account.GetSecurityToken() != "" {
         header[httpHeaderSecurityToken] = client.Account.GetSecurityToken()
     }
     req, err := http.NewRequest(method, url, bytes.NewBuffer(reqBody))
     if err != nil {
-        return nil, err
+        return nil, nil, err
+    }
+
+    if para != nil {
+        for k, v := range para.Header {
+            header[k] = v
+        }
+
+        query := req.URL.Query()
+        for k, v := range para.Query {
+            query.Add(k, v)
+        }
+        req.URL.RawQuery = query.Encode()
     }
 
     for k, v := range header {
         req.Header.Add(k, v)
     }
+
     client.buildSignature(&req.Header, method, resource)
 
     resp, err := client.HttpClient.Do(req)
     if err != nil {
         if strings.Contains(err.Error(), "EOF") {
-            return nil, NewServiceTemporaryUnavailableError(err.Error());
+            return nil, nil, NewServiceTemporaryUnavailableError(err.Error());
         }
-        return nil, err
+        return nil, nil, err
     }
     defer resp.Body.Close()
     respBody, err := ioutil.ReadAll(resp.Body)
     if err != nil {
-        return nil, err
+        return nil, nil, err
     }
 
     //decompress
     if err := client.decompress(&respBody, &resp.Header); err != nil {
-        return nil, err
+        return nil, nil, err
     }
 
     //detect error
@@ -193,10 +217,10 @@ func (client *RestClient) request(method, resource string, requestModel RequestM
     log.Debug(fmt.Sprintf("request id: %s\nrequest url: %s\nrequest headers: %v\nrequest body: %s\nresponse headers: %v\nresponse body: %s",
         respResult.RequestId, url, req.Header, string(reqBody), resp.Header, string(respBody)))
     if err != nil {
-        return nil, err
+        return nil, nil, err
     }
 
-    return respBody, nil
+    return respBody, respResult, nil
 }
 
 func (client *RestClient) buildSignature(header *http.Header, method, resource string) {
@@ -239,7 +263,7 @@ func (client *RestClient) buildSignature(header *http.Header, method, resource s
     header.Add(httpHeaderAuthorization, authorization)
 }
 
-func (client *RestClient) compress(header map[string]string, reqBody *[]byte) {
+func (client *RestClient) compressIfNeed(header map[string]string, reqBody *[]byte) {
     if client.CompressorType == NOCOMPRESS {
         return
     }
@@ -255,7 +279,7 @@ func (client *RestClient) compress(header map[string]string, reqBody *[]byte) {
             *reqBody = compressedReqBody
         } else {
             //print warning and give up compress when compress failed
-            log.Warning("compress failed or compress invalid, give up compression")
+            log.Warning("compress failed or compress invalid, give up compression, ", err)
         }
     }
     header[httpHeaderContentLength] = strconv.Itoa(len(*reqBody))

@@ -9,8 +9,6 @@ import (
 )
 
 func WrapMessage(data []byte) []byte {
-    //data =[]byte("hello world!")
-
     h1 := []byte("DHUB")
 
     crc32c := crc32.MakeTable(crc32.Castagnoli)

@@ -1,7 +1,6 @@
 package datahub
 
 import (
-    "encoding/json"
     "errors"
     "fmt"
     "github.com/aliyun/aliyun-datahub-sdk-go/datahub/util"
@@ -10,67 +9,105 @@ import (
 
 type DataHub struct {
     Client *RestClient
+
+    // for batch client
+    cType        CompressorType
+    schemaClient *schemaRegistryClient
 }
 
 // ListProjects list all projects
 func (datahub *DataHub) ListProject() (*ListProjectResult, error) {
     path := projectsPath
-    responseBody, err := datahub.Client.Get(path)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
+
+    responseBody, commonResp, err := datahub.Client.Get(path, reqPara)
     if err != nil {
         return nil, err
     }
-    return NewListProjectResult(responseBody)
+    return NewListProjectResult(responseBody, commonResp)
+}
+
+// ListProjects list projects with filter
+func (datahub *DataHub) ListProjectWithFilter(filter string) (*ListProjectResult, error) {
+    path := projectsPath
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+        Query:  map[string]string{httpFilterQuery: filter},
+    }
+
+    responseBody, commonResp, err := datahub.Client.Get(path, reqPara)
+    if err != nil {
+        return nil, err
+    }
+    return NewListProjectResult(responseBody, commonResp)
 }
 
 // CreateProject create new project
-func (datahub *DataHub) CreateProject(projectName, comment string) error {
+func (datahub *DataHub) CreateProject(projectName, comment string) (*CreateProjectResult, error) {
     if !util.CheckProjectName(projectName) {
-        return NewInvalidParameterErrorWithMessage(projectNameInvalid)
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
     if !util.CheckComment(comment) {
-        return NewInvalidParameterErrorWithMessage(commentInvalid)
+        return nil, NewInvalidParameterErrorWithMessage(commentInvalid)
     }
 
     path := fmt.Sprintf(projectPath, projectName)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
     requestBody := &CreateProjectRequest{
         Comment: comment,
     }
-    if _, err := datahub.Client.Post(path, requestBody); err != nil {
-        return err
+
+    _, commonResp, err := datahub.Client.Post(path, requestBody, reqPara)
+    if err != nil {
+        return nil, err
     }
-    return nil
+    return NewCreateProjectResult(commonResp)
 }
 
 // UpdateProject update project
-func (datahub *DataHub) UpdateProject(projectName, comment string) error {
+func (datahub *DataHub) UpdateProject(projectName, comment string) (*UpdateProjectResult, error) {
     if !util.CheckProjectName(projectName) {
-        return NewInvalidParameterErrorWithMessage(projectNameInvalid)
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
     if !util.CheckComment(comment) {
-        return NewInvalidParameterErrorWithMessage(commentInvalid)
+        return nil, NewInvalidParameterErrorWithMessage(commentInvalid)
     }
 
     path := fmt.Sprintf(projectPath, projectName)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
     requestBody := &UpdateProjectRequest{
         Comment: comment,
     }
-    if _, err := datahub.Client.Put(path, requestBody); err != nil {
-        return err
+
+    _, commonResp, err := datahub.Client.Put(path, requestBody, reqPara)
+    if err != nil {
+        return nil, err
     }
-    return nil
+    return NewUpdateProjectResult(commonResp)
 }
 
 // DeleteProject delete project
-func (datahub *DataHub) DeleteProject(projectName string) error {
+func (datahub *DataHub) DeleteProject(projectName string) (*DeleteProjectResult, error) {
     if !util.CheckProjectName(projectName) {
-        return NewInvalidParameterErrorWithMessage(projectNameInvalid)
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
 
     path := fmt.Sprintf(projectPath, projectName)
-    if _, err := datahub.Client.Delete(path); err != nil {
-        return err
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
     }
-    return nil
+
+    _, commonResp, err := datahub.Client.Delete(path, reqPara)
+    if err != nil {
+        return nil, err
+    }
+    return NewDeleteProjectResult(commonResp)
 }
 
 // GetProject get a project deatil named the given name
@@ -80,19 +117,44 @@ func (datahub *DataHub) GetProject(projectName string) (*GetProjectResult, error
     }
 
     path := fmt.Sprintf(projectPath, projectName)
-    respBody, err := datahub.Client.Get(path)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
+
+    respBody, commonResp, err := datahub.Client.Get(path, reqPara)
     if err != nil {
         return nil, err
     }
 
-    result, err := NewGetProjectResult(respBody)
+    result, err := NewGetProjectResult(respBody, commonResp)
     if err != nil {
         return nil, err
     }
 
     result.ProjectName = projectName
     return result, nil
+}
 
+// Update project vpc white list.
+func (datahub *DataHub) UpdateProjectVpcWhitelist(projectName, vpcIds string) (*UpdateProjectVpcWhitelistResult, error) {
+    if !util.CheckProjectName(projectName) {
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
+    }
+
+    path := fmt.Sprintf(projectPath, projectName)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
+    requestBody := &UpdateProjectVpcWhitelistRequest{
+        VpcIds: vpcIds,
+    }
+
+    _, commonResp, err := datahub.Client.Put(path, requestBody, reqPara)
+    if err != nil {
+        return nil, err
+    }
+
+    return NewUpdateProjectVpcWhitelistResult(commonResp)
 }
 
 func (datahub *DataHub) WaitAllShardsReady(projectName, topicName string) bool {
@@ -110,13 +172,12 @@ func (datahub *DataHub) WaitAllShardsReadyWithTime(projectName, topicName string
     go func(datahub DataHubApi) {
         for {
             ls, err := datahub.ListShard(projectName, topicName)
-            shards := ls.Shards
             if err != nil {
                 time.Sleep(1 * time.Microsecond)
                 continue
             }
             ok := true
-            for _, shard := range shards {
+            for _, shard := range ls.Shards {
                 switch shard.State {
                 case ACTIVE, CLOSED:
                     continue
@@ -134,81 +195,173 @@ func (datahub *DataHub) WaitAllShardsReadyWithTime(projectName, topicName string
     return <-ready
 }
 
-func (datahub *DataHub) CreateBlobTopic(projectName, topicName, comment string, shardCount, lifeCycle int) error {
+func (datahub *DataHub) ListTopic(projectName string) (*ListTopicResult, error) {
     if !util.CheckProjectName(projectName) {
-        return NewInvalidParameterErrorWithMessage(projectNameInvalid)
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
-    if !util.CheckTopicName(topicName) {
-        return NewInvalidParameterErrorWithMessage(topicNameInvalid)
+
+    path := fmt.Sprintf(topicsPath, projectName)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
     }
-    if !util.CheckComment(comment) {
-        return NewInvalidParameterErrorWithMessage(commentInvalid)
+    respBody, commonResp, err := datahub.Client.Get(path, reqPara)
+    if err != nil {
+        return nil, err
     }
-    path := fmt.Sprintf(topicPath, projectName, topicName)
-    ctr := &CreateTopicRequest{
-        Action:      "create",
-        ProjectName: projectName,
-        TopicName:   topicName,
-        ShardCount:  shardCount,
-        Lifecycle:   lifeCycle,
-        RecordType:  BLOB,
-        Comment:     comment,
-    }
-    if _, err := datahub.Client.Post(path, ctr); err != nil {
-        return err
-    }
-    return nil
+    return NewListTopicResult(respBody, commonResp)
 }
 
-func (datahub *DataHub) CreateTupleTopic(projectName, topicName, comment string, shardCount, lifeCycle int, recordSchema *RecordSchema) error {
+func (datahub *DataHub) ListTopicWithFilter(projectName, filter string) (*ListTopicResult, error) {
     if !util.CheckProjectName(projectName) {
-        return NewInvalidParameterErrorWithMessage(projectNameInvalid)
-    }
-    if !util.CheckTopicName(topicName) {
-        return NewInvalidParameterErrorWithMessage(topicNameInvalid)
-    }
-    if !util.CheckComment(comment) {
-        return NewInvalidParameterErrorWithMessage(commentInvalid)
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
 
-    path := fmt.Sprintf(topicPath, projectName, topicName)
-    ctr := &CreateTopicRequest{
-        Action:       "create",
-        ProjectName:  projectName,
-        TopicName:    topicName,
+    path := fmt.Sprintf(topicsPath, projectName)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+        Query:  map[string]string{httpFilterQuery: filter},
+    }
+    respBody, commonResp, err := datahub.Client.Get(path, reqPara)
+    if err != nil {
+        return nil, err
+    }
+    return NewListTopicResult(respBody, commonResp)
+}
+
+func (datahub *DataHub) CreateBlobTopic(projectName, topicName, comment string, shardCount, lifeCycle int) (*CreateBlobTopicResult, error) {
+    para := &CreateTopicParameter{
         ShardCount:   shardCount,
-        Lifecycle:    lifeCycle,
+        LifeCycle:    lifeCycle,
+        Comment:      comment,
+        RecordType:   BLOB,
+        RecordSchema: nil,
+        ExpandMode:   SPLIT_EXTEND,
+    }
+
+    ret, err := datahub.CreateTopicWithPara(projectName, topicName, para)
+    if err != nil {
+        return nil, err
+    }
+    return NewCreateBlobTopicResult(&ret.CommonResponseResult)
+}
+
+func (datahub *DataHub) CreateTupleTopic(projectName, topicName, comment string, shardCount, lifeCycle int, recordSchema *RecordSchema) (*CreateTupleTopicResult, error) {
+    para := &CreateTopicParameter{
+        ShardCount:   shardCount,
+        LifeCycle:    lifeCycle,
+        Comment:      comment,
         RecordType:   TUPLE,
         RecordSchema: recordSchema,
-        Comment:      comment,
+        ExpandMode:   SPLIT_EXTEND,
     }
 
-    if _, err := datahub.Client.Post(path, ctr); err != nil {
-        return err
+    ret, err := datahub.CreateTopicWithPara(projectName, topicName, para)
+    if err != nil {
+        return nil, err
     }
-    return nil
+    return NewCreateTupleTopicResult(&ret.CommonResponseResult)
 }
 
-func (datahub *DataHub) UpdateTopic(projectName, topicName, comment string) error {
+func (datahub *DataHub) CreateTopicWithPara(projectName, topicName string, para *CreateTopicParameter) (*CreateTopicWithParaResult, error) {
     if !util.CheckProjectName(projectName) {
-        return NewInvalidParameterErrorWithMessage(projectNameInvalid)
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
     if !util.CheckTopicName(topicName) {
-        return NewInvalidParameterErrorWithMessage(topicNameInvalid)
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
     }
-    if !util.CheckComment(comment) {
-        return NewInvalidParameterErrorWithMessage(commentInvalid)
+    if para == nil {
+        return nil, NewInvalidParameterErrorWithMessage(parameterNull)
+    }
+    if !util.CheckComment(para.Comment) {
+        return nil, NewInvalidParameterErrorWithMessage(commentInvalid)
+    }
+    if para.RecordType != TUPLE && para.RecordType != BLOB {
+        return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("Invalid RecordType: %s", para.RecordType))
+    }
+    if para.RecordType == TUPLE && para.RecordSchema == nil {
+        return nil, NewInvalidParameterErrorWithMessage("Tuple topic must set RecordSchema")
+    }
+    if para.LifeCycle <= 0 {
+        return nil, NewInvalidParameterErrorWithMessage(lifecycleInvalid)
     }
 
     path := fmt.Sprintf(topicPath, projectName, topicName)
-    ut := &UpdateTopicRequest{
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
+    ctr := &CreateTopicRequest{
+        Action:       "create",
+        ShardCount:   para.ShardCount,
+        Lifecycle:    para.LifeCycle,
+        RecordType:   para.RecordType,
+        RecordSchema: para.RecordSchema,
+        Comment:      para.Comment,
+        ExpandMode:   para.ExpandMode,
+    }
+
+    _, commonResp, err := datahub.Client.Post(path, ctr, reqPara)
+    if err != nil {
+        return nil, err
+    }
+    return NewCreateTopicWithParaResult(commonResp)
+}
+
+func (datahub *DataHub) UpdateTopic(projectName, topicName, comment string) (*UpdateTopicResult, error) {
+    para := &UpdateTopicParameter{
         Comment: comment,
     }
 
-    if _, err := datahub.Client.Put(path, ut); err != nil {
-        return err
+    return datahub.UpdateTopicWithPara(projectName, topicName, para)
+}
+
+// Update topic meta information. Only support comment and lifeCycle now.
+func (datahub *DataHub) UpdateTopicWithPara(projectName, topicName string, para *UpdateTopicParameter) (*UpdateTopicResult, error) {
+    if !util.CheckProjectName(projectName) {
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
-    return nil
+    if !util.CheckTopicName(topicName) {
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
+    }
+    if para == nil {
+        return nil, NewInvalidParameterErrorWithMessage(parameterNull)
+    }
+    if !util.CheckComment(para.Comment) {
+        return nil, NewInvalidParameterErrorWithMessage(commentInvalid)
+    }
+
+    path := fmt.Sprintf(topicPath, projectName, topicName)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
+    ut := &UpdateTopicRequest{
+        Lifecycle: para.LifeCycle,
+        Comment:   para.Comment,
+    }
+
+    _, commonResp, err := datahub.Client.Put(path, ut, reqPara)
+    if err != nil {
+        return nil, err
+    }
+    return NewUpdateTopicResult(commonResp)
+}
+
+func (datahub *DataHub) DeleteTopic(projectName, topicName string) (*DeleteTopicResult, error) {
+    if !util.CheckProjectName(projectName) {
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
+    }
+    if !util.CheckTopicName(topicName) {
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
+    }
+
+    path := fmt.Sprintf(topicPath, projectName, topicName)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
+    _, commonResp, err := datahub.Client.Delete(path, reqPara)
+    if err != nil {
+        return nil, err
+    }
+    return NewDeleteTopicResult(commonResp)
 }
 
 func (datahub *DataHub) GetTopic(projectName, topicName string) (*GetTopicResult, error) {
@@ -220,11 +373,14 @@ func (datahub *DataHub) GetTopic(projectName, topicName string) (*GetTopicResult
     }
 
     path := fmt.Sprintf(topicPath, projectName, topicName)
-    respBody, err := datahub.Client.Get(path)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
+    respBody, commonResp, err := datahub.Client.Get(path, reqPara)
     if err != nil {
         return nil, err
     }
-    result, err := NewGetTopicResult(respBody)
+    result, err := NewGetTopicResult(respBody, commonResp)
 
     if err != nil {
         return nil, err
@@ -232,33 +388,6 @@ func (datahub *DataHub) GetTopic(projectName, topicName string) (*GetTopicResult
     result.ProjectName = projectName
     result.TopicName = topicName
     return result, nil
-}
-
-func (datahub *DataHub) DeleteTopic(projectName, topicName string) error {
-    if !util.CheckProjectName(projectName) {
-        return NewInvalidParameterErrorWithMessage(projectNameInvalid)
-    }
-    if !util.CheckTopicName(topicName) {
-        return NewInvalidParameterErrorWithMessage(topicNameInvalid)
-    }
-    path := fmt.Sprintf(topicPath, projectName, topicName)
-    if _, err := datahub.Client.Delete(path); err != nil {
-        return err
-    }
-    return nil
-}
-
-func (datahub *DataHub) ListTopic(projectName string) (*ListTopicResult, error) {
-    if !util.CheckProjectName(projectName) {
-        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
-    }
-
-    path := fmt.Sprintf(topicsPath, projectName)
-    respBody, err := datahub.Client.Get(path)
-    if err != nil {
-        return nil, err
-    }
-    return NewListTopicResult(respBody)
 }
 
 func (datahub *DataHub) ListShard(projectName, topicName string) (*ListShardResult, error) {
@@ -270,11 +399,14 @@ func (datahub *DataHub) ListShard(projectName, topicName string) (*ListShardResu
     }
 
     path := fmt.Sprintf(shardsPath, projectName, topicName)
-    respBody, err := datahub.Client.Get(path)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
+    respBody, commonResp, err := datahub.Client.Get(path, reqPara)
     if err != nil {
         return nil, err
     }
-    return NewListShardResult(respBody)
+    return NewListShardResult(respBody, commonResp)
 }
 
 func (datahub *DataHub) SplitShard(projectName, topicName, shardId string) (*SplitShardResult, error) {
@@ -294,17 +426,20 @@ func (datahub *DataHub) SplitShard(projectName, topicName, shardId string) (*Spl
         return nil, err
     }
     path := fmt.Sprintf(shardsPath, projectName, topicName)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
     ssr := &SplitShardRequest{
         Action:   "split",
         ShardId:  shardId,
         SplitKey: splitKey,
     }
 
-    respBody, err := datahub.Client.Post(path, ssr)
+    respBody, commonResp, err := datahub.Client.Post(path, ssr, reqPara)
     if err != nil {
         return nil, err
     }
-    return NewSplitShardResult(respBody)
+    return NewSplitShardResult(respBody, commonResp)
 
 }
 
@@ -321,17 +456,20 @@ func (datahub *DataHub) SplitShardBySplitKey(projectName, topicName, shardId, sp
     }
 
     path := fmt.Sprintf(shardsPath, projectName, topicName)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
     ssr := &SplitShardRequest{
         Action:   "split",
         ShardId:  shardId,
         SplitKey: splitKey,
     }
 
-    respBody, err := datahub.Client.Post(path, ssr)
+    respBody, commonResp, err := datahub.Client.Post(path, ssr, reqPara)
     if err != nil {
         return nil, err
     }
-    return NewSplitShardResult(respBody)
+    return NewSplitShardResult(respBody, commonResp)
 }
 
 func (datahub *DataHub) MergeShard(projectName, topicName, shardId, adjacentShardId string) (*MergeShardResult, error) {
@@ -341,24 +479,53 @@ func (datahub *DataHub) MergeShard(projectName, topicName, shardId, adjacentShar
     if !util.CheckTopicName(topicName) {
         return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
     }
-
     if !util.CheckShardId(shardId) || !util.CheckShardId(adjacentShardId) {
         return nil, NewInvalidParameterErrorWithMessage(shardIdInvalid)
     }
 
     path := fmt.Sprintf(shardsPath, projectName, topicName)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
     mss := &MergeShardRequest{
         Action:          "merge",
         ShardId:         shardId,
         AdjacentShardId: adjacentShardId,
     }
 
-    respBody, err := datahub.Client.Post(path, mss)
+    respBody, commonResp, err := datahub.Client.Post(path, mss, reqPara)
     if err != nil {
         return nil, err
     }
-    return NewMergeShardResult(respBody)
+    return NewMergeShardResult(respBody, commonResp)
+}
 
+func (datahub *DataHub) ExtendShard(projectName, topicName string, shardCount int) (*ExtendShardResult, error) {
+    if !util.CheckProjectName(projectName) {
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
+    }
+    if !util.CheckTopicName(topicName) {
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
+    }
+    if shardCount <= 0 {
+        return nil, NewInvalidParameterErrorWithMessage("shardCount is invalid")
+    }
+
+    path := fmt.Sprintf(shardsPath, projectName, topicName)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
+    mss := &ExtendShardRequest{
+        Action:     "extend",
+        ExtendMode: "TO",
+        ShardCount: shardCount,
+    }
+
+    _, commonResp, err := datahub.Client.Post(path, mss, reqPara)
+    if err != nil {
+        return nil, err
+    }
+    return NewExtendShardResult(commonResp)
 }
 
 func (datahub *DataHub) GetCursor(projectName, topicName, shardId string, ctype CursorType, param ...int64) (*GetCursorResult, error) {
@@ -376,6 +543,9 @@ func (datahub *DataHub) GetCursor(projectName, topicName, shardId string, ctype 
     }
 
     path := fmt.Sprintf(shardPath, projectName, topicName, shardId)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
     gcr := &GetCursorRequest{
         Action:     "cursor",
         CursorType: ctype,
@@ -384,25 +554,25 @@ func (datahub *DataHub) GetCursor(projectName, topicName, shardId string, ctype 
     switch ctype {
     case OLDEST, LATEST:
         if len(param) != 0 {
-            return nil, NewInvalidParameterErrorWithMessage(parameterNumInvalid)
+            return nil, NewInvalidParameterErrorWithMessage("Not need extra parameter when CursorType OLDEST or LATEST")
         }
     case SYSTEM_TIME:
         if len(param) != 1 {
-            return nil, NewInvalidParameterErrorWithMessage(parameterNumInvalid)
+            return nil, NewInvalidParameterErrorWithMessage("Timestamp must be set when CursorType is SYSTEM_TIME")
         }
         gcr.SystemTime = param[0]
     case SEQUENCE:
         if len(param) != 1 {
-            return nil, NewInvalidParameterErrorWithMessage(parameterNumInvalid)
+            return nil, NewInvalidParameterErrorWithMessage("Sequence must be set when CursorType is SEQUENCE")
         }
         gcr.Sequence = param[0]
     }
 
-    respBody, err := datahub.Client.Post(path, gcr)
+    respBody, commonResp, err := datahub.Client.Post(path, gcr, reqPara)
     if err != nil {
         return nil, err
     }
-    return NewGetCursorResult(respBody)
+    return NewGetCursorResult(respBody, commonResp)
 }
 func (datahub *DataHub) PutRecords(projectName, topicName string, records []IRecord) (*PutRecordsResult, error) {
     if !util.CheckProjectName(projectName) {
@@ -411,21 +581,27 @@ func (datahub *DataHub) PutRecords(projectName, topicName string, records []IRec
     if !util.CheckTopicName(topicName) {
         return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
     }
+    if records == nil || len(records) == 0 {
+        return nil, NewInvalidParameterErrorWithMessage(recordsInvalid)
+    }
 
     path := fmt.Sprintf(shardsPath, projectName, topicName)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
     prr := &PutRecordsRequest{
         Action:  "pub",
         Records: records,
     }
-    respBody, err := datahub.Client.Post(path, prr)
+    respBody, commonResp, err := datahub.Client.Post(path, prr, reqPara)
     if err != nil {
         return nil, err
     }
-    return NewPutRecordsResult(respBody)
+    return NewPutRecordsResult(respBody, commonResp)
 }
 
-func (datahub *DataHub) PutRecordsByShard(projectName, topicName, shardId string, records []IRecord) error {
-    return errors.New("not support this method")
+func (datahub *DataHub) PutRecordsByShard(projectName, topicName, shardId string, records []IRecord) (*PutRecordsByShardResult, error) {
+    return nil, errors.New("not support this method")
 }
 
 func (datahub *DataHub) GetTupleRecords(projectName, topicName, shardId, cursor string, limit int, recordSchema *RecordSchema) (*GetRecordsResult, error) {
@@ -438,18 +614,35 @@ func (datahub *DataHub) GetTupleRecords(projectName, topicName, shardId, cursor 
     if !util.CheckShardId(shardId) {
         return nil, NewInvalidParameterErrorWithMessage(shardIdInvalid)
     }
+    if recordSchema == nil {
+        return nil, NewInvalidParameterErrorWithMessage(missingRecordSchema)
+    }
 
     path := fmt.Sprintf(shardPath, projectName, topicName, shardId)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
     grr := &GetRecordRequest{
         Action: "sub",
         Cursor: cursor,
         Limit:  limit,
     }
-    respBody, err := datahub.Client.Post(path, grr)
+    respBody, commonResp, err := datahub.Client.Post(path, grr, reqPara)
     if err != nil {
         return nil, err
     }
-    return NewGetRecordsResult(respBody, recordSchema)
+
+    ret, err := NewGetRecordsResult(respBody, recordSchema, commonResp)
+    if err != nil {
+        return nil, err
+    }
+
+    for _, record := range ret.Records {
+        if _, ok := record.(*TupleRecord); !ok {
+            return nil, NewInvalidParameterErrorWithMessage("Shouldn't call this method for BLOB topic")
+        }
+    }
+    return ret, nil
 }
 
 func (datahub *DataHub) GetBlobRecords(projectName, topicName, shardId, cursor string, limit int) (*GetRecordsResult, error) {
@@ -464,38 +657,44 @@ func (datahub *DataHub) GetBlobRecords(projectName, topicName, shardId, cursor s
     }
 
     path := fmt.Sprintf(shardPath, projectName, topicName, shardId)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
     grr := &GetRecordRequest{
         Action: "sub",
         Cursor: cursor,
         Limit:  limit,
     }
-    respBody, err := datahub.Client.Post(path, grr)
+    respBody, commonResp, err := datahub.Client.Post(path, grr, reqPara)
     if err != nil {
         return nil, err
     }
-    return NewGetRecordsResult(respBody, nil)
+    return NewGetRecordsResult(respBody, nil, commonResp)
 }
 
-func (datahub *DataHub) AppendField(projectName, topicName string, field Field) error {
+func (datahub *DataHub) AppendField(projectName, topicName string, field Field) (*AppendFieldResult, error) {
     if !util.CheckProjectName(projectName) {
-        return NewInvalidParameterErrorWithMessage(projectNameInvalid)
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
     if !util.CheckTopicName(topicName) {
-        return NewInvalidParameterErrorWithMessage(topicNameInvalid)
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
     }
 
     path := fmt.Sprintf(topicPath, projectName, topicName)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
     afr := &AppendFieldRequest{
         Action:    "AppendField",
         FieldName: field.Name,
         FieldType: field.Type,
     }
-    _, err := datahub.Client.Post(path, afr)
-    if err != nil {
-        return err
-    }
-    return nil
 
+    _, commonResp, err := datahub.Client.Post(path, afr, reqPara)
+    if err != nil {
+        return nil, err
+    }
+    return NewAppendFieldResult(commonResp)
 }
 
 func (datahub *DataHub) GetMeterInfo(projectName, topicName, shardId string) (*GetMeterInfoResult, error) {
@@ -510,103 +709,17 @@ func (datahub *DataHub) GetMeterInfo(projectName, topicName, shardId string) (*G
     }
 
     path := fmt.Sprintf(shardPath, projectName, topicName, shardId)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
     gmir := &GetMeterInfoRequest{
         Action: "meter",
     }
-    respBody, err := datahub.Client.Post(path, gmir)
+    respBody, commonResp, err := datahub.Client.Post(path, gmir, reqPara)
     if err != nil {
         return nil, err
     }
-    return NewGetMeterInfoResult(respBody)
-}
-
-func (datahub *DataHub) CreateConnector(projectName, topicName string, cType ConnectorType, columnFields []string, config interface{}) (*CreateConnectorResult, error) {
-    if !util.CheckProjectName(projectName) {
-        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
-    }
-    if !util.CheckTopicName(topicName) {
-        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
-    }
-    if !validateConnectorType(cType) {
-        return nil, NewInvalidParameterErrorWithMessage(parameterTypeInvalid)
-    }
-
-    path := fmt.Sprintf(connectorPath, projectName, topicName, cType.String())
-    ccr := &CreateConnectorRequest{
-        Action:        "create",
-        Type:          cType,
-        SinkStartTime: -1,
-        ColumnFields:  columnFields,
-        Config:        config,
-    }
-    respBody, err := datahub.Client.Post(path, ccr)
-    if err != nil {
-        return nil, err
-    }
-    return NewCreateConnectorResult(respBody)
-}
-
-func (datahub *DataHub) CreateConnectorWithStartTime(projectName, topicName string, cType ConnectorType,
-    columnFields []string, sinkStartTime int64, config interface{}) (*CreateConnectorResult, error) {
-    if !util.CheckProjectName(projectName) {
-        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
-    }
-    if !util.CheckTopicName(topicName) {
-        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
-    }
-    if !validateConnectorType(cType) {
-        return nil, NewInvalidParameterErrorWithMessage(parameterTypeInvalid)
-    }
-
-    path := fmt.Sprintf(connectorPath, projectName, topicName, cType.String())
-    ccr := &CreateConnectorRequest{
-        Action:        "create",
-        Type:          cType,
-        SinkStartTime: sinkStartTime,
-        ColumnFields:  columnFields,
-        Config:        config,
-    }
-    respBody, err := datahub.Client.Post(path, ccr)
-    if err != nil {
-        return nil, err
-    }
-    return NewCreateConnectorResult(respBody)
-}
-
-func (datahub *DataHub) GetConnector(projectName, topicName, connectorId string) (*GetConnectorResult, error) {
-    if !util.CheckProjectName(projectName) {
-        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
-    }
-    if !util.CheckTopicName(topicName) {
-        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
-    }
-
-    path := fmt.Sprintf(connectorPath, projectName, topicName, connectorId)
-    respBody, err := datahub.Client.Get(path)
-    if err != nil {
-        return nil, err
-    }
-    return NewGetConnectorResult(respBody)
-}
-
-func (datahub *DataHub) UpdateConnector(projectName, topicName, connectorId string, config interface{}) error {
-    if !util.CheckProjectName(projectName) {
-        return NewInvalidParameterErrorWithMessage(projectNameInvalid)
-    }
-    if !util.CheckTopicName(topicName) {
-        return NewInvalidParameterErrorWithMessage(topicNameInvalid)
-    }
-
-    path := fmt.Sprintf(connectorPath, projectName, topicName, connectorId)
-
-    ucr := &UpdateConnectorRequest{
-        Action: "updateconfig",
-        Config: config,
-    }
-    if _, err := datahub.Client.Post(path, ucr); err != nil {
-        return err
-    }
-    return nil
+    return NewGetMeterInfoResult(respBody, commonResp)
 }
 
 func (datahub *DataHub) ListConnector(projectName, topicName string) (*ListConnectorResult, error) {
@@ -618,26 +731,141 @@ func (datahub *DataHub) ListConnector(projectName, topicName string) (*ListConne
     }
 
     path := fmt.Sprintf(connectorsPath, projectName, topicName)
-    respBody, err := datahub.Client.Get(path)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+        Query:  map[string]string{httpHeaderConnectorMode: "id"},
+    }
+    respBody, commonResp, err := datahub.Client.Get(path, reqPara)
     if err != nil {
         return nil, err
     }
-    return NewListConnectorResult(respBody)
+    return NewListConnectorResult(respBody, commonResp)
 }
 
-func (datahub *DataHub) DeleteConnector(projectName, topicName, connectorId string) error {
+func (datahub *DataHub) CreateConnector(projectName, topicName string, cType ConnectorType, columnFields []string, config interface{}) (*CreateConnectorResult, error) {
+    return datahub.CreateConnectorWithStartTime(projectName, topicName, cType, columnFields, -1, config)
+}
+
+func (datahub *DataHub) CreateConnectorWithStartTime(projectName, topicName string, cType ConnectorType,
+    columnFields []string, sinkStartTime int64, config interface{}) (*CreateConnectorResult, error) {
+    para := &CreateConnectorParameter{
+        SinkStartTime: sinkStartTime,
+        ConnectorType: cType,
+        ColumnFields:  columnFields,
+        ColumnNameMap: nil,
+        Config:        config,
+    }
+
+    return datahub.CreateConnectorWithPara(projectName, topicName, para)
+}
+
+func (datahub *DataHub) CreateConnectorWithPara(projectName, topicName string, para *CreateConnectorParameter) (*CreateConnectorResult, error) {
     if !util.CheckProjectName(projectName) {
-        return NewInvalidParameterErrorWithMessage(projectNameInvalid)
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
     if !util.CheckTopicName(topicName) {
-        return NewInvalidParameterErrorWithMessage(topicNameInvalid)
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
+    }
+    if para == nil {
+        return nil, NewInvalidParameterErrorWithMessage(parameterNull)
+    }
+    if !validateConnectorType(para.ConnectorType) {
+        return nil, NewInvalidParameterErrorWithMessage(parameterTypeInvalid)
+    }
+
+    path := fmt.Sprintf(connectorPath, projectName, topicName, para.ConnectorType.String())
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
+    ccr := &CreateConnectorRequest{
+        Action:        "create",
+        Type:          para.ConnectorType,
+        SinkStartTime: para.SinkStartTime,
+        ColumnFields:  para.ColumnFields,
+        ColumnNameMap: para.ColumnNameMap,
+        Config:        para.Config,
+    }
+    respBody, commonResp, err := datahub.Client.Post(path, ccr, reqPara)
+    if err != nil {
+        return nil, err
+    }
+    return NewCreateConnectorResult(respBody, commonResp)
+}
+
+func (datahub *DataHub) GetConnector(projectName, topicName, connectorId string) (*GetConnectorResult, error) {
+    if !util.CheckProjectName(projectName) {
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
+    }
+    if !util.CheckTopicName(topicName) {
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
     }
 
     path := fmt.Sprintf(connectorPath, projectName, topicName, connectorId)
-    if _, err := datahub.Client.Delete(path); err != nil {
-        return err
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
     }
-    return nil
+    respBody, commonResp, err := datahub.Client.Get(path, reqPara)
+    if err != nil {
+        return nil, err
+    }
+    return NewGetConnectorResult(respBody, commonResp)
+}
+
+func (datahub *DataHub) UpdateConnector(projectName, topicName, connectorId string, config interface{}) (*UpdateConnectorResult, error) {
+    para := &UpdateConnectorParameter{
+        ColumnFields:  nil,
+        ColumnNameMap: nil,
+        Config:        config,
+    }
+
+    return datahub.UpdateConnectorWithPara(projectName, topicName, connectorId, para)
+}
+
+func (datahub *DataHub) UpdateConnectorWithPara(projectName, topicName, connectorId string, para *UpdateConnectorParameter) (*UpdateConnectorResult, error) {
+    if !util.CheckProjectName(projectName) {
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
+    }
+    if !util.CheckTopicName(topicName) {
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
+    }
+    if para == nil {
+        return nil, NewInvalidParameterErrorWithMessage(parameterNull)
+    }
+
+    path := fmt.Sprintf(connectorPath, projectName, topicName, connectorId)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
+    ucr := &UpdateConnectorRequest{
+        Action:        "updateconfig",
+        ColumnFields:  para.ColumnFields,
+        ColumnNameMap: para.ColumnNameMap,
+        Config:        para.Config,
+    }
+    _, commonResp, err := datahub.Client.Post(path, ucr, reqPara)
+    if err != nil {
+        return nil, err
+    }
+    return NewUpdateConnectorResult(commonResp)
+}
+
+func (datahub *DataHub) DeleteConnector(projectName, topicName, connectorId string) (*DeleteConnectorResult, error) {
+    if !util.CheckProjectName(projectName) {
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
+    }
+    if !util.CheckTopicName(topicName) {
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
+    }
+
+    path := fmt.Sprintf(connectorPath, projectName, topicName, connectorId)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
+    _, commonResp, err := datahub.Client.Delete(path, reqPara)
+    if err != nil {
+        return nil, err
+    }
+    return NewDeleteConnectorResult(commonResp)
 }
 
 func (datahub *DataHub) GetConnectorDoneTime(projectName, topicName, connectorId string) (*GetConnectorDoneTimeResult, error) {
@@ -648,99 +876,17 @@ func (datahub *DataHub) GetConnectorDoneTime(projectName, topicName, connectorId
         return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
     }
 
-    path := fmt.Sprintf(connectorDoneTimePath, projectName, topicName, connectorId)
-    respBody, err := datahub.Client.Get(path)
+    path := fmt.Sprintf(connectorPath, projectName, topicName, connectorId)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+        Query:  map[string]string{"donetime": ""},
+    }
+
+    respBody, commonResp, err := datahub.Client.Get(path, reqPara)
     if err != nil {
         return nil, err
     }
-    return NewGetConnectorDoneTimeResult(respBody)
-}
-
-func (datahub *DataHub) ReloadConnector(projectName, topicName, connectorId string) error {
-    if !util.CheckProjectName(projectName) {
-        return NewInvalidParameterErrorWithMessage(projectNameInvalid)
-    }
-    if !util.CheckTopicName(topicName) {
-        return NewInvalidParameterErrorWithMessage(topicNameInvalid)
-    }
-
-    path := fmt.Sprintf(connectorPath, projectName, topicName, connectorId)
-    rcr := &ReloadConnectorRequest{
-        Action: "Reload",
-    }
-    if _, err := datahub.Client.Post(path, rcr); err != nil {
-        return err
-    }
-    return nil
-}
-
-func (datahub *DataHub) ReloadConnectorByShard(projectName, topicName, connectorId, shardId string) error {
-    if !util.CheckProjectName(projectName) {
-        return NewInvalidParameterErrorWithMessage(projectNameInvalid)
-    }
-    if !util.CheckTopicName(topicName) {
-        return NewInvalidParameterErrorWithMessage(topicNameInvalid)
-    }
-    if !util.CheckShardId(shardId) {
-        return NewInvalidParameterErrorWithMessage(shardIdInvalid)
-    }
-
-    path := fmt.Sprintf(connectorPath, projectName, topicName, connectorId)
-    rcr := &ReloadConnectorRequest{
-        Action:  "Reload",
-        ShardId: shardId,
-    }
-    if _, err := datahub.Client.Post(path, rcr); err != nil {
-        return err
-    }
-    return nil
-}
-
-func (datahub *DataHub) UpdateConnectorState(projectName, topicName, connectorId string, state ConnectorState) error {
-    if !util.CheckProjectName(projectName) {
-        return NewInvalidParameterErrorWithMessage(projectNameInvalid)
-    }
-    if !util.CheckTopicName(topicName) {
-        return NewInvalidParameterErrorWithMessage(topicNameInvalid)
-    }
-    if !validateConnectorState(state) {
-        return NewInvalidParameterErrorWithMessage(parameterTypeInvalid)
-    }
-
-    path := fmt.Sprintf(connectorPath, projectName, topicName, connectorId)
-    ucsr := &UpdateConnectorStateRequest{
-        Action: "updatestate",
-        State:  state,
-    }
-    if _, err := datahub.Client.Post(path, ucsr); err != nil {
-        return err
-    }
-    return nil
-}
-
-func (datahub *DataHub) UpdateConnectorOffset(projectName, topicName, connectorId, shardId string, offset ConnectorOffset) error {
-    if !util.CheckProjectName(projectName) {
-        return NewInvalidParameterErrorWithMessage(projectNameInvalid)
-    }
-    if !util.CheckTopicName(topicName) {
-        return NewInvalidParameterErrorWithMessage(topicNameInvalid)
-    }
-    if !util.CheckShardId(shardId) {
-        return NewInvalidParameterErrorWithMessage(shardIdInvalid)
-    }
-
-    path := fmt.Sprintf(connectorPath, projectName, topicName, connectorId)
-    ucor := &UpdateConnectorOffsetRequest{
-        Action:    "updateshardcontext",
-        ShardId:   shardId,
-        Timestamp: offset.Timestamp,
-        Sequence:  offset.Sequence,
-    }
-
-    if _, err := datahub.Client.Post(path, ucor); err != nil {
-        return err
-    }
-    return nil
+    return NewGetConnectorDoneTimeResult(respBody, commonResp)
 }
 
 func (datahub *DataHub) GetConnectorShardStatus(projectName, topicName, connectorId string) (*GetConnectorShardStatusResult, error) {
@@ -752,17 +898,20 @@ func (datahub *DataHub) GetConnectorShardStatus(projectName, topicName, connecto
     }
 
     path := fmt.Sprintf(connectorPath, projectName, topicName, connectorId)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
     gcss := &GetConnectorShardStatusRequest{
         Action: "Status",
     }
-    respBody, err := datahub.Client.Post(path, gcss)
+    respBody, commonResp, err := datahub.Client.Post(path, gcss, reqPara)
     if err != nil {
         return nil, err
     }
-    return NewGetConnectorShardStatusResult(respBody)
+    return NewGetConnectorShardStatusResult(respBody, commonResp)
 }
 
-func (datahub *DataHub) GetConnectorShardStatusByShard(projectName, topicName, connectorId, shardId string) (*ConnectorShardStatusEntry, error) {
+func (datahub *DataHub) GetConnectorShardStatusByShard(projectName, topicName, connectorId, shardId string) (*GetConnectorShardStatusByShardResult, error) {
     if !util.CheckProjectName(projectName) {
         return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -774,38 +923,168 @@ func (datahub *DataHub) GetConnectorShardStatusByShard(projectName, topicName, c
     }
 
     path := fmt.Sprintf(connectorPath, projectName, topicName, connectorId)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
     gcss := &GetConnectorShardStatusRequest{
         Action:  "Status",
         ShardId: shardId,
     }
-    respBody, err := datahub.Client.Post(path, gcss)
+    respBody, commonResp, err := datahub.Client.Post(path, gcss, reqPara)
     if err != nil {
         return nil, err
     }
-    csse := &ConnectorShardStatusEntry{}
-    if err := json.Unmarshal(respBody, csse); err != nil {
-        return nil, err
-    }
-    return csse, nil
+    return NewGetConnectorShardStatusByShardResult(respBody, commonResp)
 }
 
-func (datahub *DataHub) AppendConnectorField(projectName, topicName, connectorId, fieldName string) error {
+func (datahub *DataHub) ReloadConnector(projectName, topicName, connectorId string) (*ReloadConnectorResult, error) {
     if !util.CheckProjectName(projectName) {
-        return NewInvalidParameterErrorWithMessage(projectNameInvalid)
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
     if !util.CheckTopicName(topicName) {
-        return NewInvalidParameterErrorWithMessage(topicNameInvalid)
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
     }
 
     path := fmt.Sprintf(connectorPath, projectName, topicName, connectorId)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
+    rcr := &ReloadConnectorRequest{
+        Action: "Reload",
+    }
+    _, commonResp, err := datahub.Client.Post(path, rcr, reqPara)
+    if err != nil {
+        return nil, err
+    }
+    return NewReloadConnectorResult(commonResp)
+}
+
+func (datahub *DataHub) ReloadConnectorByShard(projectName, topicName, connectorId, shardId string) (*ReloadConnectorByShardResult, error) {
+    if !util.CheckProjectName(projectName) {
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
+    }
+    if !util.CheckTopicName(topicName) {
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
+    }
+    if !util.CheckShardId(shardId) {
+        return nil, NewInvalidParameterErrorWithMessage(shardIdInvalid)
+    }
+
+    path := fmt.Sprintf(connectorPath, projectName, topicName, connectorId)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
+    rcr := &ReloadConnectorRequest{
+        Action:  "Reload",
+        ShardId: shardId,
+    }
+    _, commonResp, err := datahub.Client.Post(path, rcr, reqPara)
+    if err != nil {
+        return nil, err
+    }
+    return NewReloadConnectorByShardResult(commonResp)
+}
+
+func (datahub *DataHub) UpdateConnectorState(projectName, topicName, connectorId string, state ConnectorState) (*UpdateConnectorStateResult, error) {
+    if !util.CheckProjectName(projectName) {
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
+    }
+    if !util.CheckTopicName(topicName) {
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
+    }
+    if !validateConnectorState(state) {
+        return nil, NewInvalidParameterErrorWithMessage(parameterTypeInvalid)
+    }
+
+    path := fmt.Sprintf(connectorPath, projectName, topicName, connectorId)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
+    ucsr := &UpdateConnectorStateRequest{
+        Action: "updatestate",
+        State:  state,
+    }
+    _, commonResp, err := datahub.Client.Post(path, ucsr, reqPara)
+    if err != nil {
+        return nil, err
+    }
+    return NewUpdateConnectorStateResult(commonResp)
+}
+
+func (datahub *DataHub) UpdateConnectorOffset(projectName, topicName, connectorId, shardId string, offset ConnectorOffset) (*UpdateConnectorOffsetResult, error) {
+    if !util.CheckProjectName(projectName) {
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
+    }
+    if !util.CheckTopicName(topicName) {
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
+    }
+    if !util.CheckShardId(shardId) {
+        return nil, NewInvalidParameterErrorWithMessage(shardIdInvalid)
+    }
+
+    path := fmt.Sprintf(connectorPath, projectName, topicName, connectorId)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
+    ucor := &UpdateConnectorOffsetRequest{
+        Action:    "updateshardcontext",
+        ShardId:   shardId,
+        Timestamp: offset.Timestamp,
+        Sequence:  offset.Sequence,
+    }
+
+    _, commonResp, err := datahub.Client.Post(path, ucor, reqPara)
+    if err != nil {
+        return nil, err
+    }
+    return NewUpdateConnectorOffsetResult(commonResp)
+}
+
+func (datahub *DataHub) AppendConnectorField(projectName, topicName, connectorId, fieldName string) (*AppendConnectorFieldResult, error) {
+    if !util.CheckProjectName(projectName) {
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
+    }
+    if !util.CheckTopicName(topicName) {
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
+    }
+
+    path := fmt.Sprintf(connectorPath, projectName, topicName, connectorId)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
     acfr := &AppendConnectorFieldRequest{
         Action:    "appendfield",
         FieldName: fieldName,
     }
-    if _, err := datahub.Client.Post(path, acfr); err != nil {
-        return err
+    _, commonResp, err := datahub.Client.Post(path, acfr, reqPara)
+    if err != nil {
+        return nil, err
     }
-    return nil
+    return NewAppendConnectorFieldResult(commonResp)
+}
+
+func (datahub *DataHub) ListSubscription(projectName, topicName string, pageIndex, pageSize int) (*ListSubscriptionResult, error) {
+    if !util.CheckProjectName(projectName) {
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
+    }
+    if !util.CheckTopicName(topicName) {
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
+    }
+
+    path := fmt.Sprintf(subscriptionsPath, projectName, topicName)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
+    lsr := &ListSubscriptionRequest{
+        Action:    "list",
+        PageIndex: pageIndex,
+        PageSize:  pageSize,
+    }
+    respBody, commonResp, err := datahub.Client.Post(path, lsr, reqPara)
+    if err != nil {
+        return nil, err
+    }
+    return NewListSubscriptionResult(respBody, commonResp)
 }
 
 func (datahub *DataHub) CreateSubscription(projectName, topicName, comment string) (*CreateSubscriptionResult, error) {
@@ -820,15 +1099,62 @@ func (datahub *DataHub) CreateSubscription(projectName, topicName, comment strin
     }
 
     path := fmt.Sprintf(subscriptionsPath, projectName, topicName)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
     csr := &CreateSubscriptionRequest{
         Action:  "create",
         Comment: comment,
     }
-    respBody, err := datahub.Client.Post(path, csr)
+    respBody, commonResp, err := datahub.Client.Post(path, csr, reqPara)
     if err != nil {
         return nil, err
     }
-    return NewCreateSubscriptionResult(respBody)
+    return NewCreateSubscriptionResult(respBody, commonResp)
+}
+
+func (datahub *DataHub) UpdateSubscription(projectName, topicName, subId, comment string) (*UpdateSubscriptionResult, error) {
+    if !util.CheckProjectName(projectName) {
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
+    }
+    if !util.CheckTopicName(topicName) {
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
+    }
+    if !util.CheckComment(comment) {
+        return nil, NewInvalidParameterErrorWithMessage(commentInvalid)
+    }
+
+    path := fmt.Sprintf(subscriptionPath, projectName, topicName, subId)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
+    usr := &UpdateSubscriptionRequest{
+        Comment: comment,
+    }
+    _, commonResp, err := datahub.Client.Put(path, usr, reqPara)
+    if err != nil {
+        return nil, err
+    }
+    return NewUpdateSubscriptionResult(commonResp)
+}
+
+func (datahub *DataHub) DeleteSubscription(projectName, topicName, subId string) (*DeleteSubscriptionResult, error) {
+    if !util.CheckProjectName(projectName) {
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
+    }
+    if !util.CheckTopicName(topicName) {
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
+    }
+
+    path := fmt.Sprintf(subscriptionPath, projectName, topicName, subId)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
+    _, commonResp, err := datahub.Client.Delete(path, reqPara)
+    if err != nil {
+        return nil, err
+    }
+    return NewDeleteSubscriptionResult(commonResp)
 }
 
 func (datahub *DataHub) GetSubscription(projectName, topicName, subId string) (*GetSubscriptionResult, error) {
@@ -840,29 +1166,17 @@ func (datahub *DataHub) GetSubscription(projectName, topicName, subId string) (*
     }
 
     path := fmt.Sprintf(subscriptionPath, projectName, topicName, subId)
-    respBody, err := datahub.Client.Get(path)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
+    respBody, commonResp, err := datahub.Client.Get(path, reqPara)
     if err != nil {
         return nil, err
     }
-    return NewGetSubscriptionResult(respBody)
+    return NewGetSubscriptionResult(respBody, commonResp)
 }
 
-func (datahub *DataHub) DeleteSubscription(projectName, topicName, subId string) error {
-    if !util.CheckProjectName(projectName) {
-        return NewInvalidParameterErrorWithMessage(projectNameInvalid)
-    }
-    if !util.CheckTopicName(topicName) {
-        return NewInvalidParameterErrorWithMessage(topicNameInvalid)
-    }
-
-    path := fmt.Sprintf(subscriptionPath, projectName, topicName, subId)
-    if _, err := datahub.Client.Delete(path); err != nil {
-        return err
-    }
-    return nil
-}
-
-func (datahub *DataHub) ListSubscription(projectName, topicName string, pageIndex, pageSize int) (*ListSubscriptionResult, error) {
+func (datahub *DataHub) UpdateSubscriptionState(projectName, topicName, subId string, state SubscriptionState) (*UpdateSubscriptionStateResult, error) {
     if !util.CheckProjectName(projectName) {
         return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
@@ -870,56 +1184,18 @@ func (datahub *DataHub) ListSubscription(projectName, topicName string, pageInde
         return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
     }
 
-    path := fmt.Sprintf(subscriptionsPath, projectName, topicName)
-    lsr := &ListSubscriptionRequest{
-        Action:    "list",
-        PageIndex: pageIndex,
-        PageSize:  pageSize,
-    }
-    respBody, err := datahub.Client.Post(path, lsr)
-    if err != nil {
-        return nil, err
-    }
-    return NewListSubscriptionResult(respBody)
-}
-
-func (datahub *DataHub) UpdateSubscription(projectName, topicName, subId, comment string) error {
-    if !util.CheckProjectName(projectName) {
-        return NewInvalidParameterErrorWithMessage(projectNameInvalid)
-    }
-    if !util.CheckTopicName(topicName) {
-        return NewInvalidParameterErrorWithMessage(topicNameInvalid)
-    }
-    if !util.CheckComment(comment) {
-        return NewInvalidParameterErrorWithMessage(commentInvalid)
-    }
-
     path := fmt.Sprintf(subscriptionPath, projectName, topicName, subId)
-    usr := &UpdateSubscriptionRequest{
-        Comment: comment,
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
     }
-    if _, err := datahub.Client.Put(path, usr); err != nil {
-        return err
-    }
-    return nil
-}
-
-func (datahub *DataHub) UpdateSubscriptionState(projectName, topicName, subId string, state SubscriptionState) error {
-    if !util.CheckProjectName(projectName) {
-        return NewInvalidParameterErrorWithMessage(projectNameInvalid)
-    }
-    if !util.CheckTopicName(topicName) {
-        return NewInvalidParameterErrorWithMessage(topicNameInvalid)
-    }
-
-    path := fmt.Sprintf(subscriptionPath, projectName, topicName, subId)
     usr := &UpdateSubscriptionStateRequest{
         State: state,
     }
-    if _, err := datahub.Client.Put(path, usr); err != nil {
-        return err
+    _, commonResp, err := datahub.Client.Put(path, usr, reqPara)
+    if err != nil {
+        return nil, err
     }
-    return nil
+    return NewUpdateSubscriptionStateResult(commonResp)
 }
 
 func (datahub *DataHub) OpenSubscriptionSession(projectName, topicName, subId string, shardIds []string) (*OpenSubscriptionSessionResult, error) {
@@ -936,15 +1212,18 @@ func (datahub *DataHub) OpenSubscriptionSession(projectName, topicName, subId st
     }
 
     path := fmt.Sprintf(offsetsPath, projectName, topicName, subId)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
     ossr := &OpenSubscriptionSessionRequest{
         Action:   "open",
         ShardIds: shardIds,
     }
-    respBody, err := datahub.Client.Post(path, ossr)
+    respBody, commonResp, err := datahub.Client.Post(path, ossr, reqPara)
     if err != nil {
         return nil, err
     }
-    return NewOpenSubscriptionSessionResult(respBody)
+    return NewOpenSubscriptionSessionResult(respBody, commonResp)
 }
 
 func (datahub *DataHub) GetSubscriptionOffset(projectName, topicName, subId string, shardIds []string) (*GetSubscriptionOffsetResult, error) {
@@ -961,53 +1240,65 @@ func (datahub *DataHub) GetSubscriptionOffset(projectName, topicName, subId stri
     }
 
     path := fmt.Sprintf(offsetsPath, projectName, topicName, subId)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
     gsor := &GetSubscriptionOffsetRequest{
         Action:   "get",
         ShardIds: shardIds,
     }
-    respBody, err := datahub.Client.Post(path, gsor)
+    respBody, commonResp, err := datahub.Client.Post(path, gsor, reqPara)
     if err != nil {
         return nil, err
     }
-    return NewGetSubscriptionOffsetResult(respBody)
+    return NewGetSubscriptionOffsetResult(respBody, commonResp)
 }
 
-func (datahub *DataHub) CommitSubscriptionOffset(projectName, topicName, subId string, offsets map[string]SubscriptionOffset) error {
+func (datahub *DataHub) CommitSubscriptionOffset(projectName, topicName, subId string, offsets map[string]SubscriptionOffset) (*CommitSubscriptionOffsetResult, error) {
     if !util.CheckProjectName(projectName) {
-        return NewInvalidParameterErrorWithMessage(projectNameInvalid)
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
     if !util.CheckTopicName(topicName) {
-        return NewInvalidParameterErrorWithMessage(topicNameInvalid)
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
     }
 
     path := fmt.Sprintf(offsetsPath, projectName, topicName, subId)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
     req := &CommitSubscriptionOffsetRequest{
         Action:  "commit",
         Offsets: offsets,
     }
-    if _, err := datahub.Client.Put(path, req); err != nil {
-        return err
+
+    _, commonResp, err := datahub.Client.Put(path, req, reqPara)
+    if err != nil {
+        return nil, err
     }
-    return nil
+    return NewCommitSubscriptionOffsetResult(commonResp)
 }
 
-func (datahub *DataHub) ResetSubscriptionOffset(projectName, topicName, subId string, offsets map[string]SubscriptionOffset) error {
+func (datahub *DataHub) ResetSubscriptionOffset(projectName, topicName, subId string, offsets map[string]SubscriptionOffset) (*ResetSubscriptionOffsetResult, error) {
     if !util.CheckProjectName(projectName) {
-        return NewInvalidParameterErrorWithMessage(projectNameInvalid)
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
     if !util.CheckTopicName(topicName) {
-        return NewInvalidParameterErrorWithMessage(topicNameInvalid)
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
     }
 
     path := fmt.Sprintf(offsetsPath, projectName, topicName, subId)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
     req := &ResetSubscriptionOffsetRequest{
         Action:  "reset",
         Offsets: offsets,
     }
-    if _, err := datahub.Client.Put(path, req); err != nil {
-        return err
+    _, commonResp, err := datahub.Client.Put(path, req, reqPara)
+    if err != nil {
+        return nil, err
     }
-    return nil
+    return NewResetSubscriptionOffsetResult(commonResp)
 }
 
 func (datahub *DataHub) Heartbeat(projectName, topicName, consumerGroup, consumerId string, versionId int64, holdShardList, readEndShardList []string) (*HeartbeatResult, error) {
@@ -1029,6 +1320,9 @@ func (datahub *DataHub) Heartbeat(projectName, topicName, consumerGroup, consume
     }
 
     path := fmt.Sprintf(consumerGroupPath, projectName, topicName, consumerGroup)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
     hr := &HeartbeatRequest{
         Action:           "heartbeat",
         ConsumerId:       consumerId,
@@ -1036,11 +1330,12 @@ func (datahub *DataHub) Heartbeat(projectName, topicName, consumerGroup, consume
         HoldShardList:    holdShardList,
         ReadEndShardList: readEndShardList,
     }
-    respBody, err := datahub.Client.Post(path, hr)
+
+    respBody, commonResp, err := datahub.Client.Post(path, hr, reqPara)
     if err != nil {
         return nil, err
     }
-    return NewHeartbeatResult(respBody)
+    return NewHeartbeatResult(respBody, commonResp)
 }
 
 func (datahub *DataHub) JoinGroup(projectName, topicName, consumerGroup string, sessionTimeout int64) (*JoinGroupResult, error) {
@@ -1052,39 +1347,45 @@ func (datahub *DataHub) JoinGroup(projectName, topicName, consumerGroup string, 
     }
 
     path := fmt.Sprintf(consumerGroupPath, projectName, topicName, consumerGroup)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
     jgr := &JoinGroupRequest{
         Action:         "joinGroup",
         SessionTimeout: sessionTimeout,
     }
-    respBody, err := datahub.Client.Post(path, jgr)
+    respBody, commonResp, err := datahub.Client.Post(path, jgr, reqPara)
     if err != nil {
         return nil, err
     }
-    return NewJoinGroupResult(respBody)
+    return NewJoinGroupResult(respBody, commonResp)
 
 }
-func (datahub *DataHub) SyncGroup(projectName, topicName, consumerGroup, consumerId string, versionId int64, releaseShardList, readEndShardList []string) error {
+func (datahub *DataHub) SyncGroup(projectName, topicName, consumerGroup, consumerId string, versionId int64, releaseShardList, readEndShardList []string) (*SyncGroupResult, error) {
     if !util.CheckProjectName(projectName) {
-        return NewInvalidParameterErrorWithMessage(projectNameInvalid)
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
     if !util.CheckTopicName(topicName) {
-        return NewInvalidParameterErrorWithMessage(topicNameInvalid)
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
     }
     if len(releaseShardList) == 0 || len(readEndShardList) == 0 {
-        return NewInvalidParameterErrorWithMessage(shardListInvalid)
+        return nil, NewInvalidParameterErrorWithMessage(shardListInvalid)
     }
     for _, id := range releaseShardList {
         if !util.CheckShardId(id) {
-            return NewInvalidParameterErrorWithMessage(shardIdInvalid)
+            return nil, NewInvalidParameterErrorWithMessage(shardIdInvalid)
         }
     }
     for _, id := range readEndShardList {
         if !util.CheckShardId(id) {
-            return NewInvalidParameterErrorWithMessage(shardIdInvalid)
+            return nil, NewInvalidParameterErrorWithMessage(shardIdInvalid)
         }
     }
 
     path := fmt.Sprintf(consumerGroupPath, projectName, topicName, consumerGroup)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
     sgr := &SyncGroupRequest{
         Action:           "syncGroup",
         ConsumerId:       consumerId,
@@ -1092,30 +1393,160 @@ func (datahub *DataHub) SyncGroup(projectName, topicName, consumerGroup, consume
         ReleaseShardList: releaseShardList,
         ReadEndShardList: readEndShardList,
     }
-    if _, err := datahub.Client.Post(path, sgr); err != nil {
-        return err
+    _, commonResp, err := datahub.Client.Post(path, sgr, reqPara)
+    if err != nil {
+        return nil, err
     }
-    return nil
+    return NewSyncGroupResult(commonResp)
 }
-func (datahub *DataHub) LeaveGroup(projectName, topicName, consumerGroup, consumerId string, versionId int64) error {
+
+func (datahub *DataHub) LeaveGroup(projectName, topicName, consumerGroup, consumerId string, versionId int64) (*LeaveGroupResult, error) {
     if !util.CheckProjectName(projectName) {
-        return NewInvalidParameterErrorWithMessage(projectNameInvalid)
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
     if !util.CheckTopicName(topicName) {
-        return NewInvalidParameterErrorWithMessage(topicNameInvalid)
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
     }
 
     path := fmt.Sprintf(consumerGroupPath, projectName, topicName, consumerGroup)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
     lgr := &LeaveGroupRequest{
         Action:     "leaveGroup",
         ConsumerId: consumerId,
         VersionId:  versionId,
     }
-    if _, err := datahub.Client.Post(path, lgr); err != nil {
-        return err
+    _, commonResp, err := datahub.Client.Post(path, lgr, reqPara)
+    if err != nil {
+        return nil, err
     }
-    return nil
+    return NewLeaveGroupResult(commonResp)
+}
 
+func (datahub *DataHub) ListTopicSchema(projectName, topicName string) (*ListTopicSchemaResult, error) {
+    if !util.CheckProjectName(projectName) {
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
+    }
+    if !util.CheckTopicName(topicName) {
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
+    }
+
+    path := fmt.Sprintf(topicPath, projectName, topicName)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
+    lts := &ListTopicSchemaRequest{
+        Action: "ListSchema",
+    }
+
+    respBody, commonResp, err := datahub.Client.Post(path, lts, reqPara)
+    if err != nil {
+        return nil, err
+    }
+    return NewListTopicSchemaResult(respBody, commonResp)
+}
+
+func (datahub *DataHub) GetTopicSchemaByVersion(projectName, topicName string, versionId int) (*GetTopicSchemaResult, error) {
+    if !util.CheckProjectName(projectName) {
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
+    }
+    if !util.CheckTopicName(topicName) {
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
+    }
+
+    path := fmt.Sprintf(topicPath, projectName, topicName)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
+    lts := &GetTopicSchemaRequest{
+        Action:       "GetSchema",
+        VersionId:    versionId,
+        RecordSchema: nil,
+    }
+
+    respBody, commonResp, err := datahub.Client.Post(path, lts, reqPara)
+    if err != nil {
+        return nil, err
+    }
+    return NewGetTopicSchemaResult(respBody, commonResp)
+}
+
+func (datahub *DataHub) GetTopicSchemaBySchema(projectName, topicName string, recordSchema *RecordSchema) (*GetTopicSchemaResult, error) {
+    if !util.CheckProjectName(projectName) {
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
+    }
+    if !util.CheckTopicName(topicName) {
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
+    }
+
+    path := fmt.Sprintf(topicPath, projectName, topicName)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
+    lts := &GetTopicSchemaRequest{
+        Action:       "GetSchema",
+        VersionId:    -1,
+        RecordSchema: recordSchema,
+    }
+
+    respBody, commonResp, err := datahub.Client.Post(path, lts, reqPara)
+    if err != nil {
+        return nil, err
+    }
+    return NewGetTopicSchemaResult(respBody, commonResp)
+}
+
+func (datahub *DataHub) RegisterTopicSchema(projectName, topicName string, recordSchema *RecordSchema) (*RegisterTopicSchemaResult, error) {
+    if !util.CheckProjectName(projectName) {
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
+    }
+    if !util.CheckTopicName(topicName) {
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
+    }
+
+    path := fmt.Sprintf(topicPath, projectName, topicName)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
+    lts := &RegisterTopicSchemaRequest{
+        Action:       "RegisterSchema",
+        RecordSchema: recordSchema,
+    }
+
+    respBody, commonResp, err := datahub.Client.Post(path, lts, reqPara)
+    if err != nil {
+        return nil, err
+    }
+    return NewRegisterTopicSchemaResult(respBody, commonResp)
+}
+
+func (datahub *DataHub) DeleteTopicSchema(projectName, topicName string, versionId int) (*DeleteTopicSchemaResult, error) {
+    if !util.CheckProjectName(projectName) {
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
+    }
+    if !util.CheckTopicName(topicName) {
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
+    }
+
+    path := fmt.Sprintf(topicPath, projectName, topicName)
+    reqPara := &RequestParameter{
+        Header: map[string]string{httpHeaderContentType: httpJsonContent},
+    }
+    lts := &DeleteTopicSchemaRequest{
+        Action:    "DeleteSchema",
+        VersionId: versionId,
+    }
+
+    _, commonResp, err := datahub.Client.Post(path, lts, reqPara)
+    if err != nil {
+        return nil, err
+    }
+    return NewDeleteTopicSchemaResult(commonResp)
+}
+
+func (datahub *DataHub) getSchemaRegistry() *schemaRegistryClient {
+    return datahub.schemaClient
 }
 
 type DataHubPB struct {
@@ -1131,35 +1562,47 @@ func (datahub *DataHubPB) PutRecords(projectName, topicName string, records []IR
     }
 
     path := fmt.Sprintf(shardsPath, projectName, topicName)
+    reqPara := &RequestParameter{
+        Header: map[string]string{
+            httpHeaderContentType:   httpProtoContent,
+            httpHeaderRequestAction: httpPublistContent},
+    }
     prr := &PutPBRecordsRequest{
         Records: records,
     }
-    respBody, err := datahub.Client.Post(path, prr)
+    respBody, commonResp, err := datahub.Client.Post(path, prr, reqPara)
     if err != nil {
         return nil, err
     }
-    return NewPutPBRecordsResult(respBody)
+    return NewPutPBRecordsResult(respBody, commonResp)
 }
 
-func (datahub *DataHubPB) PutRecordsByShard(projectName, topicName, shardId string, records []IRecord) error {
+func (datahub *DataHubPB) PutRecordsByShard(projectName, topicName, shardId string, records []IRecord) (*PutRecordsByShardResult, error) {
     if !util.CheckProjectName(projectName) {
-        return NewInvalidParameterErrorWithMessage(projectNameInvalid)
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
     }
     if !util.CheckTopicName(topicName) {
-        return NewInvalidParameterErrorWithMessage(topicNameInvalid)
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
     }
     if !util.CheckShardId(shardId) {
-        return NewInvalidParameterErrorWithMessage(shardIdInvalid)
+        return nil, NewInvalidParameterErrorWithMessage(shardIdInvalid)
     }
 
     path := fmt.Sprintf(shardPath, projectName, topicName, shardId)
+    reqPara := &RequestParameter{
+        Header: map[string]string{
+            httpHeaderContentType:   httpProtoContent,
+            httpHeaderRequestAction: httpPublistContent},
+    }
     prr := &PutPBRecordsRequest{
         Records: records,
     }
-    if _, err := datahub.Client.Post(path, prr); err != nil {
-        return err
+
+    _, commonResp, err := datahub.Client.Post(path, prr, reqPara)
+    if err != nil {
+        return nil, err
     }
-    return nil
+    return NewPutRecordsByShardResult(commonResp)
 }
 
 func (datahub *DataHubPB) GetTupleRecords(projectName, topicName, shardId, cursor string, limit int, recordSchema *RecordSchema) (*GetRecordsResult, error) {
@@ -1174,15 +1617,20 @@ func (datahub *DataHubPB) GetTupleRecords(projectName, topicName, shardId, curso
     }
 
     path := fmt.Sprintf(shardPath, projectName, topicName, shardId)
+    reqPara := &RequestParameter{
+        Header: map[string]string{
+            httpHeaderContentType:   httpProtoContent,
+            httpHeaderRequestAction: httpSubscribeContent},
+    }
     grr := &GetPBRecordRequest{
         Cursor: cursor,
         Limit:  limit,
     }
-    respBody, err := datahub.Client.Post(path, grr)
+    respBody, commonResp, err := datahub.Client.Post(path, grr, reqPara)
     if err != nil {
         return nil, err
     }
-    return NewGetPBRecordsResult(respBody, recordSchema)
+    return NewGetPBRecordsResult(respBody, recordSchema, commonResp)
 }
 
 func (datahub *DataHubPB) GetBlobRecords(projectName, topicName, shardId, cursor string, limit int) (*GetRecordsResult, error) {
@@ -1197,13 +1645,94 @@ func (datahub *DataHubPB) GetBlobRecords(projectName, topicName, shardId, cursor
     }
 
     path := fmt.Sprintf(shardPath, projectName, topicName, shardId)
+    reqPara := &RequestParameter{
+        Header: map[string]string{
+            httpHeaderContentType:   httpProtoContent,
+            httpHeaderRequestAction: httpSubscribeContent},
+    }
     grr := &GetPBRecordRequest{
         Cursor: cursor,
         Limit:  limit,
     }
-    respBody, err := datahub.Client.Post(path, grr)
+    respBody, commonResp, err := datahub.Client.Post(path, grr, reqPara)
     if err != nil {
         return nil, err
     }
-    return NewGetPBRecordsResult(respBody, nil)
+    return NewGetPBRecordsResult(respBody, nil, commonResp)
+}
+
+type DataHubBatch struct {
+    DataHub
+}
+
+func (datahub *DataHubBatch) PutRecords(projectName, topicName string, records []IRecord) (*PutRecordsResult, error) {
+    return nil, errors.New("not support this method")
+}
+
+func (datahub *DataHubBatch) PutRecordsByShard(projectName, topicName, shardId string, records []IRecord) (*PutRecordsByShardResult, error) {
+    if !util.CheckProjectName(projectName) {
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
+    }
+    if !util.CheckTopicName(topicName) {
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
+    }
+    if !util.CheckShardId(shardId) {
+        return nil, NewInvalidParameterErrorWithMessage(shardIdInvalid)
+    }
+
+    path := fmt.Sprintf(shardPath, projectName, topicName, shardId)
+    reqPara := &RequestParameter{
+        Header: map[string]string{
+            httpHeaderContentType:   httpProtoBatchContent,
+            httpHeaderRequestAction: httpPublistContent},
+    }
+
+    serializer := newBatchSerializer(projectName, topicName, datahub.cType, datahub.schemaClient)
+    prr := &PutBatchRecordsRequest{
+        serializer: serializer,
+        Records:    records,
+    }
+
+    _, commonResp, err := datahub.Client.Post(path, prr, reqPara)
+    if err != nil {
+        return nil, err
+    }
+    return NewPutRecordsByShardResult(commonResp)
+}
+
+func (datahub *DataHubBatch) GetTupleRecords(projectName, topicName, shardId, cursor string, limit int, recordSchema *RecordSchema) (*GetRecordsResult, error) {
+    if !util.CheckProjectName(projectName) {
+        return nil, NewInvalidParameterErrorWithMessage(projectNameInvalid)
+    }
+    if !util.CheckTopicName(topicName) {
+        return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
+    }
+    if !util.CheckShardId(shardId) {
+        return nil, NewInvalidParameterErrorWithMessage(shardIdInvalid)
+    }
+
+    path := fmt.Sprintf(shardPath, projectName, topicName, shardId)
+    reqPara := &RequestParameter{
+        Header: map[string]string{
+            httpHeaderContentType:   httpProtoBatchContent,
+            httpHeaderRequestAction: httpSubscribeContent},
+    }
+    gbr := &GetBatchRecordRequest{
+        GetPBRecordRequest{
+            Cursor: cursor,
+            Limit:  limit,
+        },
+    }
+
+    respBody, commonResp, err := datahub.Client.Post(path, gbr, reqPara)
+    if err != nil {
+        return nil, err
+    }
+
+    deserializer := newBatchDeserializer(projectName, topicName, shardId, recordSchema, datahub.schemaClient)
+    return NewGetBatchRecordsResult(respBody, recordSchema, commonResp, deserializer)
+}
+
+func (datahub *DataHubBatch) GetBlobRecords(projectName, topicName, shardId, cursor string, limit int) (*GetRecordsResult, error) {
+    return datahub.GetTupleRecords(projectName, topicName, shardId, cursor, limit, nil)
 }

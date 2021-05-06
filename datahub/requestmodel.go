@@ -5,21 +5,22 @@ import (
     "errors"
     "fmt"
     "github.com/golang/protobuf/proto"
-    pbmodel "github.com/aliyun/aliyun-datahub-sdk-go/datahub/pbmodel"
+    "github.com/aliyun/aliyun-datahub-sdk-go/datahub/pbmodel"
     "github.com/aliyun/aliyun-datahub-sdk-go/datahub/util"
+    "reflect"
 )
 
 // handel the http request
 type RequestModel interface {
-    // Serialize the requestModel and maybe need add some message on http header
-    requestBodyEncode(header map[string]string) ([]byte, error)
+    // serialize the requestModel and maybe need add some message on http header
+    requestBodyEncode() ([]byte, error)
 }
 
 // empty request
 type EmptyRequest struct {
 }
 
-func (br *EmptyRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
+func (br *EmptyRequest) requestBodyEncode() ([]byte, error) {
     return nil, nil
 }
 
@@ -27,8 +28,7 @@ type CreateProjectRequest struct {
     Comment string `json:"Comment"`
 }
 
-func (cpr *CreateProjectRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header[httpHeaderContentType] = "application/json"
+func (cpr *CreateProjectRequest) requestBodyEncode() ([]byte, error) {
     return json.Marshal(cpr)
 }
 
@@ -36,41 +36,44 @@ type UpdateProjectRequest struct {
     Comment string `json:"Comment"`
 }
 
-func (upr *UpdateProjectRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
+func (upr *UpdateProjectRequest) requestBodyEncode() ([]byte, error) {
     return json.Marshal(upr)
+}
+
+type UpdateProjectVpcWhitelistRequest struct {
+    VpcIds string `json:"VpcIds"`
+}
+
+func (upv *UpdateProjectVpcWhitelistRequest) requestBodyEncode() ([]byte, error) {
+    return json.Marshal(upv)
 }
 
 type CreateTopicRequest struct {
     Action       string        `json:"Action"`
-    ProjectName  string        `json:"ProjectName"`
-    TopicName    string        `json:"TopicName"`
     ShardCount   int           `json:"ShardCount"`
     Lifecycle    int           `json:"Lifecycle"`
     RecordType   RecordType    `json:"RecordType"`
     RecordSchema *RecordSchema `json:"RecordSchema,omitempty"`
     Comment      string        `json:"Comment"`
+    ExpandMode   ExpandMode    `json:"ExpandMode"`
 }
 
 func (ctr *CreateTopicRequest) MarshalJSON() ([]byte, error) {
     msg := &struct {
         Action       string     `json:"Action"`
-        ProjectName  string     `json:"ProjectName"`
-        TopicName    string     `json:"TopicName"`
         ShardCount   int        `json:"ShardCount"`
         Lifecycle    int        `json:"Lifecycle"`
         RecordType   RecordType `json:"RecordType"`
         RecordSchema string     `json:"RecordSchema,omitempty"`
         Comment      string     `json:"Comment"`
+        ExpandMode   ExpandMode `json:"ExpandMode"`
     }{
-        Action:      ctr.Action,
-        ProjectName: ctr.ProjectName,
-        TopicName:   ctr.TopicName,
-        ShardCount:  ctr.ShardCount,
-        Lifecycle:   ctr.Lifecycle,
-        RecordType:  ctr.RecordType,
-        //RecordSchema:ctr.RecordSchema.String(),
-        Comment: ctr.Comment,
+        Action:     ctr.Action,
+        ShardCount: ctr.ShardCount,
+        Lifecycle:  ctr.Lifecycle,
+        RecordType: ctr.RecordType,
+        Comment:    ctr.Comment,
+        ExpandMode: ctr.ExpandMode,
     }
     switch ctr.RecordType {
     case TUPLE:
@@ -82,28 +85,26 @@ func (ctr *CreateTopicRequest) MarshalJSON() ([]byte, error) {
     return json.Marshal(msg)
 }
 
-func (ctr *CreateTopicRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
+func (ctr *CreateTopicRequest) requestBodyEncode() ([]byte, error) {
     return json.Marshal(ctr)
 }
 
 type UpdateTopicRequest struct {
-    Comment string `json:"Comment"`
+    Comment   string `json:"Comment,omitempty"`
+    Lifecycle int    `json:"Lifecycle,omitempty"`
 }
 
-func (utr *UpdateTopicRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
+func (utr *UpdateTopicRequest) requestBodyEncode() ([]byte, error) {
     return json.Marshal(utr)
 }
 
 type SplitShardRequest struct {
     Action   string `json:"Action"`
     ShardId  string `json:"ShardId"`
-    SplitKey string `json:"SplitKey"`
+    SplitKey string `json:"SplitKey,omitempty"`
 }
 
-func (ssr *SplitShardRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
+func (ssr *SplitShardRequest) requestBodyEncode() ([]byte, error) {
     return json.Marshal(ssr)
 }
 
@@ -113,9 +114,18 @@ type MergeShardRequest struct {
     AdjacentShardId string `json:"AdjacentShardId"`
 }
 
-func (msr *MergeShardRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
+func (msr *MergeShardRequest) requestBodyEncode() ([]byte, error) {
     return json.Marshal(msr)
+}
+
+type ExtendShardRequest struct {
+    Action     string `json:"Action"`
+    ExtendMode string `json:"ExtendMode"`
+    ShardCount int    `json:"ShardNumber"`
+}
+
+func (esr *ExtendShardRequest) requestBodyEncode() ([]byte, error) {
+    return json.Marshal(esr)
 }
 
 type GetCursorRequest struct {
@@ -125,8 +135,7 @@ type GetCursorRequest struct {
     Sequence   int64      `json:"Sequence"`
 }
 
-func (gcr *GetCursorRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
+func (gcr *GetCursorRequest) requestBodyEncode() ([]byte, error) {
 
     type ReqMsg struct {
         Action string     `json:"Action"`
@@ -165,8 +174,7 @@ type PutRecordsRequest struct {
     Records []IRecord `json:"Records"`
 }
 
-func (prr *PutRecordsRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
+func (prr *PutRecordsRequest) requestBodyEncode() ([]byte, error) {
     return json.Marshal(prr)
 }
 
@@ -191,8 +199,7 @@ type GetRecordRequest struct {
     Limit  int    `json:"Limit"`
 }
 
-func (grr *GetRecordRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
+func (grr *GetRecordRequest) requestBodyEncode() ([]byte, error) {
     return json.Marshal(grr)
 }
 
@@ -202,8 +209,7 @@ type AppendFieldRequest struct {
     FieldType FieldType `json:"FieldType"`
 }
 
-func (afr *AppendFieldRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
+func (afr *AppendFieldRequest) requestBodyEncode() ([]byte, error) {
     return json.Marshal(afr)
 }
 
@@ -211,21 +217,20 @@ type GetMeterInfoRequest struct {
     Action string `json:"Action"`
 }
 
-func (gmir *GetMeterInfoRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
+func (gmir *GetMeterInfoRequest) requestBodyEncode() ([]byte, error) {
     return json.Marshal(gmir)
 }
 
 type CreateConnectorRequest struct {
-    Action        string        `json:"Action"`
-    Type          ConnectorType `json:"Type"`
-    SinkStartTime int64         `json:"SinkStartTime"`
-    ColumnFields  []string      `json:"ColumnFields"`
-    Config        interface{}   `json:"Config"`
+    Action        string            `json:"Action"`
+    Type          ConnectorType     `json:"Type"`
+    SinkStartTime int64             `json:"SinkStartTime"`
+    ColumnFields  []string          `json:"ColumnFields"`
+    ColumnNameMap map[string]string `json:"ColumnNameMap"`
+    Config        interface{}       `json:"Config"`
 }
 
-func (ccr *CreateConnectorRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
+func (ccr *CreateConnectorRequest) requestBodyEncode() ([]byte, error) {
     switch ccr.Type {
     case SinkOdps:
         return marshalCreateOdpsConnector(ccr)
@@ -243,20 +248,26 @@ func (ccr *CreateConnectorRequest) requestBodyEncode(header map[string]string) (
         return marshalCreateOtsConnector(ccr)
     case SinkDatahub:
         return marshalCreateDatahubConnector(ccr)
+    case SinkHologres:
+        return marshalCreateHologresConnector(ccr)
     default:
-        return nil, errors.New(fmt.Sprintf("not support connector type %s", ccr.Type.String()))
+        return nil, errors.New(fmt.Sprintf("not support connector type config: %s", ccr.Type.String()))
     }
 }
 
 type UpdateConnectorRequest struct {
-    Action string `json:"Action"`
-    //Type   ConnectorType `json:"-"`
-    Config interface{} `json:"Config"`
+    Action        string            `json:"Action"`
+    ColumnFields  []string          `json:"ColumnFields"`
+    ColumnNameMap map[string]string `json:"ColumnNameMap"`
+    Config        interface{}       `json:"Config"`
 }
 
-func (ucr *UpdateConnectorRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
-    //fmt.Println(reflect.TypeOf(ucr.Config))
+func (ucr *UpdateConnectorRequest) requestBodyEncode() ([]byte, error) {
+
+    if ucr.Config == nil {
+        return marshalUpdateConnector(ucr)
+    }
+
     switch ucr.Config.(type) {
     case SinkOdpsConfig:
         return marshalUpdateOdpsConnector(ucr)
@@ -274,8 +285,10 @@ func (ucr *UpdateConnectorRequest) requestBodyEncode(header map[string]string) (
         return marshalUpdateOtsConnector(ucr)
     case SinkDatahubConfig:
         return marshalUpdateDatahubConnector(ucr)
+    case SinkHologresConfig:
+        return marshalUpdateHologresConnector(ucr)
     default:
-        return nil, errors.New(fmt.Sprintf("this connector type not support"))
+        return nil, errors.New(fmt.Sprintf("this connector type not support, %t", reflect.TypeOf(ucr.Config)))
     }
 }
 
@@ -284,8 +297,7 @@ type ReloadConnectorRequest struct {
     ShardId string `json:"ShardId,omitempty"`
 }
 
-func (rcr *ReloadConnectorRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
+func (rcr *ReloadConnectorRequest) requestBodyEncode() ([]byte, error) {
     return json.Marshal(rcr)
 }
 
@@ -294,8 +306,7 @@ type UpdateConnectorStateRequest struct {
     State  ConnectorState `json:"State"`
 }
 
-func (ucsr *UpdateConnectorStateRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
+func (ucsr *UpdateConnectorStateRequest) requestBodyEncode() ([]byte, error) {
     return json.Marshal(ucsr)
 }
 
@@ -306,8 +317,7 @@ type UpdateConnectorOffsetRequest struct {
     Sequence  int64  `json:"CurrentSequence"`
 }
 
-func (ucor *UpdateConnectorOffsetRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
+func (ucor *UpdateConnectorOffsetRequest) requestBodyEncode() ([]byte, error) {
     return json.Marshal(ucor)
 }
 
@@ -316,8 +326,7 @@ type GetConnectorShardStatusRequest struct {
     ShardId string `json:"ShardId,omitempty"`
 }
 
-func (gcss *GetConnectorShardStatusRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
+func (gcss *GetConnectorShardStatusRequest) requestBodyEncode() ([]byte, error) {
     return json.Marshal(gcss)
 }
 
@@ -326,8 +335,7 @@ type AppendConnectorFieldRequest struct {
     FieldName string `json:"FieldName"`
 }
 
-func (acfr *AppendConnectorFieldRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
+func (acfr *AppendConnectorFieldRequest) requestBodyEncode() ([]byte, error) {
     return json.Marshal(acfr)
 }
 
@@ -336,8 +344,7 @@ type CreateSubscriptionRequest struct {
     Comment string `json:"Comment"`
 }
 
-func (csr *CreateSubscriptionRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
+func (csr *CreateSubscriptionRequest) requestBodyEncode() ([]byte, error) {
     return json.Marshal(csr)
 }
 
@@ -347,8 +354,7 @@ type ListSubscriptionRequest struct {
     PageSize  int    `json:"PageSize"`
 }
 
-func (lsr *ListSubscriptionRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
+func (lsr *ListSubscriptionRequest) requestBodyEncode() ([]byte, error) {
     return json.Marshal(lsr)
 }
 
@@ -357,8 +363,7 @@ type UpdateSubscriptionRequest struct {
     Comment string `json:"Comment"`
 }
 
-func (usr *UpdateSubscriptionRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
+func (usr *UpdateSubscriptionRequest) requestBodyEncode() ([]byte, error) {
     return json.Marshal(usr)
 }
 
@@ -366,8 +371,7 @@ type UpdateSubscriptionStateRequest struct {
     State SubscriptionState `json:"State"`
 }
 
-func (ussr *UpdateSubscriptionStateRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
+func (ussr *UpdateSubscriptionStateRequest) requestBodyEncode() ([]byte, error) {
     return json.Marshal(ussr)
 }
 
@@ -376,8 +380,7 @@ type OpenSubscriptionSessionRequest struct {
     ShardIds []string `json:"ShardIds"`
 }
 
-func (ossr *OpenSubscriptionSessionRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
+func (ossr *OpenSubscriptionSessionRequest) requestBodyEncode() ([]byte, error) {
     return json.Marshal(ossr)
 }
 
@@ -386,8 +389,7 @@ type GetSubscriptionOffsetRequest struct {
     ShardIds []string `json:"ShardIds"`
 }
 
-func (gsor *GetSubscriptionOffsetRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
+func (gsor *GetSubscriptionOffsetRequest) requestBodyEncode() ([]byte, error) {
     return json.Marshal(gsor)
 }
 
@@ -396,8 +398,7 @@ type CommitSubscriptionOffsetRequest struct {
     Offsets map[string]SubscriptionOffset `json:"Offsets"`
 }
 
-func (csor *CommitSubscriptionOffsetRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
+func (csor *CommitSubscriptionOffsetRequest) requestBodyEncode() ([]byte, error) {
     return json.Marshal(csor)
 }
 
@@ -406,8 +407,7 @@ type ResetSubscriptionOffsetRequest struct {
     Offsets map[string]SubscriptionOffset `json:"Offsets"`
 }
 
-func (rsor *ResetSubscriptionOffsetRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
+func (rsor *ResetSubscriptionOffsetRequest) requestBodyEncode() ([]byte, error) {
     return json.Marshal(rsor)
 }
 
@@ -415,12 +415,11 @@ type HeartbeatRequest struct {
     Action           string    `json:"Action"`
     ConsumerId       string    `json:"ConsumerId"`
     VersionId        int64     `json:"VersionId"`
-    HoldShardList    []string  `json:"HoldShardList"`
-    ReadEndShardList [] string `json:"ReadEndShardList"`
+    HoldShardList    []string  `json:"HoldShardList,omitempty"`
+    ReadEndShardList [] string `json:"ReadEndShardList,omitempty"`
 }
 
-func (hr *HeartbeatRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
+func (hr *HeartbeatRequest) requestBodyEncode() ([]byte, error) {
     return json.Marshal(hr)
 }
 
@@ -429,8 +428,7 @@ type JoinGroupRequest struct {
     SessionTimeout int64  `json:"SessionTimeout"`
 }
 
-func (jgr *JoinGroupRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
+func (jgr *JoinGroupRequest) requestBodyEncode() ([]byte, error) {
     return json.Marshal(jgr)
 }
 
@@ -438,12 +436,11 @@ type SyncGroupRequest struct {
     Action           string   `json:"Action"`
     ConsumerId       string   `json:"ConsumerId"`
     VersionId        int64    `json:"VersionId"`
-    ReleaseShardList []string `json:"ReleaseShardList"`
-    ReadEndShardList []string `json:"ReadEndShardList"`
+    ReleaseShardList []string `json:"ReleaseShardList,omitempty"`
+    ReadEndShardList []string `json:"ReadEndShardList,omitempty"`
 }
 
-func (sgr *SyncGroupRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
+func (sgr *SyncGroupRequest) requestBodyEncode() ([]byte, error) {
     return json.Marshal(sgr)
 }
 
@@ -453,8 +450,65 @@ type LeaveGroupRequest struct {
     VersionId  int64  `json:"VersionId"`
 }
 
-func (lgr *LeaveGroupRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header [httpHeaderContentType] = "application/json"
+func (lgr *LeaveGroupRequest) requestBodyEncode() ([]byte, error) {
+    return json.Marshal(lgr)
+}
+
+type ListTopicSchemaRequest struct {
+    Action string `json:"Action"`
+}
+
+func (lts *ListTopicSchemaRequest) requestBodyEncode() ([]byte, error) {
+    return json.Marshal(lts)
+}
+
+type GetTopicSchemaRequest struct {
+    Action       string        `json:"Action"`
+    VersionId    int           `json:"VersionId"`
+    RecordSchema *RecordSchema `json:"RecordSchema,omitempty"`
+}
+
+func (gts *GetTopicSchemaRequest) requestBodyEncode() ([]byte, error) {
+    msg := &struct {
+        Action       string `json:"Action"`
+        VersionId    int    `json:"VersionId"`
+        RecordSchema string `json:"RecordSchema,omitempty"`
+    }{
+        Action:    gts.Action,
+        VersionId: gts.VersionId,
+    }
+
+    if gts.RecordSchema != nil {
+        msg.RecordSchema = gts.RecordSchema.String()
+    }
+    return json.Marshal(msg)
+}
+
+type RegisterTopicSchemaRequest struct {
+    Action       string        `json:"Action"`
+    RecordSchema *RecordSchema `json:"RecordSchema"`
+}
+
+func (rts *RegisterTopicSchemaRequest) requestBodyEncode() ([]byte, error) {
+    msg := &struct {
+        Action       string `json:"Action"`
+        RecordSchema string `json:"RecordSchema,omitempty"`
+    }{
+        Action: rts.Action,
+    }
+
+    if rts.RecordSchema != nil {
+        msg.RecordSchema = rts.RecordSchema.String()
+    }
+    return json.Marshal(msg)
+}
+
+type DeleteTopicSchemaRequest struct {
+    Action    string `json:"Action"`
+    VersionId int    `json:"VersionId"`
+}
+
+func (lgr *DeleteTopicSchemaRequest) requestBodyEncode() ([]byte, error) {
     return json.Marshal(lgr)
 }
 
@@ -462,10 +516,7 @@ type PutPBRecordsRequest struct {
     Records []IRecord `json:"Records"`
 }
 
-func (pr *PutPBRecordsRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header[httpHeaderContentType] = "application/x-protobuf"
-    header[httpHeaderRequestAction] = "pub"
-
+func (pr *PutPBRecordsRequest) requestBodyEncode() ([]byte, error) {
     res := make([]*pbmodel.RecordEntry, len(pr.Records))
     for idx, val := range pr.Records {
         bRecord := val.GetBaseRecord()
@@ -473,9 +524,9 @@ func (pr *PutPBRecordsRequest) requestBodyEncode(header map[string]string) ([]by
 
         fds := make([]*pbmodel.FieldData, 0)
         switch data.(type) {
-        case string:
+        case []byte:
             fd := &pbmodel.FieldData{
-                Value: []byte(fmt.Sprintf("%s", data)),
+                Value: data.([]byte),
             }
             fds = append(fds, fd)
         default:
@@ -538,9 +589,7 @@ type GetPBRecordRequest struct {
     Limit  int    `json:"Limit"`
 }
 
-func (gpr *GetPBRecordRequest) requestBodyEncode(header map[string]string) ([]byte, error) {
-    header[httpHeaderContentType] = "application/x-protobuf"
-    header[httpHeaderRequestAction] = "sub"
+func (gpr *GetPBRecordRequest) requestBodyEncode() ([]byte, error) {
     limit := int32(gpr.Limit)
     grr := &pbmodel.GetRecordsRequest{
         Cursor: &gpr.Cursor,
@@ -554,4 +603,33 @@ func (gpr *GetPBRecordRequest) requestBodyEncode(header map[string]string) ([]by
 
     wBuf := util.WrapMessage(buf)
     return wBuf, nil
+}
+
+type PutBatchRecordsRequest struct {
+    serializer     *batchSerializer
+    Records        []IRecord
+}
+
+func (pbr *PutBatchRecordsRequest) requestBodyEncode() ([]byte, error) {
+    batchBuf, err := pbr.serializer.serialize(pbr.Records)
+    if err != nil {
+        return nil, err
+    }
+
+    entry := &pbmodel.BinaryRecordEntry{
+        Data: batchBuf,
+    }
+    protoReq := &pbmodel.PutBinaryRecordsRequest{
+        Records: []*pbmodel.BinaryRecordEntry{entry},
+    }
+
+    buf, err := proto.Marshal(protoReq)
+    if err != nil {
+        return nil, err
+    }
+    return util.WrapMessage(buf), nil
+}
+
+type GetBatchRecordRequest struct {
+    GetPBRecordRequest
 }

@@ -122,11 +122,11 @@ func create_topic(dh datahub.DataHubApi) error {
             }
             recordSchema.AddField(field)
         }
-        if err := dh.CreateTupleTopic(ProjectName, TopicName, Comment, ShardCount, Lifecycle, recordSchema); err != nil {
+        if _, err := dh.CreateTupleTopic(ProjectName, TopicName, Comment, ShardCount, Lifecycle, recordSchema); err != nil {
             return err
         }
     } else {
-        if err := dh.CreateBlobTopic(ProjectName, TopicName, Comment, ShardCount, Lifecycle); err != nil {
+        if _, err := dh.CreateBlobTopic(ProjectName, TopicName, Comment, ShardCount, Lifecycle); err != nil {
             return err
         }
     }
@@ -145,8 +145,7 @@ func delete_topic_parsed_check() bool {
 }
 
 func delete_topic(dh datahub.DataHubApi) error {
-    err := dh.DeleteTopic(ProjectName, TopicName)
-    if err != nil {
+    if _, err := dh.DeleteTopic(ProjectName, TopicName); err != nil {
         return err
     }
     fmt.Printf("del %s suc\n", TopicName)
@@ -161,8 +160,7 @@ func update_topic_parsed_check() bool {
 }
 
 func update_topic(dh datahub.DataHubApi) error {
-    err := dh.UpdateTopic(ProjectName, TopicName, Comment)
-    if err != nil {
+    if _, err := dh.UpdateTopic(ProjectName, TopicName, Comment); err != nil {
         return err
     }
     fmt.Printf("update %s suc\n", TopicName)

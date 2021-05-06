@@ -9,18 +9,20 @@ import (
 )
 
 type Config struct {
-    UserAgent      string
-    CompressorType CompressorType
-    EnableBinary   bool
-    HttpClient     *http.Client
+    UserAgent            string
+    CompressorType       CompressorType
+    EnableBinary         bool
+    EnableSchemaRegistry bool
+    HttpClient           *http.Client
 }
 
 func NewDefaultConfig() *Config {
     return &Config{
-        UserAgent:      DefaultUserAgent(),
-        CompressorType: NOCOMPRESS,
-        EnableBinary:   true,
-        HttpClient:     DefaultHttpClient(),
+        UserAgent:            DefaultUserAgent(),
+        CompressorType:       NOCOMPRESS,
+        EnableBinary:         true,
+        EnableSchemaRegistry: false,
+        HttpClient:           DefaultHttpClient(),
     }
 }
 
