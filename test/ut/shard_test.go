@@ -4,7 +4,7 @@ import (
     "../../datahub"
     "fmt"
     "github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
-    "github.com/stretchr/Testify/assert"
+    "github.com/stretchr/testify/assert"
     "io/ioutil"
     "net/http"
     "net/http/httptest"

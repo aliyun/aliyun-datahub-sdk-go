@@ -1,6 +1,6 @@
 # 快速上手
 ## Datahub相关的基本概念
-详情参见[Datahub基本概念](https://help.aliyun.com/document_detail/47440.html?spm=5176.doc47440.6.579.ScvA5s)
+详情参见[Datahub基本概念](https://help.aliyun.com/document_detail/158776.html)
 
 ## 准备工作
 - 访问DataHub服务需要使用阿里云认证账号，需要提供阿里云accessId及accessKey。 同时需要提供可访问的DataHub服务地址。
@@ -15,12 +15,12 @@ dh := datahub.New(accessId, accessKey, endpoint)
 
 - 也可以使用自定义参数进行配置，目前支持配置的参数有：
 
- 参数| 参数类型 | 参数选项 | 参数含义
- |-|-|-|-|
-UserAgent | string | - | 用户名代理
-CompressorType | CompressorType | NOCOMPRESS、LZ4、DEFLATE、ZLIB |传输时支持的压缩格式，默认为NOCOMPRESS，不压缩
-EnableBinary | bool | true/false | 主要在put/get record时，使用protobuf协议。Datahub版本未支持protobuf时需要手动指定enable_pb为False
-HttpClient | *http.Client |- | 具体可参考[net/http](~)
+ | 参数           | 参数类型       | 参数选项                       | 参数含义                                                                                          |
+ | -------------- | -------------- | ------------------------------ | ------------------------------------------------------------------------------------------------- |
+ | UserAgent      | string         | -                              | 用户名代理                                                                                        |
+ | CompressorType | CompressorType | NOCOMPRESS、LZ4、DEFLATE、ZLIB | 传输时支持的压缩格式，默认为NOCOMPRESS，不压缩                                                    |
+ | EnableBinary   | bool           | true/false                     | 主要在put/get record时，使用protobuf协议。Datahub版本未支持protobuf时需要手动指定enable_pb为False |
+ | HttpClient     | *http.Client   | -                              | 具体可参考[net/http](https://pkg.go.dev/net/http@go1.18.3#Client)                                 |
 
 - **因为go中的bool默认为false，所以使用自定义参数，除非特别需要，建议指定```EnableBinary:true```**
 ```go
@@ -39,7 +39,7 @@ dh := datahub.NewClientWithConfig(accessId, accessKey, endpoint,config)
 ## 接口示例
 
 ### project 操作
-项目（Project）是DataHub数据的基本组织单元,下面包含多个Topic。值得注意的是，DataHub的项目空间与MaxCompute的项目空间是相互独立的。用户在MaxCompute中创建的项目不能复用于DataHub，需要独立创建。
+项目（Project）是DataHub数据的基本组织单元,下面包含多个Topic。**需要注意的是**，DataHub的项目空间与MaxCompute的项目空间是相互独立的。用户在MaxCompute中创建的项目不能复用于DataHub，需要独立创建。
 #### 创建Project
 > CreateProject(projectName, comment string) error
 
@@ -205,13 +205,13 @@ Topic是 DataHub 订阅和发布的最小单位，用户可以用Topic来表示�
 
 Tuple类型Topic写入的数据是有格式的，需要指定Record Schema，目前支持以下几种数据类型:
 
-类型 | 含义 | 值域
--|-|-
-BIGINT | 8字节有符号整型 | -9223372036854775807 ~ 9223372036854775807
-DOUBLE | 8字节双精度浮点数 | -1.0 * 10^308 ~ 1.0 * 10^308
-BOOLEAN | 布尔类型 | True/False或true/false或0/1
-TIMESTAMP | 时间戳类型 | 表示到微秒的时间戳类型
-STRING | 字符串，只支持UTF-8编码 | 单个STRING列最长允许1MB
+| 类型      | 含义                    | 值域                                       |
+| --------- | ----------------------- | ------------------------------------------ |
+| BIGINT    | 8字节有符号整型         | -9223372036854775807 ~ 9223372036854775807 |
+| DOUBLE    | 8字节双精度浮点数       | -1.0 * 10^308 ~ 1.0 * 10^308               |
+| BOOLEAN   | 布尔类型                | True/False或true/false或0/1                |
+| TIMESTAMP | 时间戳类型              | 表示到微秒的时间戳类型                     |
+| STRING    | 字符串，只支持UTF-8编码 | 单个STRING列最长允许1MB                    |
 
 - 参数
 	- projectName: project name
@@ -489,7 +489,7 @@ func ExampleDataHub_ListShard() {
 
 #### 分裂shard
 只有处于ACTIVE状态的shard才可以进行分裂，分裂成功后，会生成两个新的shard，同时原shard状态会变为CLOSED。
-分裂shard时，需要指定splitKey，可以采用系调用第一个method，系统将会自动生成spiltKey，如果有特殊需求，则可以采用第二个method自己指定spiltKey。spiltKey规则可以参考基本概念中的[Shard Hash Key Range](https://help.aliyun.com/document_detail/47440.html?spm=a2c4g.11186623.6.543.7a0f1a12PmWpYI)。
+分裂shard时，需要指定splitKey，可以采用系调用第一个method，系统将会自动生成spiltKey，如果有特殊需求，则可以采用第二个method自己指定spiltKey。spiltKey规则可以参考基本概念中的[Shard Hash Key Range](https://help.aliyun.com/document_detail/158776.html)。
 > SplitShard(projectName, topicName, shardId string) (*SplitShardResult, error)
 
 > SplitShardWithSplitKey(projectName, topicName, shardId, splitKey string) (*SplitShardResult, error)
@@ -1041,7 +1041,7 @@ func meter(dh datahub.DataHub, projectName, topicName string) {
 ### connector操作
 DataHub Connector是把DataHub服务中的流式数据同步到其他云产品中的功能，目前支持将Topic中的数据实时/准实时同步到MaxCompute(原ODPS)、OSS（Object Storage Service，阿里云对象存储服务）、ES（Elasticsearch）、ADS（AnalyticDB for MySQL，分析型数据库MySQL版）、MYSQL、FC（Function Compute、函数计算）、OTS（Open Table Store、表格存储）、DataHub中。用户只需要向DataHub中写入一次数据，并在DataHub服务中配置好同步功能，便可以在其他云产品中使用这份数据。
 
-这里所有的示例代码均以MaxCompute为例。MaxCompute Config的配置信息可以参考[同步数据到MaxCompute](https://help.aliyun.com/document_detail/47453.html?spm=a2c4g.11186623.6.561.8d0ca6e02P2QlV#h2--maxcompute2)。
+这里所有的示例代码均以MaxCompute为例。MaxCompute Config的配置信息可以参考[同步数据到MaxCompute](https://help.aliyun.com/document_detail/158808.html)。
 
 **datahub2.14.0版本之后将接口参数connectorType修改connectorId（createConnector除外）,不过接口依旧兼容2.14.0之前版本，只需将参数connectorType转为string作为参数即可。**
 - 使用示例
@@ -1529,7 +1529,7 @@ func doneTime(dh datahub.DataHub, projectName, topicName, connectorId string) {
 ### subscription操作
 订阅服务提供了服务端保存用户消费点位的功能，只需要通过简单配置和处理，就可以实现高可用的点位存储服务。
 #### 创建subscription
-> CreateSubscription(projectName, topicName, comment string) error
+> CreateSubscription(projectName, topicName, comment string) (*CreateSubscriptionResult, error)
 
 - 参数
 	- projectName: project name
@@ -1537,6 +1537,14 @@ func doneTime(dh datahub.DataHub, projectName, topicName, connectorId string) {
 	- comment: subscription comment
 
 - return
+
+```go
+type CreateSubscriptionResult struct {
+    CommonResponseResult
+    SubId string `json:"SubId"`
+}
+ ```
+ 
 - error 
 	- ResourceExistError
 	- AuthorizationFailedError
@@ -1922,27 +1930,36 @@ func resetOffset(dh datahub.DataHub, projectName, topicName string) {
 }
 ```
 
+### batch模式操作
+使用NewBatchClient接口创建Datahub对象:
+```go
+var dh = datahub.NewBatchClient(accessId, accessKey, endpoint)
+```
+其中的accessId, accessKey, endpoint参数同上面准备工作中datahub.New接口的。
+
+DataHub对象的其它接口中batch模式不支持：PutRecords(projectName, topicName string, records []IRecord)，其它接口batch模式均支持，使用上和非batch模式的相同。
+
 ***
 
 ### error类型
 GO SDK对datahub的错误类型进行了整理，用户可以使用类型断言进行错误类型的判断，然后根据错误的类型进行响应的处理。
 其中错误类型中，除DatahubClientError和LimitExceededError之外，其余均属于不可重试错误，而DatahubClientError中包含部分可重试错误，例如server busy,server unavailable等，因此**建议遇到DatahubClientError和LimitExceededError时，可以在代码逻辑中添加重试逻辑，但应严格限制重试次数。**
 
-| 类名 | 错误码 | 描述 |
-| ---- | ---- | ---- |
-| InvalidParameterError | InvalidParameter, InvalidCursor | 非法参数 |
-| ResourceNotFoundError | ResourceNotFound, NoSuchProject, NoSuchTopic, NoSuchShard, NoSuchSubscription, NoSuchConnector, NoSuchMeteringInfo | 访问的资源不存在（注：进行Split/Merge操作后，立即发送其他请求，有可能会抛出该异常 ）|
-| ResourceExistError | ResourceAlreadyExist, ProjectAlreadyExist, TopicAlreadyExist, ConnectorAlreadyExist | 资源已存在（创建时如果资源已存在，就会抛出这个异常 |
-| SeekOutOfRangeError | SeekOutOfRange | getCursor时，给的sequence不在有效范围内（通常数据已过期），或给的timestamp大于当前时间 |
-| AuthorizationFailedError | Unauthorized | Authorization 签名解析异常，检查AK是否填写正确 |
-| NoPermissionError | NoPermission, OperationDenied | 没有权限，通常是RAM配置不正确，或没有正确授权子账号 |
-| NewShardSealedError | InvalidShardOperation | shard 处于CLOSED状态可读不可写，继续往CLOSED的shard 写数据，或读到最后一条数据后继续读取，会抛出该异常 |
-| LimitExceededError | LimitExceeded | 接口使用超限，参考 [限制描述](~~47441~~) |
-| SubscriptionOfflineError | SubscriptionOffline | 订阅处于下线状态不可用 |
-| SubscriptionSessionInvalidError | OffsetSessionChanged, OffsetSessionClosed | 订阅会话异常，使用订阅时会建立一个session，用于提交点位，如果有其他客户端使用该订阅，会得到该异常 |
-| SubscriptionOffsetResetError | OffsetReseted | 订阅点位被重置 |
-| MalformedRecordError | MalformedRecord | 非法的 Record 格式，可能的情况有：schema 不正确、包含非utf-8字符、客户端使用pb而服务端不支持、等等 |
-| DatahubClientError | 其他所有，并且是所有异常的基类 | 如排除以上异常情况，通常重试即可，但应限制重试次数 |
+| 类名                            | 错误码                                                                                                             | 描述                                                                                                   |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| InvalidParameterError           | InvalidParameter, InvalidCursor                                                                                    | 非法参数                                                                                               |
+| ResourceNotFoundError           | ResourceNotFound, NoSuchProject, NoSuchTopic, NoSuchShard, NoSuchSubscription, NoSuchConnector, NoSuchMeteringInfo | 访问的资源不存在（注：进行Split/Merge操作后，立即发送其他请求，有可能会抛出该异常 ）                   |
+| ResourceExistError              | ResourceAlreadyExist, ProjectAlreadyExist, TopicAlreadyExist, ConnectorAlreadyExist                                | 资源已存在（创建时如果资源已存在，就会抛出这个异常                                                     |
+| SeekOutOfRangeError             | SeekOutOfRange                                                                                                     | getCursor时，给的sequence不在有效范围内（通常数据已过期），或给的timestamp大于当前时间                 |
+| AuthorizationFailedError        | Unauthorized                                                                                                       | Authorization 签名解析异常，检查AK是否填写正确                                                         |
+| NoPermissionError               | NoPermission, OperationDenied                                                                                      | 没有权限，通常是RAM配置不正确，或没有正确授权子账号                                                    |
+| NewShardSealedError             | InvalidShardOperation                                                                                              | shard 处于CLOSED状态可读不可写，继续往CLOSED的shard 写数据，或读到最后一条数据后继续读取，会抛出该异常 |
+| LimitExceededError              | LimitExceeded                                                                                                      | 接口使用超限                                                                                           |
+| SubscriptionOfflineError        | SubscriptionOffline                                                                                                | 订阅处于下线状态不可用                                                                                 |
+| SubscriptionSessionInvalidError | OffsetSessionChanged, OffsetSessionClosed                                                                          | 订阅会话异常，使用订阅时会建立一个session，用于提交点位，如果有其他客户端使用该订阅，会得到该异常      |
+| SubscriptionOffsetResetError    | OffsetReseted                                                                                                      | 订阅点位被重置                                                                                         |
+| MalformedRecordError            | MalformedRecord                                                                                                    | 非法的 Record 格式，可能的情况有：schema 不正确、包含非utf-8字符、客户端使用pb而服务端不支持、等等     |
+| DatahubClientError              | 其他所有，并且是所有异常的基类                                                                                     | 如排除以上异常情况，通常重试即可，但应限制重试次数                                                     |
 
 
 #### ```DatahubClientError```

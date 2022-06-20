@@ -2,17 +2,26 @@ package e2e
 
 import (
     "fmt"
-    "github.com/shopspring/decimal"
-    "github.com/stretchr/Testify/assert"
-    "github.com/aliyun/aliyun-datahub-sdk-go/datahub"
     "testing"
     "time"
+
+    "github.com/shopspring/decimal"
+    "github.com/stretchr/testify/assert"
+    "github.com/aliyun/aliyun-datahub-sdk-go/datahub"
 )
 
 var subId string
 var connectorId string
 
 func TestRun(t *testing.T) {
+    projectName = projectName + "_example"
+    // try clear pre data
+    client.DeleteTopic(projectName, tupleTopicName)
+    client.DeleteTopic(projectName, blobTopicName)
+    client.DeleteTopic(projectName, batchTupleTopicName)
+    client.DeleteTopic(projectName, batchBlobTopicName)
+    client.DeleteProject(projectName)
+
     fmt.Println("######################### project ###################################")
     /* create project */
     cp, err := client.CreateProject(projectName, "project comment")

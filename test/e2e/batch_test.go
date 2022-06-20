@@ -1,14 +1,91 @@
 package e2e
 
 import (
+    "fmt"
+    "testing"
+    "time"
 
     "github.com/shopspring/decimal"
-    "github.com/stretchr/Testify/assert"
+    "github.com/stretchr/testify/assert"
     "github.com/aliyun/aliyun-datahub-sdk-go/datahub"
-    "testing"
 )
 
 func TestBatch(t *testing.T) {
+    projectName = projectName + "_batch"
+    // try clear pre data
+    batchClient.DeleteTopic(projectName, batchTupleTopicName)
+    batchClient.DeleteTopic(projectName, batchBlobTopicName)
+    batchClient.DeleteProject(projectName)
+
+    var shardId = "0"
+
+    cp, err := batchClient.CreateProject(projectName, "project created by go sdk batch mode")
+    assert.Nil(t, err)
+    assert.NotNil(t, cp)
+
+    doBlobBatch(t, shardId)
+
+    doTupleBatch(t, shardId)
+
+}
+
+func doBlobBatch(t *testing.T, shardId string) {
+    // blob topic
+    cbt, err := batchClient.CreateBlobTopic(projectName, batchBlobTopicName, "blob topic created by go sdk batch mode", 1, 1)
+    assert.Nil(t, err)
+    assert.NotNil(t, cbt)
+
+    nowMS := time.Now().UnixNano() / 100000
+    blobRecords := make([]datahub.IRecord, 0)
+    blobRecord1 := datahub.NewBlobRecord([]byte("1, blob data write by batch mode."), nowMS)
+    blobRecords = append(blobRecords, blobRecord1)
+
+    blobRecord2 := datahub.NewBlobRecord([]byte("1, blob data write by batch mode."), nowMS)
+    blobRecords = append(blobRecords, blobRecord2)
+
+    blobRecord3 := datahub.NewBlobRecord([]byte("1, blob data write by batch mode."), nowMS)
+    blobRecords = append(blobRecords, blobRecord3)
+
+    result, err := batchClient.PutRecordsByShard(projectName, batchBlobTopicName, shardId, blobRecords)
+    assert.Nil(t, err)
+    assert.NotNil(t, result)
+
+    //time.Sleep(6)
+    nowMS = time.Now().UnixNano() / 100000
+    blobRecords = make([]datahub.IRecord, 0)
+    blobRecord4 := datahub.NewBlobRecord([]byte("4, blob data write by batch mode."), nowMS)
+    blobRecords = append(blobRecords, blobRecord4)
+
+    blobRecord5 := datahub.NewBlobRecord([]byte("5, blob data write by batch mode."), nowMS)
+    blobRecords = append(blobRecords, blobRecord5)
+
+    blobRecord6 := datahub.NewBlobRecord([]byte("6, blob data write by batch mode."), nowMS)
+    blobRecords = append(blobRecords, blobRecord6)
+
+    blobRecord7 := datahub.NewBlobRecord([]byte("7, blob data write by batch mode."), nowMS)
+    blobRecords = append(blobRecords, blobRecord7)
+
+    result, err = batchClient.PutRecordsByShard(projectName, batchBlobTopicName, shardId, blobRecords)
+    assert.Nil(t, err)
+    assert.NotNil(t, result)
+
+    bcur, err := batchClient.GetCursor(projectName, batchBlobTopicName, shardId, datahub.OLDEST)
+    assert.Nil(t, err)
+    assert.NotNil(t, bcur)
+
+    br, err := batchClient.GetBlobRecords(projectName, batchBlobTopicName, shardId, bcur.Cursor, 6)
+    assert.Nil(t, err)
+    assert.NotNil(t, br)
+
+    for _, record := range br.Records {
+        data, ok := record.(*datahub.BlobRecord)
+        assert.True(t, ok)
+        fmt.Println(data.String())
+    }
+}
+
+func doTupleBatch(t *testing.T, shardId string) {
+    // tuple topic
     recordSchema1 := datahub.NewRecordSchema()
     recordSchema1.AddField(datahub.Field{Name: "f1", Type: datahub.TINYINT, AllowNull: true}).
         AddField(datahub.Field{Name: "f2", Type: datahub.SMALLINT, AllowNull: true}).
@@ -27,27 +104,16 @@ func TestBatch(t *testing.T) {
         AddField(datahub.Field{Name: "field2", Type: datahub.BIGINT, AllowNull: false}).
         AddField(datahub.Field{Name: "field3", Type: datahub.BIGINT, AllowNull: false})
 
-    cp, err := batchClient.CreateProject(projectName, batchTopic)
+    ctt, err := batchClient.CreateTupleTopic(projectName, batchTupleTopicName, "tuple topic created by go sdk batch mode", 1, 1, recordSchema1)
     assert.Nil(t, err)
-    assert.NotNil(t, cp)
-    defer batchClient.DeleteProject(projectName)
-    cbt, err := batchClient.CreateBlobTopic(projectName, batchTopic, "test", 1, 1)
-    assert.Nil(t, err)
-    assert.NotNil(t, cbt)
-    defer batchClient.DeleteTopic(projectName, batchTopic)
+    assert.NotNil(t, ctt)
 
-    //time.Sleep(5)
-
-    rt, err := batchClient.RegisterTopicSchema(projectName, batchTopic, recordSchema1)
-    assert.Nil(t, err)
-    assert.NotNil(t, rt)
-    assert.Equal(t, rt.StatusCode, 201)
-    rt, err = batchClient.RegisterTopicSchema(projectName, batchTopic, recordSchema2)
+    rt, err := batchClient.RegisterTopicSchema(projectName, batchTupleTopicName, recordSchema2)
     assert.Nil(t, err)
     assert.NotNil(t, rt)
     assert.Equal(t, rt.StatusCode, 201)
 
-    lt, err := batchClient.ListTopicSchema(projectName, batchTopic)
+    lt, err := batchClient.ListTopicSchema(projectName, batchTupleTopicName)
     assert.Nil(t, err)
     assert.NotNil(t, lt)
     assert.Equal(t, lt.SchemaInfoList[0].RecordSchema.String(), recordSchema1.String())
@@ -55,13 +121,13 @@ func TestBatch(t *testing.T) {
     assert.Equal(t, lt.SchemaInfoList[1].RecordSchema.String(), recordSchema2.String())
     assert.Equal(t, lt.SchemaInfoList[1].VersionId, 1)
 
-    gs, err := batchClient.GetTopicSchemaByVersion(projectName, batchTopic, 1)
+    gs, err := batchClient.GetTopicSchemaByVersion(projectName, batchTupleTopicName, 1)
     assert.Nil(t, err)
     assert.NotNil(t, gs)
     assert.Equal(t, gs.VersionId, 1)
     assert.Equal(t, gs.RecordSchema.String(), recordSchema2.String())
 
-    gs, err = batchClient.GetTopicSchemaBySchema(projectName, batchTopic, recordSchema2)
+    gs, err = batchClient.GetTopicSchemaBySchema(projectName, batchTupleTopicName, recordSchema2)
     assert.Nil(t, err)
     assert.NotNil(t, gs)
     assert.Equal(t, gs.VersionId, 1)
@@ -108,15 +174,15 @@ func TestBatch(t *testing.T) {
     record4.SetAttribute("key3", "value3")
     records = append(records, record4)
 
-    ret, err := batchClient.PutRecordsByShard(projectName, batchTopic, "0", records)
+    ret, err := batchClient.PutRecordsByShard(projectName, batchTupleTopicName, shardId, records)
     assert.Nil(t, err)
     assert.NotNil(t, ret)
 
-    gc, err := batchClient.GetCursor(projectName, batchTopic, "0", datahub.OLDEST)
+    gc, err := batchClient.GetCursor(projectName, batchTupleTopicName, shardId, datahub.OLDEST)
     assert.Nil(t, err)
     assert.NotNil(t, gc)
 
-    gb, err := batchClient.GetBlobRecords(projectName, batchTopic, "0", gc.Cursor, 100)
+    gb, err := batchClient.GetTupleRecords(projectName, batchTupleTopicName, shardId, gc.Cursor, 100, nil)
     assert.Nil(t, err)
     assert.NotNil(t, gb)
     assert.Equal(t, gb.StartSequence, int64(0))

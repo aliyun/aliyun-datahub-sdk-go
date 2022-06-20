@@ -5,10 +5,11 @@ import (
     "encoding/binary"
     "errors"
     "fmt"
-    "github.com/shopspring/decimal"
     "io"
     "math"
     "reflect"
+
+    "github.com/shopspring/decimal"
 )
 
 const (
@@ -194,7 +195,7 @@ func (bRecord *binaryRecord) setField(index int, data interface{}) error {
         switch field.Type {
         case STRING:
             str, ok := data.(String)
-            if ! ok {
+            if !ok {
                 return errors.New(fmt.Sprintf("value type [%v] dismatch field type [STRING]", reflect.TypeOf(data)))
             }
             if err := bRecord.writeStr(offset, []byte(str)); err != nil {
@@ -241,6 +242,11 @@ func (bRecord *binaryRecord) getField(index int) (interface{}, error) {
     }
 
     offset := bRecord.getFieldOffset(index)
+    if bRecord.schema == nil {
+        byteData := bRecord.readByte(offset)
+        return byteData, nil
+    }
+
     field := bRecord.schema.Fields[index]
     switch field.Type {
     case STRING:
@@ -301,6 +307,22 @@ func (bRecord *binaryRecord) writeStr(offset int, data []byte) error {
         bRecord.nextOffset += needSize
     }
     return nil
+}
+
+func (bRecord *binaryRecord) readByte(offset int) []byte {
+
+    data := binary.LittleEndian.Uint64(bRecord.data[offset:])
+
+    isLittleStr := (data & (uint64(0x80) << 56)) != 0
+
+    if isLittleStr {
+        length := int((data >> 56) & 0x07)
+        return bRecord.data[offset : offset+length]
+    } else {
+        strOffset := binaryRecordHeaderSize + int(data>>32)
+        strLen := int(data & math.MaxUint32)
+        return bRecord.data[strOffset : strOffset+strLen]
+    }
 }
 
 func (bRecord *binaryRecord) readStr(offset int) string {

@@ -2,7 +2,7 @@ package e2e
 
 import (
     "fmt"
-    "github.com/stretchr/Testify/assert"
+    "github.com/stretchr/testify/assert"
     "github.com/aliyun/aliyun-datahub-sdk-go/datahub"
     "testing"
 )
