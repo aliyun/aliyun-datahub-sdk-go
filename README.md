@@ -6,8 +6,7 @@ To use the SDK, you’ll need [Go setup up on your computer](https://golang.org/
 
 ## Dependencies
 
-- go(>=1.7)
-- github.com/sirupsen/logrus
+- go(>=1.14)
 
 ## Installation
 

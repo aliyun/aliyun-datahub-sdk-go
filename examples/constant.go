@@ -1,28 +1,28 @@
 package main
 
 import (
-    "github.com/aliyun/aliyun-datahub-sdk-go/datahub"
+	"github.com/aliyun/aliyun-datahub-sdk-go/datahub"
 )
 
 const (
-    accessId      = ""
-    accessKey     = ""
-    endpoint      = ""
-    projectName   = ""
-    topicName     = ""
-    blobTopicName = ""
-    subId         = ""
-    connectorId   = ""
+	accessId      = ""
+	accessKey     = ""
+	endpoint      = ""
+	projectName   = ""
+	topicName     = ""
+	blobTopicName = ""
+	subId         = ""
+	connectorId   = ""
 
-    spiltShardId         = ""
-    mergeShardId         = ""
-    mergeAdjacentShardId = ""
+	spiltShardId         = ""
+	mergeShardId         = ""
+	mergeAdjacentShardId = ""
 
-    odpsEndpoint  = ""
-    odpsProject   = ""
-    odpsTable     = ""
-    odpsAccessId  = ""
-    odpsAccessKey = ""
+	odpsEndpoint  = ""
+	odpsProject   = ""
+	odpsTable     = ""
+	odpsAccessId  = ""
+	odpsAccessKey = ""
 )
 
 var dh datahub.DataHubApi
