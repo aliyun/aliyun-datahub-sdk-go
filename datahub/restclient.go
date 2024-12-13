@@ -162,8 +162,9 @@ func (client *RestClient) request(method, resource string, requestModel RequestM
 		return nil, nil, err
 	}
 
-	//compress
+	rawSize := len(reqBody)
 	client.compressIfNeed(header, &reqBody)
+	reqSize := len(reqBody)
 
 	if client.Account.GetSecurityToken() != "" {
 		header[httpHeaderSecurityToken] = client.Account.GetSecurityToken()
@@ -228,6 +229,8 @@ func (client *RestClient) request(method, resource string, requestModel RequestM
 		return nil, nil, err
 	}
 
+	respResult.RawSize = rawSize
+	respResult.ReqSize = reqSize
 	return respBody, respResult, nil
 }
 

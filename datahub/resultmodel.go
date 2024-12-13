@@ -16,6 +16,12 @@ type CommonResponseResult struct {
 	// StatusCode http return code
 	StatusCode int
 
+	// Request body raw size
+	RawSize int
+
+	// Request body size after compress
+	ReqSize int
+
 	// RequestId examples request id return by server
 	RequestId string
 }
