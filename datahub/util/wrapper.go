@@ -2,7 +2,6 @@ package util
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"hash/crc32"
 	"reflect"
@@ -38,7 +37,7 @@ func UnwrapMessage(data []byte) ([]byte, error) {
 	binary.BigEndian.PutUint32(computedCrc, cs)
 
 	if !reflect.DeepEqual(crc, computedCrc) {
-		return nil, errors.New(fmt.Sprintf("Parse pb response body fail, error: crc check error. crc: %s, compute crc: %s", crc, computedCrc))
+		return nil, fmt.Errorf("parse pb response body fail, error: crc check error. crc: %s, compute crc: %s", crc, computedCrc)
 	}
 
 	return body, nil

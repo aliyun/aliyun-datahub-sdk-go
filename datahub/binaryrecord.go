@@ -3,7 +3,6 @@ package datahub
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -129,7 +128,7 @@ func (bRecord *binaryRecord) parseAttributesIfNeed() error {
 		}
 
 		if uint32(len(bRecord.data)) < attrSize {
-			return errors.New("check data len failed")
+			return fmt.Errorf("check data len failed")
 		}
 
 		offset = offset + 4
@@ -169,7 +168,7 @@ func (bRecord *binaryRecord) isFieldNull(index int) bool {
 
 func (bRecord *binaryRecord) checkFieldIndex(index int) error {
 	if index >= bRecord.fieldCount {
-		return errors.New(fmt.Sprintf("Filed index: %d exceed field num: %d", index, bRecord.fieldCount))
+		return fmt.Errorf("filed index: %d exceed field num: %d", index, bRecord.fieldCount)
 	}
 	return nil
 }
@@ -196,7 +195,7 @@ func (bRecord *binaryRecord) setField(index int, data interface{}) error {
 		case STRING:
 			str, ok := data.(String)
 			if !ok {
-				return errors.New(fmt.Sprintf("value type [%v] dismatch field type [STRING]", reflect.TypeOf(data)))
+				return fmt.Errorf("value type [%v] dismatch field type [STRING]", reflect.TypeOf(data))
 			}
 			if err := bRecord.writeStr(offset, []byte(str)); err != nil {
 				return err
@@ -204,7 +203,7 @@ func (bRecord *binaryRecord) setField(index int, data interface{}) error {
 		case DECIMAL:
 			val, ok := data.(Decimal)
 			if !ok {
-				return errors.New(fmt.Sprintf("value type [%v] dismatch field type [DECIMAL]", reflect.TypeOf(data)))
+				return fmt.Errorf("value type [%v] dismatch field type [DECIMAL]", reflect.TypeOf(data))
 			}
 			if err := bRecord.writeStr(offset, []byte(val.String())); err != nil {
 				return err
@@ -216,12 +215,12 @@ func (bRecord *binaryRecord) setField(index int, data interface{}) error {
 			}
 			binary.LittleEndian.PutUint64(bRecord.data[offset:], val)
 		default:
-			return errors.New(fmt.Sprintf("Invalid field type [%v]", field.Type))
+			return fmt.Errorf("invalid field type [%v]", field.Type)
 		}
 	} else {
 		buf, ok := data.([]byte)
 		if !ok {
-			return errors.New("only support write byte[] for no schema")
+			return fmt.Errorf("only support write byte[] for no schema")
 		}
 		if err := bRecord.writeStr(offset, buf); err != nil {
 			return err
@@ -277,7 +276,7 @@ func (bRecord *binaryRecord) getField(index int) (interface{}, error) {
 		val := binary.LittleEndian.Uint64(bRecord.data[offset:])
 		return int64(val), nil
 	default:
-		return nil, errors.New(fmt.Sprintf("Invalid field type [%v]", field.Type))
+		return nil, fmt.Errorf("invalid field type [%v]", field.Type)
 	}
 }
 
@@ -369,7 +368,7 @@ func (bRecord *binaryRecord) convertToUInt64(data interface{}) (uint64, error) {
 			val = uint64(0)
 		}
 	default:
-		return 0, errors.New(fmt.Sprintf("value type[%T] not match field type", reflect.ValueOf(val)))
+		return 0, fmt.Errorf("value type[%T] not match field type", reflect.ValueOf(val))
 	}
 	return val, nil
 }
@@ -427,7 +426,7 @@ func (serializer *binaryRecordContextSerializer) serializeBinaryRecord(writer *b
 
 func (serializer *binaryRecordContextSerializer) deserializeRecordHeader(reader *bytes.Reader) (*binaryRecordHeader, error) {
 	if reader.Len() < binaryRecordHeaderSize {
-		return nil, errors.New(fmt.Sprintf("Data length is not enough for BinaryRecordHeader(%d)", binaryRecordHeaderSize))
+		return nil, fmt.Errorf("data length is not enough for BinaryRecordHeader(%d)", binaryRecordHeaderSize)
 	}
 
 	header := &binaryRecordHeader{}
@@ -460,7 +459,7 @@ func (serializer *binaryRecordContextSerializer) deserializeBinaryRecord(reader 
 	}
 
 	if reader.Len() < int(bHeader.totalSize) {
-		return nil, errors.New(fmt.Sprintf("Check record header length fail, need: %d, real: %d", bHeader.totalSize, reader.Len()))
+		return nil, fmt.Errorf("check record header length fail, need: %d, real: %d", bHeader.totalSize, reader.Len())
 	}
 
 	var schema *RecordSchema = nil
@@ -528,30 +527,28 @@ func (serializer *binaryRecordContextSerializer) dhRecord2BinaryRecord(record IR
 	var err error
 	var bRecord *binaryRecord = nil
 
-	switch record.(type) {
+	switch val := record.(type) {
 	case *TupleRecord:
-		bRecord, err = serializer.tuple2BinaryRecord(record.(*TupleRecord))
+		bRecord, err = serializer.tuple2BinaryRecord(val)
 		if err != nil {
 			return nil, err
 		}
 	case *BlobRecord:
-		bRecord, err = serializer.blob2BinaryRecord(record.(*BlobRecord))
+		bRecord, err = serializer.blob2BinaryRecord(val)
 		if err != nil {
 			return nil, err
 		}
 	default:
-		return nil, errors.New(fmt.Sprintf("Invalid record type %v", reflect.TypeOf(record)))
+		return nil, fmt.Errorf("invalid record type %v", reflect.TypeOf(record))
 	}
 
 	attributes := record.GetAttributes()
-	if attributes != nil {
-		for key, val := range attributes {
-			strVal, ok := val.(string)
-			if !ok {
-				return nil, errors.New("attribute only support map[string]string now")
-			}
-			bRecord.addAttribute(key, strVal)
+	for key, val := range attributes {
+		strVal, ok := val.(string)
+		if !ok {
+			return nil, fmt.Errorf("attribute only support map[string]string now")
 		}
+		bRecord.addAttribute(key, strVal)
 	}
 	return bRecord, nil
 }
@@ -610,7 +607,7 @@ func (serializer *binaryRecordContextSerializer) binary2BlobRecord(bRecord *bina
 	}
 	data, ok := val.([]byte)
 	if !ok {
-		return nil, errors.New("only support write byte[] for no schema")
+		return nil, fmt.Errorf("only support write byte[] for no schema")
 	}
 	return NewBlobRecord(data, 0), nil
 }

@@ -2,7 +2,6 @@ package datahub
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -50,7 +49,7 @@ type ListProjectResult struct {
 func NewListProjectResult(data []byte, commonResp *CommonResponseResult) (*ListProjectResult, error) {
 	lpr := &ListProjectResult{
 		CommonResponseResult: *commonResp,
-		ProjectNames:         make([]string, 0, 0),
+		ProjectNames:         make([]string, 0),
 	}
 	if err := json.Unmarshal(data, lpr); err != nil {
 		return nil, err
@@ -97,7 +96,7 @@ type GetProjectResult struct {
 	ProjectName    string
 	CreateTime     int64  `json:"CreateTime"`
 	LastModifyTime int64  `json:"LastModifyTime"`
-	Comment        string `json"Comment"`
+	Comment        string `json:"Comment"`
 }
 
 // convert the response body to GetProjectResult
@@ -424,19 +423,19 @@ func (grr *GetRecordsResult) UnmarshalJSON(data []byte) error {
 	grr.Records = make([]IRecord, len(msg.Records))
 	for idx, record := range msg.Records {
 		if record.Data == nil {
-			return errors.New("invalid record response, record data is nil")
+			return fmt.Errorf("invalid record response, record data is nil")
 		}
 
 		switch dt := record.Data.(type) {
 		case []interface{}, []string:
 			if grr.RecordSchema == nil {
-				return errors.New("tuple record type must set record schema")
+				return fmt.Errorf("tuple record type must set record schema")
 			}
 			grr.Records[idx] = NewTupleRecord(grr.RecordSchema, record.SystemTime)
 		case string:
 			grr.Records[idx] = NewBlobRecord([]byte(dt), record.SystemTime)
 		default:
-			return errors.New(fmt.Sprintf("illegal record data type[%T]", dt))
+			return fmt.Errorf("illegal record data type[%T]", dt)
 		}
 		if err := grr.Records[idx].FillData(record.Data); err != nil {
 			return err
@@ -765,7 +764,7 @@ func NewGetConnectorResult(data []byte, commonResp *CommonResponseResult) (*GetC
 	case SinkHologres:
 		return unmarshalGetHologresConnector(commonResp, data)
 	default:
-		return nil, errors.New(fmt.Sprintf("not support connector type %s", cType.Type.String()))
+		return nil, fmt.Errorf("not support connector type %s", cType.Type.String())
 	}
 }
 

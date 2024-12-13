@@ -1,7 +1,6 @@
 package datahub
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -582,7 +581,7 @@ func (datahub *DataHub) PutRecords(projectName, topicName string, records []IRec
 	if !util.CheckTopicName(topicName) {
 		return nil, NewInvalidParameterErrorWithMessage(topicNameInvalid)
 	}
-	if records == nil || len(records) == 0 {
+	if len(records) == 0 {
 		return nil, NewInvalidParameterErrorWithMessage(recordsInvalid)
 	}
 
@@ -602,7 +601,7 @@ func (datahub *DataHub) PutRecords(projectName, topicName string, records []IRec
 }
 
 func (datahub *DataHub) PutRecordsByShard(projectName, topicName, shardId string, records []IRecord) (*PutRecordsByShardResult, error) {
-	return nil, errors.New("not support this method")
+	return nil, fmt.Errorf("not support this method")
 }
 
 func (datahub *DataHub) GetTupleRecords(projectName, topicName, shardId, cursor string, limit int, recordSchema *RecordSchema) (*GetRecordsResult, error) {
@@ -640,7 +639,7 @@ func (datahub *DataHub) GetTupleRecords(projectName, topicName, shardId, cursor 
 
 	for _, record := range ret.Records {
 		if _, ok := record.(*TupleRecord); !ok {
-			return nil, NewInvalidParameterErrorWithMessage("Shouldn't call this method for BLOB topic")
+			return nil, NewInvalidParameterErrorWithMessage("shouldn't call this method for BLOB topic")
 		}
 	}
 	return ret, nil
@@ -1667,7 +1666,7 @@ type DataHubBatch struct {
 }
 
 func (datahub *DataHubBatch) PutRecords(projectName, topicName string, records []IRecord) (*PutRecordsResult, error) {
-	return nil, errors.New("not support this method")
+	return nil, fmt.Errorf("not support this method")
 }
 
 func (datahub *DataHubBatch) PutRecordsByShard(projectName, topicName, shardId string, records []IRecord) (*PutRecordsByShardResult, error) {

@@ -5,8 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"hash/crc32"
-
-	"github.com/pkg/errors"
 )
 
 const (
@@ -158,7 +156,6 @@ func (serializer *batchSerializer) compressIfNeed(data []byte, batch *batchRecor
 }
 
 type batchDeserializer struct {
-	shardId      string
 	schemaClient *schemaRegistryClient
 	bSerializer  *binaryRecordContextSerializer
 }
@@ -189,7 +186,7 @@ func (deserializer *batchDeserializer) deserialize(data []byte, meta *respMeta) 
 
 func (deserializer *batchDeserializer) deserializeBatchHeader(data []byte) (*batchRecordHeader, error) {
 	if len(data) < batchRecordHeaderSize {
-		return nil, errors.New("read batch header fail")
+		return nil, fmt.Errorf("read batch header fail")
 	}
 
 	header := &batchRecordHeader{}
@@ -202,17 +199,17 @@ func (deserializer *batchDeserializer) deserializeBatchHeader(data []byte) (*bat
 	header.recordCount = int(binary.LittleEndian.Uint32(data[22:]))
 
 	if header.magic != batchMagicNum {
-		return nil, errors.New("Check magic number fail")
+		return nil, fmt.Errorf("check magic number fail")
 	}
 
 	if header.length != len(data) {
-		return nil, errors.New("Check payload length fail")
+		return nil, fmt.Errorf("check payload length fail")
 	}
 
 	if header.crc32 != 0 {
 		calCrc := calculateCrc32(data[batchRecordHeaderSize:header.length])
 		if calCrc != header.crc32 {
-			return nil, errors.New(fmt.Sprintf("Check crc fail. expect:%d, real:%d", header.crc32, calCrc))
+			return nil, fmt.Errorf("check crc fail. expect:%d, real:%d", header.crc32, calCrc)
 		}
 	}
 

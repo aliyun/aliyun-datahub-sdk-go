@@ -3,7 +3,6 @@ package datahub
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"reflect"
 )
@@ -89,17 +88,17 @@ func (br *BlobRecord) String() string {
 
 // FillData implement of IRecord interface
 func (br *BlobRecord) FillData(data interface{}) error {
-	switch data.(type) {
+	switch v := data.(type) {
 	case string:
-		bytedata, err := base64.StdEncoding.DecodeString(data.(string))
+		bytedata, err := base64.StdEncoding.DecodeString(v)
 		if err != nil {
 			return err
 		}
 		br.RawData = bytedata
 	case []byte:
-		br.RawData = data.([]byte)
+		br.RawData = v
 	default:
-		return errors.New(fmt.Sprintf("invalid data type: %s", reflect.TypeOf(data)))
+		return fmt.Errorf("invalid data type: %s", reflect.TypeOf(data))
 	}
 	return nil
 }
@@ -215,16 +214,16 @@ func (tr *TupleRecord) SetValues(values []DataType) *TupleRecord {
 func (tr *TupleRecord) FillData(data interface{}) error {
 	datas, ok := data.([]interface{})
 	if !ok {
-		return errors.New("data must be array")
+		return fmt.Errorf("data must be array")
 	}
 	//else if fsize := tr.RecordSchema.Size(); len(datas) != fsize {
-	//    return errors.New(fmt.Sprintf("data array size not match field size(field.size=%d, values.size=%d)", fsize, len(datas)))
+	//    return fmt.Errorf("data array size not match field size(field.size=%d, values.size=%d)", fsize, len(datas))
 	//}
 	for idx, v := range datas {
 		if v != nil {
 			s, ok := v.(string)
 			if !ok {
-				return errors.New(fmt.Sprintf("data value type[%T] illegal", v))
+				return fmt.Errorf("data value type[%T] illegal", v)
 			}
 			tv, err := castValueFromString(s, tr.RecordSchema.Fields[idx].Type)
 			if err != nil {
@@ -241,7 +240,7 @@ func (tr *TupleRecord) GetData() interface{} {
 	result := make([]interface{}, len(tr.Values))
 	for idx, val := range tr.Values {
 		if val != nil {
-			result[idx] = fmt.Sprintf("%s", val)
+			result[idx] = val.String()
 		} else {
 			result[idx] = nil
 		}

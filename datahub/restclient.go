@@ -6,9 +6,8 @@ import (
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/base64"
-	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -94,8 +93,6 @@ func TraceDialContext(ctimeout time.Duration) DialContextFn {
 		if err != nil {
 			return nil, err
 		}
-
-		log.Debug("connect done, use", conn.LocalAddr().String())
 		return conn, nil
 	}
 }
@@ -115,9 +112,7 @@ type RestClient struct {
 
 // NewRestClient create a new rest client
 func NewRestClient(endpoint string, useragent string, httpClient *http.Client, account Account, cType CompressorType) *RestClient {
-	if strings.HasSuffix(endpoint, "/") {
-		endpoint = endpoint[0 : len(endpoint)-1]
-	}
+	endpoint = strings.TrimSuffix(endpoint, "/")
 	return &RestClient{
 		Endpoint:       endpoint,
 		Useragent:      useragent,
@@ -211,7 +206,8 @@ func (client *RestClient) request(method, resource string, requestModel RequestM
 		return nil, nil, err
 	}
 	defer resp.Body.Close()
-	respBody, err := ioutil.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(resp.Body)
+
 	if err != nil {
 		return nil, nil, err
 	}
@@ -223,8 +219,11 @@ func (client *RestClient) request(method, resource string, requestModel RequestM
 
 	//detect error
 	respResult, err := newCommonResponseResult(resp.StatusCode, &resp.Header, respBody)
-	log.Debug(fmt.Sprintf("request id: %s\nrequest url: %s\nrequest headers: %v\nrequest body: %s\nresponse headers: %v\nresponse body: %s",
-		respResult.RequestId, url, req.Header, string(reqBody), resp.Header, string(respBody)))
+	if log.IsLevelEnabled(log.DebugLevel) {
+		log.Debugf("request id: %s\nrequest url: %s\nrequest headers: %v\nrequest body: %s\nresponse headers: %v\nresponse body: %s",
+			respResult.RequestId, url, req.Header, string(reqBody), resp.Header, string(respBody))
+	}
+
 	if err != nil {
 		return nil, nil, err
 	}
@@ -260,7 +259,9 @@ func (client *RestClient) buildSignature(header *http.Header, method, resource s
 	builder = append(builder, resource)
 	canonString := strings.Join(builder, "\n")
 
-	log.Debug(fmt.Sprintf("canonString: %s, accesskey: %s", canonString, client.Account.GetAccountKey()))
+	if log.IsLevelEnabled(log.DebugLevel) {
+		log.Debugf("canonString: %s, accesskey: %s", canonString, client.Account.GetAccountKey())
+	}
 
 	hash := hmac.New(sha1.New, []byte(client.Account.GetAccountKey()))
 	hash.Write([]byte(canonString))
@@ -282,8 +283,10 @@ func (client *RestClient) compressIfNeed(header map[string]string, reqBody *[]by
 		if err != nil {
 			log.Warningf("compress failed, give up compression, error:%v", err)
 		} else if len(compressedReqBody) > len(*reqBody) {
-			log.Debugf("compress invalid, give up compression, rawSize:%d, compressSize:%d",
-				len(*reqBody), len(compressedReqBody))
+			if log.IsLevelEnabled(log.DebugLevel) {
+				log.Debugf("compress invalid, give up compression, rawSize:%d, compressSize:%d",
+					len(*reqBody), len(compressedReqBody))
+			}
 		} else {
 			header[httpHeaderContentEncoding] = client.CompressorType.String()
 			//header[httpHeaderAcceptEncoding] = client.CompressorType.String()
@@ -301,7 +304,7 @@ func (client *RestClient) decompress(respBody *[]byte, header *http.Header) erro
 	}
 	compressor := getCompressor(CompressorType(encoding))
 	if compressor == nil {
-		return errors.New(fmt.Sprintf("not support the compress mode %s ", encoding))
+		return fmt.Errorf("not support the compress mode %s ", encoding)
 	}
 	rawSize := header.Get(httpHeaderRawSize)
 	//str convert to int64

@@ -2,7 +2,6 @@ package datahub
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -166,7 +165,7 @@ func getIntegerValue(val interface{}) (int64, error) {
 		realval = int64(v)
 	case uint64:
 		if v > 9223372036854775807 {
-			return 0, errors.New("Integer type field must be in [-9223372036854775807,9223372036854775807]")
+			return 0, fmt.Errorf("Integer type field must be in [-9223372036854775807,9223372036854775807]")
 		}
 		realval = int64(v)
 	case json.Number:
@@ -176,7 +175,7 @@ func getIntegerValue(val interface{}) (int64, error) {
 		}
 		realval = int64(nval)
 	default:
-		return 0, errors.New(fmt.Sprintf("value type[%T] not match field type", val))
+		return 0, fmt.Errorf("value type[%T] not match field type", val)
 	}
 	return realval, nil
 }
@@ -191,7 +190,7 @@ func validateFieldValue(ft FieldType, val interface{}) (DataType, error) {
 		}
 
 		if int64(realval) < -9223372036854775807 || int64(realval) > 9223372036854775807 {
-			return nil, errors.New("BIGINT type field must be in [-9223372036854775807,9223372036854775807]")
+			return nil, fmt.Errorf("BIGINT type field must be in [-9223372036854775807,9223372036854775807]")
 		}
 		return Bigint(realval), nil
 	case STRING:
@@ -202,7 +201,7 @@ func validateFieldValue(ft FieldType, val interface{}) (DataType, error) {
 		case string:
 			realval = String(v)
 		default:
-			return nil, errors.New(fmt.Sprintf("value type[%T] not match field type[STRING]", val))
+			return nil, fmt.Errorf("value type[%T] not match field type[STRING]", val)
 		}
 		return realval, nil
 	case BOOLEAN:
@@ -212,7 +211,7 @@ func validateFieldValue(ft FieldType, val interface{}) (DataType, error) {
 		case bool:
 			return Boolean(v), nil
 		default:
-			return nil, errors.New(fmt.Sprintf("value type[%T] not match field type[BOOLEAN]", val))
+			return nil, fmt.Errorf("value type[%T] not match field type[BOOLEAN]", val)
 		}
 	case DOUBLE:
 		switch v := val.(type) {
@@ -227,7 +226,7 @@ func validateFieldValue(ft FieldType, val interface{}) (DataType, error) {
 			}
 			return Double(nval), nil
 		default:
-			return nil, errors.New(fmt.Sprintf("value type[%T] not match field type[DOUBLE]", val))
+			return nil, fmt.Errorf("value type[%T] not match field type[DOUBLE]", val)
 		}
 	case TIMESTAMP:
 		var realval Timestamp
@@ -246,27 +245,27 @@ func validateFieldValue(ft FieldType, val interface{}) (DataType, error) {
 			realval = Timestamp(v)
 		case int:
 			if v < 0 {
-				return nil, errors.New("TIMESTAMP type field must be in positive")
+				return nil, fmt.Errorf("TIMESTAMP type field must be in positive")
 			}
 			realval = Timestamp(v)
 		case int8:
 			if v < 0 {
-				return nil, errors.New("TIMESTAMP type field must be in positive")
+				return nil, fmt.Errorf("TIMESTAMP type field must be in positive")
 			}
 			realval = Timestamp(v)
 		case int16:
 			if v < 0 {
-				return nil, errors.New("TIMESTAMP type field must be in positive")
+				return nil, fmt.Errorf("TIMESTAMP type field must be in positive")
 			}
 			realval = Timestamp(v)
 		case int32:
 			if v < 0 {
-				return nil, errors.New("TIMESTAMP type field must be in positive")
+				return nil, fmt.Errorf("TIMESTAMP type field must be in positive")
 			}
 			realval = Timestamp(v)
 		case int64:
 			if v < 0 {
-				return nil, errors.New("TIMESTAMP type field must be in positive")
+				return nil, fmt.Errorf("TIMESTAMP type field must be in positive")
 			}
 			realval = Timestamp(v)
 		case json.Number:
@@ -275,11 +274,11 @@ func validateFieldValue(ft FieldType, val interface{}) (DataType, error) {
 				return nil, err
 			}
 			if nval < 0 {
-				return nil, errors.New("TIMESTAMP type field must be in positive")
+				return nil, fmt.Errorf("TIMESTAMP type field must be in positive")
 			}
 			realval = Timestamp(nval)
 		default:
-			return nil, errors.New(fmt.Sprintf("value type[%T] not match field type[TIMESTAMP]", val))
+			return nil, fmt.Errorf("value type[%T] not match field type[TIMESTAMP]", val)
 		}
 		return realval, nil
 	case DECIMAL:
@@ -288,7 +287,7 @@ func validateFieldValue(ft FieldType, val interface{}) (DataType, error) {
 		case decimal.Decimal:
 			realval = Decimal(v)
 		default:
-			return nil, errors.New(fmt.Sprintf("value type[%T] not match field type[DECIMAL]", val))
+			return nil, fmt.Errorf("value type[%T] not match field type[DECIMAL]", val)
 		}
 		return realval, nil
 	case INTEGER:
@@ -297,7 +296,7 @@ func validateFieldValue(ft FieldType, val interface{}) (DataType, error) {
 			return nil, err
 		}
 		if realval > math.MaxInt32 || realval < math.MinInt32 {
-			return nil, errors.New(fmt.Sprintf("%T exceed the range of INTEGER", val))
+			return nil, fmt.Errorf("%T exceed the range of INTEGER", val)
 		}
 		return Integer(realval), nil
 	case FLOAT:
@@ -313,7 +312,7 @@ func validateFieldValue(ft FieldType, val interface{}) (DataType, error) {
 			}
 			return Float(nval), nil
 		default:
-			return nil, errors.New(fmt.Sprintf("value type[%T] not match field type[FLOAT]", val))
+			return nil, fmt.Errorf("value type[%T] not match field type[FLOAT]", val)
 		}
 	case TINYINT:
 		realval, err := getIntegerValue(val)
@@ -321,7 +320,7 @@ func validateFieldValue(ft FieldType, val interface{}) (DataType, error) {
 			return nil, err
 		}
 		if realval > math.MaxInt8 || realval < math.MinInt8 {
-			return nil, errors.New(fmt.Sprintf("%T exceed the range of TINYINT", val))
+			return nil, fmt.Errorf("%T exceed the range of TINYINT", val)
 		}
 		return Tinyint(realval), nil
 	case SMALLINT:
@@ -330,11 +329,11 @@ func validateFieldValue(ft FieldType, val interface{}) (DataType, error) {
 			return nil, err
 		}
 		if realval > math.MaxInt16 || realval < math.MinInt16 {
-			return nil, errors.New(fmt.Sprintf("%T exceed the range of TINYINT", val))
+			return nil, fmt.Errorf("%T exceed the range of TINYINT", val)
 		}
 		return Smallint(realval), nil
 	default:
-		return nil, errors.New(fmt.Sprintf("field type[%T] is not illegal", ft))
+		return nil, fmt.Errorf("field type[%T] is not illegal", ft)
 	}
 }
 
@@ -398,7 +397,7 @@ func castValueFromString(str string, ft FieldType) (DataType, error) {
 		}
 		return nil, err
 	default:
-		return nil, errors.New(fmt.Sprintf("not support field type %s", string(ft)))
+		return nil, fmt.Errorf("not support field type %s", string(ft))
 	}
 }
 
@@ -416,16 +415,6 @@ const (
 	// TUPLE record
 	TUPLE RecordType = "TUPLE"
 )
-
-// validateRecordType validate record type
-func validateRecordType(rt RecordType) bool {
-	switch rt {
-	case BLOB, TUPLE:
-		return true
-	default:
-		return false
-	}
-}
 
 type TopicStatus string
 
@@ -491,16 +480,6 @@ const (
 	// SEQUENCE point to the specified sequence
 	SEQUENCE CursorType = "SEQUENCE"
 )
-
-// validateCursorType validate field type
-func validateCursorType(ct CursorType) bool {
-	switch ct {
-	case OLDEST, LATEST, SYSTEM_TIME, SEQUENCE:
-		return true
-	default:
-		return false
-	}
-}
 
 // SubscriptionType
 type SubscriptionType int

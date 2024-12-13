@@ -3,7 +3,6 @@ package datahub
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -85,7 +84,7 @@ func (pm *PartitionMode) String() string {
 
 func NewPartitionConfig() *PartitionConfig {
 	pc := &PartitionConfig{
-		ConfigMap: make([]map[string]string, 0, 0),
+		ConfigMap: make([]map[string]string, 0),
 	}
 	return pc
 }
@@ -112,7 +111,7 @@ func (pc *PartitionConfig) MarshalJSON() ([]byte, error) {
 	for i, m := range pc.ConfigMap {
 		for k, v := range m {
 			if _, err := fmt.Fprintf(buf, "\"%s\":\"%s\"", k, v); err != nil {
-				return nil, errors.New(fmt.Sprintf("partition config is invalid"))
+				return nil, fmt.Errorf("partition config is invalid")
 			}
 		}
 		if i < length-1 {

@@ -1,7 +1,6 @@
 package datahub
 
 import (
-	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -29,7 +28,7 @@ func generateSpliteKey(projectName, topicName, shardId string, datahub DataHubAp
 	for _, shard := range shards {
 		if strings.EqualFold(shardId, shard.ShardId) {
 			if shard.State != ACTIVE {
-				return "", errors.New(fmt.Sprintf("Only active shard can be split,the shard %s state is %s", shard.ShardId, shard.State))
+				return "", fmt.Errorf("only active shard can be split,the shard %s state is %s", shard.ShardId, shard.State)
 			}
 			splitKey, err = getSplitKey(shard.BeginHashKey, shard.EndHashKey)
 			splitKey = strings.ToUpper(splitKey)
@@ -39,7 +38,7 @@ func generateSpliteKey(projectName, topicName, shardId string, datahub DataHubAp
 		}
 	}
 	if splitKey == "" {
-		return "", errors.New(fmt.Sprintf("Shard not exist"))
+		return "", fmt.Errorf("shard not exist")
 	}
 	return splitKey, nil
 }
@@ -49,15 +48,15 @@ func getSplitKey(beginHashKey, endHashKey string) (string, error) {
 	base := 16
 
 	if len(beginHashKey) != 32 || len(endHashKey) != 32 {
-		return "", errors.New(fmt.Sprintf("Invalid Hash Key Range"))
+		return "", fmt.Errorf("invalid Hash Key Range")
 	}
 	_, ok := begin.SetString(beginHashKey, base)
 	if !ok {
-		return "", errors.New(fmt.Sprintf("Invalid Hash Key Range"))
+		return "", fmt.Errorf("invalid Hash Key Range")
 	}
 	_, ok = end.SetString(endHashKey, base)
 	if !ok {
-		return "", errors.New(fmt.Sprintf("Invalid Hash Key Range"))
+		return "", fmt.Errorf("invalid Hash Key Range")
 	}
 
 	sum.Add(&begin, &end)

@@ -2,7 +2,6 @@ package datahub
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"reflect"
 
@@ -166,7 +165,7 @@ func (gcr *GetCursorRequest) requestBodyEncode() ([]byte, error) {
 			Sequence: gcr.Sequence,
 		})
 	default:
-		return nil, errors.New(fmt.Sprintf("Cursor not support type %s", gcr.CursorType))
+		return nil, fmt.Errorf("cursor not support type %s", gcr.CursorType)
 	}
 }
 
@@ -252,7 +251,7 @@ func (ccr *CreateConnectorRequest) requestBodyEncode() ([]byte, error) {
 	case SinkHologres:
 		return marshalCreateHologresConnector(ccr)
 	default:
-		return nil, errors.New(fmt.Sprintf("not support connector type config: %s", ccr.Type.String()))
+		return nil, fmt.Errorf("not support connector type config: %s", ccr.Type.String())
 	}
 }
 
@@ -289,7 +288,7 @@ func (ucr *UpdateConnectorRequest) requestBodyEncode() ([]byte, error) {
 	case SinkHologresConfig:
 		return marshalUpdateHologresConnector(ucr)
 	default:
-		return nil, errors.New(fmt.Sprintf("this connector type not support, %t", reflect.TypeOf(ucr.Config)))
+		return nil, fmt.Errorf("this connector type not support, %t", reflect.TypeOf(ucr.Config))
 	}
 }
 
@@ -524,16 +523,16 @@ func (pr *PutPBRecordsRequest) requestBodyEncode() ([]byte, error) {
 		data := val.GetData()
 
 		fds := make([]*pbmodel.FieldData, 0)
-		switch data.(type) {
+		switch val := data.(type) {
 		case []byte:
 			fd := &pbmodel.FieldData{
-				Value: data.([]byte),
+				Value: val,
 			}
 			fds = append(fds, fd)
 		default:
 			v, ok := data.([]interface{})
 			if !ok {
-				return nil, errors.New("data format is invalid")
+				return nil, fmt.Errorf("data format is invalid")
 			}
 			for _, str := range v {
 				fd := &pbmodel.FieldData{}

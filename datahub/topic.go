@@ -102,7 +102,7 @@ func (rs *RecordSchema) GetFieldIndex(fname string) int {
 
 func (rs *RecordSchema) GetFieldByIndex(idx int) (*Field, error) {
 	if idx < 0 || idx >= len(rs.Fields) {
-		return nil, fmt.Errorf("Invalid Filed index %d", idx)
+		return nil, fmt.Errorf("invalid Filed index %d", idx)
 	}
 
 	return &rs.Fields[idx], nil
