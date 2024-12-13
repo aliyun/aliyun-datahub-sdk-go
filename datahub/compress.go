@@ -3,7 +3,6 @@ package datahub
 import (
 	"bytes"
 	"compress/zlib"
-	"errors"
 	"io"
 
 	"github.com/pierrec/lz4"
@@ -75,45 +74,20 @@ func (lc *lz4Compressor) Compress(data []byte) ([]byte, error) {
 	if len(data) == 0 {
 		return nil, nil
 	}
-	buf := make([]byte, len(data))
-	ht := make([]int, 64<<10) // buffer for the compression table
+
+	buf := make([]byte, lz4.CompressBlockBound(len(data)))
+	ht := make([]int, 64<<10)
 	n, err := lz4.CompressBlock(data, buf, ht)
 	if err != nil {
 		return nil, err
 	}
-	if n >= len(data) || n == 0 {
-		return nil, errors.New("data is not compressible")
+
+	if n == 0 {
+		return data, nil
 	}
-	buf = buf[:n] // compressed data
-	return buf, nil
+
+	return buf[:n], nil
 }
-
-/*func (lc *Lz4Compressor) Compress(data []byte) ([]byte, error) {
-    buf := bytes.NewBuffer(nil)
-    writer := lz4.NewWriter(buf)
-
-    defer writer.Close()
-    // 写入待压缩内容
-    if _, err := writer.Write(data); err != nil {
-        return nil, err
-    }
-    if err := writer.Flush(); err != nil {
-        return nil, err
-    }
-    return buf.Bytes(), nil
-}*/
-
-/*func (lc *Lz4Compressor) DeCompress(data []byte, rawSize int64) ([]byte, error) {
-    //get the maximum size of data when not compressible.
-    buffer := bytes.NewBuffer(data)
-    reader := lz4.NewReader(buffer)
-    buf, err := ioutil.ReadAll(reader)
-
-    if err != nil {
-        return nil, err
-    }
-    return buf, nil
-}*/
 
 func (lc *lz4Compressor) DeCompress(data []byte, rawSize int64) ([]byte, error) {
 	// Allocated a very large buffer for decompression.
@@ -128,43 +102,6 @@ func (lc *lz4Compressor) DeCompress(data []byte, rawSize int64) ([]byte, error) 
 type deflateCompressor struct {
 }
 
-/*func (dc *DeflateCompressor) Compress(data []byte) ([]byte, error) {
-
-    // 一个缓存区压缩的内容
-    buf := bytes.NewBuffer(nil)
-    // 创建一个flate.Writer
-
-    deflateWriter, err := flate.NewWriter(buf, flate.DefaultCompression)
-    if err != nil {
-        return nil, err
-    }
-    defer deflateWriter.Close()
-    // 写入待压缩内容
-    if _, err := deflateWriter.Write(data); err != nil {
-        return nil, err
-    }
-    if err := deflateWriter.Flush(); err != nil {
-        return nil, err
-    }
-
-    return buf.Bytes(), nil
-
-}*/
-
-/*func (dc *DeflateCompressor)Compress(data []byte) ([]byte, error) {
-    var bufs bytes.Buffer
-    w, _ := flate.NewWriter(&bufs, flate.DefaultCompression)
-    if _, err := w.Write([]byte(data)); err != nil {
-        return nil, err
-    }
-    if err := w.Flush(); err != nil {
-        return nil, err
-    }
-    defer w.Close()
-
-    return bufs.Bytes(), nil
-}*/
-
 func (dc *deflateCompressor) Compress(data []byte) ([]byte, error) {
 	var buf bytes.Buffer
 	w := zlib.NewWriter(&buf)
@@ -176,31 +113,6 @@ func (dc *deflateCompressor) Compress(data []byte) ([]byte, error) {
 	}
 	return buf.Bytes(), nil
 }
-
-/*func (dc *DeflateCompressor)DeCompress(data []byte,rawSize int64)([]byte,error)  {
-
-    r :=flate.NewReader(bytes.NewReader(data))
-    defer r.Close()
-    out, err := ioutil.ReadAll(r)
-    if err !=nil {
-        return nil,err
-    }
-    return out,nil
-    //fmt.Println(out)
-}*/
-
-/*func (dc *DeflateCompressor) DeCompress(data []byte, rawSize int64) ([]byte, error) {
-    buffer := bytes.NewBuffer(data)
-    deflateReader := flate.NewReader(buffer)
-    defer deflateReader.Close()
-
-    buf := bytes.NewBuffer(nil)
-
-    if _, err := io.CopyN(buf, deflateReader, rawSize); err != nil {
-        return nil, err
-    }
-    return buf.Bytes(), nil
-}*/
 
 func (dc *deflateCompressor) DeCompress(data []byte, rawSize int64) ([]byte, error) {
 	b := bytes.NewReader(data)

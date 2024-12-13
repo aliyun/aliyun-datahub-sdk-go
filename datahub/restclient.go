@@ -281,8 +281,9 @@ func (client *RestClient) compressIfNeed(header map[string]string, reqBody *[]by
 		compressedReqBody, err := compressor.Compress(*reqBody)
 		if err != nil {
 			log.Warningf("compress failed, give up compression, error:%v", err)
-		} else if len(compressedReqBody) >= len(*reqBody) {
-			log.Debug("compress invalid, give up compression, ")
+		} else if len(compressedReqBody) > len(*reqBody) {
+			log.Debugf("compress invalid, give up compression, rawSize:%d, compressSize:%d",
+				len(*reqBody), len(compressedReqBody))
 		} else {
 			header[httpHeaderContentEncoding] = client.CompressorType.String()
 			//header[httpHeaderAcceptEncoding] = client.CompressorType.String()
