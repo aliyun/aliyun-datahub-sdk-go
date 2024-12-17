@@ -20,6 +20,9 @@ func TestGetCompressTypeFromValue(t *testing.T) {
 	assert.Equal(t, ZLIB, ret)
 
 	ret = getCompressTypeFromValue(4)
+	assert.Equal(t, ZSTD, ret)
+
+	ret = getCompressTypeFromValue(5)
 	assert.Equal(t, NOCOMPRESS, ret)
 
 	ret = getCompressTypeFromValue(-1)
@@ -33,4 +36,16 @@ func TestInvalidLz4(t *testing.T) {
 	cData, err := compressor.Compress(data)
 	assert.Nil(t, err)
 	assert.Equal(t, 6, len(cData))
+}
+
+func TestZstd(t *testing.T) {
+	compressor := zstdCompressor{}
+
+	data := []byte("hello world,aaaaaaaaaaaaaaaaaaaaa,bbb,cccccccccccccccccccc")
+	cData, err := compressor.Compress(data)
+	assert.Nil(t, err)
+
+	rawData, err := compressor.DeCompress(cData, int64(len(data)))
+	assert.Nil(t, err)
+	assert.Equal(t, data, rawData)
 }

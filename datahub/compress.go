@@ -6,6 +6,8 @@ import (
 	"io"
 
 	"github.com/pierrec/lz4"
+
+	"github.com/klauspost/compress/zstd"
 )
 
 // compress type
@@ -16,12 +18,13 @@ const (
 	LZ4        CompressorType = "lz4"
 	DEFLATE    CompressorType = "deflate"
 	ZLIB       CompressorType = "zlib"
+	ZSTD       CompressorType = "zstd"
 )
 
 // validate that the type is valid
 func validateCompressorType(ct CompressorType) bool {
 	switch ct {
-	case NOCOMPRESS, LZ4, DEFLATE, ZLIB:
+	case NOCOMPRESS, LZ4, DEFLATE, ZLIB, ZSTD:
 		return true
 	}
 	return false
@@ -37,6 +40,8 @@ func getCompressTypeFromValue(value int) CompressorType {
 		return LZ4
 	case 3:
 		return ZLIB
+	case 4:
+		return ZSTD
 	default:
 		return NOCOMPRESS
 	}
@@ -56,6 +61,8 @@ func (ct *CompressorType) toValue() int {
 		return 2
 	case ZLIB:
 		return 3
+	case ZSTD:
+		return 4
 	default:
 		return 0
 	}
@@ -149,10 +156,41 @@ func (zc *zlibCompressor) DeCompress(data []byte, rawSize int64) ([]byte, error)
 	return buf.Bytes(), nil
 }
 
+type zstdCompressor struct {
+}
+
+func (zc *zstdCompressor) Compress(data []byte) ([]byte, error) {
+
+	writer, err := zstd.NewWriter(nil)
+	if err != nil {
+		return nil, err
+	}
+	defer writer.Close()
+
+	return writer.EncodeAll(data, make([]byte, 0, len(data))), nil
+}
+
+func (zc *zstdCompressor) DeCompress(data []byte, rawSize int64) ([]byte, error) {
+	reader, err := zstd.NewReader(nil)
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+
+	dData := make([]byte, 0, rawSize)
+	dData, err = reader.DecodeAll(data, dData)
+	if err != nil {
+		return nil, err
+	}
+
+	return dData, nil
+}
+
 var compressorMap map[CompressorType]compressor = map[CompressorType]compressor{
 	LZ4:     &lz4Compressor{},
 	DEFLATE: &deflateCompressor{},
 	ZLIB:    &zlibCompressor{},
+	ZSTD:    &zstdCompressor{},
 }
 
 func newCompressor(c CompressorType) compressor {
@@ -163,6 +201,8 @@ func newCompressor(c CompressorType) compressor {
 		return &deflateCompressor{}
 	case ZLIB:
 		return &zlibCompressor{}
+	case ZSTD:
+		return &zstdCompressor{}
 	default:
 		return nil
 	}
