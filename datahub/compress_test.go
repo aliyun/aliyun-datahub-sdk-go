@@ -38,6 +38,30 @@ func TestInvalidLz4(t *testing.T) {
 	assert.Equal(t, 6, len(cData))
 }
 
+func TestLz4(t *testing.T) {
+	compressor := lz4Compressor{}
+
+	data := []byte("hello world,aaaaaaaaaaaaaaaaaaaaa,bbb,cccccccccccccccccccc")
+	cData, err := compressor.Compress(data)
+	assert.Nil(t, err)
+
+	rawData, err := compressor.DeCompress(cData, int64(len(data)))
+	assert.Nil(t, err)
+	assert.Equal(t, data, rawData)
+}
+
+func TestDefalte(t *testing.T) {
+	compressor := deflateCompressor{}
+
+	data := []byte("hello world,aaaaaaaaaaaaaaaaaaaaa,bbb,cccccccccccccccccccc")
+	cData, err := compressor.Compress(data)
+	assert.Nil(t, err)
+
+	rawData, err := compressor.DeCompress(cData, int64(len(data)))
+	assert.Nil(t, err)
+	assert.Equal(t, data, rawData)
+}
+
 func TestZstd(t *testing.T) {
 	compressor := zstdCompressor{}
 

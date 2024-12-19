@@ -17,7 +17,7 @@ const (
 	NOCOMPRESS CompressorType = ""
 	LZ4        CompressorType = "lz4"
 	DEFLATE    CompressorType = "deflate"
-	ZLIB       CompressorType = "zlib"
+	ZLIB       CompressorType = "zlib" // Deprecated: Use DEFLATE instead.
 	ZSTD       CompressorType = "zstd"
 )
 
@@ -160,30 +160,34 @@ type zstdCompressor struct {
 }
 
 func (zc *zstdCompressor) Compress(data []byte) ([]byte, error) {
-
-	writer, err := zstd.NewWriter(nil)
+	var buf bytes.Buffer
+	writer, err := zstd.NewWriter(&buf)
 	if err != nil {
 		return nil, err
 	}
-	defer writer.Close()
 
-	return writer.EncodeAll(data, make([]byte, 0, len(data))), nil
+	if _, err := writer.Write(data); err != nil {
+		return nil, err
+	}
+
+	if err := writer.Close(); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
 }
 
 func (zc *zstdCompressor) DeCompress(data []byte, rawSize int64) ([]byte, error) {
-	reader, err := zstd.NewReader(nil)
+	reader, err := zstd.NewReader(bytes.NewReader(data))
 	if err != nil {
 		return nil, err
 	}
+
 	defer reader.Close()
 
-	dData := make([]byte, 0, rawSize)
-	dData, err = reader.DecodeAll(data, dData)
-	if err != nil {
-		return nil, err
-	}
-
-	return dData, nil
+	var buf bytes.Buffer
+	io.Copy(&buf, reader)
+	return buf.Bytes(), nil
 }
 
 var compressorMap map[CompressorType]compressor = map[CompressorType]compressor{

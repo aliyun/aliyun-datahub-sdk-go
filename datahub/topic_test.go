@@ -97,9 +97,9 @@ func TestSchemaGetFiled(t *testing.T) {
 
 	col, err = schema.GetFieldByIndex(3)
 	assert.Nil(t, col)
-	assert.Equal(t, err.Error(), "Invalid Filed index 3")
+	assert.Equal(t, err.Error(), "invalid Filed index 3")
 
 	col, err = schema.GetFieldByIndex(-1)
 	assert.Nil(t, col)
-	assert.Equal(t, err.Error(), "Invalid Filed index -1")
+	assert.Equal(t, err.Error(), "invalid Filed index -1")
 }
