@@ -1,13 +1,11 @@
 module github.com/aliyun/aliyun-datahub-sdk-go
 
-go 1.21
-
-toolchain go1.21.11
+go 1.19
 
 require (
 	github.com/aliyun/alibaba-cloud-sdk-go v1.62.709
 	github.com/golang/protobuf v1.5.4
-	github.com/klauspost/compress v1.17.11
+	github.com/klauspost/compress v1.15.15
 	github.com/pierrec/lz4 v2.6.1+incompatible
 	github.com/shopspring/decimal v1.3.1
 	github.com/sirupsen/logrus v1.9.3
