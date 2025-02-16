@@ -197,7 +197,7 @@ func (client *RestClient) request(method, resource string, requestModel RequestM
 		req.Header.Add(k, v)
 	}
 
-	client.buildSignature(&req.Header, method, resource)
+	client.buildSignature(&req.Header, method, req.URL.RequestURI())
 
 	resp, err := client.HttpClient.Do(req)
 	if err != nil {
@@ -234,7 +234,7 @@ func (client *RestClient) request(method, resource string, requestModel RequestM
 	return respBody, respResult, nil
 }
 
-func (client *RestClient) buildSignature(header *http.Header, method, resource string) {
+func (client *RestClient) buildSignature(header *http.Header, method, url string) {
 	builder := make([]string, 0, 5)
 	builder = append(builder, method)
 	builder = append(builder, header.Get(httpHeaderContentType))
@@ -259,7 +259,7 @@ func (client *RestClient) buildSignature(header *http.Header, method, resource s
 		}
 	}
 
-	builder = append(builder, resource)
+	builder = append(builder, url)
 	canonString := strings.Join(builder, "\n")
 
 	if log.IsLevelEnabled(log.DebugLevel) {
