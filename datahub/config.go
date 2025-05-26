@@ -8,21 +8,26 @@ import (
 	"time"
 )
 
+type Protocol int
+
+const (
+	Protobuf Protocol = iota
+	Batch
+)
+
 type Config struct {
-	UserAgent            string
-	CompressorType       CompressorType
-	EnableBinary         bool
-	EnableSchemaRegistry bool
-	HttpClient           *http.Client
+	UserAgent      string
+	CompressorType CompressorType
+	Protocol       Protocol
+	HttpClient     *http.Client
 }
 
 func NewDefaultConfig() *Config {
 	return &Config{
-		UserAgent:            DefaultUserAgent(),
-		CompressorType:       NOCOMPRESS,
-		EnableBinary:         true,
-		EnableSchemaRegistry: false,
-		HttpClient:           DefaultHttpClient(),
+		UserAgent:      DefaultUserAgent(),
+		CompressorType: LZ4,
+		Protocol:       Protobuf,
+		HttpClient:     DefaultHttpClient(),
 	}
 }
 
@@ -46,4 +51,8 @@ func DefaultHttpClient() *http.Client {
 // DefaultUserAgent returns a default user agent
 func DefaultUserAgent() string {
 	return fmt.Sprintf("godatahub/%s golang/%s %s", DATAHUB_SDK_VERSION, runtime.Version(), runtime.GOOS)
+}
+
+func defaultClientAgent() string {
+	return fmt.Sprintf("goclient/%s golang/%s %s", DATAHUB_SDK_VERSION, runtime.Version(), runtime.GOOS)
 }

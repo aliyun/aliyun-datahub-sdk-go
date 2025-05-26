@@ -9,15 +9,15 @@ import (
 
 // BaseRecord
 type BaseRecord struct {
-	ShardId      string                 `json:"ShardId,omitempty"`
-	PartitionKey string                 `json:"PartitionKey,omitempty"`
-	HashKey      string                 `json:"HashKey,omitempty"`
-	SystemTime   int64                  `json:"SystemTime,omitempty"`
-	Sequence     int64                  `json:"Sequence,omitempty"`
-	Cursor       string                 `json:"Cursor,omitempty"`
-	NextCursor   string                 `json:"NextCursor,omitempty"`
-	Serial       int64                  `json:"Serial,omitempty"`
-	Attributes   map[string]interface{} `json:"Attributes,omitempty"`
+	ShardId      string            `json:"ShardId,omitempty"`
+	PartitionKey string            `json:"PartitionKey,omitempty"`
+	HashKey      string            `json:"HashKey,omitempty"`
+	SystemTime   int64             `json:"SystemTime,omitempty"`
+	Sequence     int64             `json:"Sequence,omitempty"`
+	Cursor       string            `json:"Cursor,omitempty"`
+	NextCursor   string            `json:"NextCursor,omitempty"`
+	Serial       int64             `json:"Serial,omitempty"`
+	Attributes   map[string]string `json:"Attributes,omitempty"`
 }
 
 func (br *BaseRecord) GetSystemTime() int64 {
@@ -29,14 +29,14 @@ func (br *BaseRecord) GetSequence() int64 {
 }
 
 // SetAttribute set or modify(if exist) attribute
-func (br *BaseRecord) SetAttribute(key string, val interface{}) {
+func (br *BaseRecord) SetAttribute(key string, val string) {
 	if br.Attributes == nil {
-		br.Attributes = make(map[string]interface{})
+		br.Attributes = make(map[string]string)
 	}
 	br.Attributes[key] = val
 }
 
-func (br *BaseRecord) GetAttributes() map[string]interface{} {
+func (br *BaseRecord) GetAttributes() map[string]string {
 	return br.Attributes
 }
 
@@ -52,11 +52,11 @@ type IRecord interface {
 	GetSystemTime() int64
 	GetSequence() int64
 	GetData() interface{}
-	FillData(data interface{}) error
+	fillData(data interface{}) error
 	GetBaseRecord() BaseRecord
 	SetBaseRecord(baseRecord BaseRecord)
-	SetAttribute(key string, val interface{})
-	GetAttributes() map[string]interface{}
+	SetAttribute(key string, val string)
+	GetAttributes() map[string]string
 }
 
 // BlobRecord blob type record
@@ -66,18 +66,17 @@ type BlobRecord struct {
 }
 
 // NewBlobRecord new a tuple type record from given record schema
-func NewBlobRecord(bytedata []byte, systemTime int64) *BlobRecord {
+func NewBlobRecord(bytedata []byte) *BlobRecord {
 	br := &BlobRecord{}
 	br.RawData = bytedata
-	br.Attributes = make(map[string]interface{})
-	br.SystemTime = systemTime
+	br.Attributes = make(map[string]string)
 	return br
 }
 
 func (br *BlobRecord) String() string {
 	record := struct {
-		Data       string                 `json:"Data"`
-		Attributes map[string]interface{} `json:"Attributes"`
+		Data       string            `json:"Data"`
+		Attributes map[string]string `json:"Attributes"`
 	}{
 		Data:       string(br.RawData),
 		Attributes: br.Attributes,
@@ -87,7 +86,7 @@ func (br *BlobRecord) String() string {
 }
 
 // FillData implement of IRecord interface
-func (br *BlobRecord) FillData(data interface{}) error {
+func (br *BlobRecord) fillData(data interface{}) error {
 	switch v := data.(type) {
 	case string:
 		bytedata, err := base64.StdEncoding.DecodeString(v)
@@ -125,13 +124,26 @@ type TupleRecord struct {
 }
 
 // NewTupleRecord new a tuple type record from given record schema
-func NewTupleRecord(schema *RecordSchema, systemTime int64) *TupleRecord {
+func NewTupleRecord(schema *RecordSchema) *TupleRecord {
 	tr := &TupleRecord{}
 	if schema != nil {
 		tr.RecordSchema = schema
 		tr.Values = make([]DataType, schema.Size())
 	}
-	tr.Attributes = make(map[string]interface{})
+	tr.Attributes = make(map[string]string)
+	for idx := range tr.Values {
+		tr.Values[idx] = nil
+	}
+	return tr
+}
+
+func newTupleRecordWithTime(schema *RecordSchema, systemTime int64) *TupleRecord {
+	tr := &TupleRecord{}
+	if schema != nil {
+		tr.RecordSchema = schema
+		tr.Values = make([]DataType, schema.Size())
+	}
+	tr.Attributes = make(map[string]string)
 	tr.SystemTime = systemTime
 	for idx := range tr.Values {
 		tr.Values[idx] = nil
@@ -141,9 +153,9 @@ func NewTupleRecord(schema *RecordSchema, systemTime int64) *TupleRecord {
 
 func (tr *TupleRecord) String() string {
 	record := struct {
-		RecordSchema *RecordSchema          `json:"RecordSchema"`
-		Values       []DataType             `json:"Values"`
-		Attributes   map[string]interface{} `json:"Attributes"`
+		RecordSchema *RecordSchema     `json:"RecordSchema"`
+		Values       []DataType        `json:"Values"`
+		Attributes   map[string]string `json:"Attributes"`
 	}{
 		RecordSchema: tr.RecordSchema,
 		Values:       tr.Values,
@@ -154,27 +166,30 @@ func (tr *TupleRecord) String() string {
 }
 
 // SetValueByIdx set a value by idx
-func (tr *TupleRecord) SetValueByIdx(idx int, val interface{}) *TupleRecord {
+func (tr *TupleRecord) SetValueByIdx(idx int, val any) error {
 	if idx < 0 || idx >= tr.RecordSchema.Size() {
-		panic(fmt.Sprintf("index[%d] out range", idx))
+		return fmt.Errorf("index[%d] out range", idx)
 	}
 
 	field := tr.RecordSchema.Fields[idx]
 	if val == nil && !field.AllowNull {
-		panic(fmt.Sprintf("[%s] not allow null", field.Name))
+		return fmt.Errorf("[%s] not allow null", field.Name)
 	}
 
 	v, err := validateFieldValue(field.Type, val)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	tr.Values[idx] = v
-	return tr
+	return nil
 }
 
 // SetValueByName set a value by name
-func (tr *TupleRecord) SetValueByName(name string, val interface{}) *TupleRecord {
+func (tr *TupleRecord) SetValueByName(name string, val any) error {
 	idx := tr.RecordSchema.GetFieldIndex(name)
+	if idx < 0 {
+		return fmt.Errorf("field[%s] not exist", name)
+	}
 	return tr.SetValueByIdx(idx, val)
 }
 
@@ -196,22 +211,23 @@ func (tr *TupleRecord) GetValues() map[string]DataType {
 }
 
 // SetValues batch set values
-func (tr *TupleRecord) SetValues(values []DataType) *TupleRecord {
+func (tr *TupleRecord) SetValues(values []DataType) error {
 	if fsize := tr.RecordSchema.Size(); fsize != len(values) {
-		panic(fmt.Sprintf("values size not match field size(field.size=%d, values.size=%d)", fsize, len(values)))
+		return fmt.Errorf("values size not match field size(field.size=%d, values.size=%d)", fsize, len(values))
 	}
+
 	for idx, val := range values {
 		v, err := validateFieldValue(tr.RecordSchema.Fields[idx].Type, val)
 		if err != nil {
-			panic(err)
+			return err
 		}
 		tr.Values[idx] = v
 	}
-	return tr
+	return nil
 }
 
 // FillData implement of IRecord interface
-func (tr *TupleRecord) FillData(data interface{}) error {
+func (tr *TupleRecord) fillData(data interface{}) error {
 	datas, ok := data.([]interface{})
 	if !ok {
 		return fmt.Errorf("data must be array")

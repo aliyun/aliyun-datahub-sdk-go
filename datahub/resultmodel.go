@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 
@@ -52,7 +55,7 @@ type ListProjectResult struct {
 }
 
 // convert the response body to ListProjectResult
-func NewListProjectResult(data []byte, commonResp *CommonResponseResult) (*ListProjectResult, error) {
+func newListProjectResult(data []byte, commonResp *CommonResponseResult) (*ListProjectResult, error) {
 	lpr := &ListProjectResult{
 		CommonResponseResult: *commonResp,
 		ProjectNames:         make([]string, 0),
@@ -67,7 +70,7 @@ type CreateProjectResult struct {
 	CommonResponseResult
 }
 
-func NewCreateProjectResult(commonResp *CommonResponseResult) (*CreateProjectResult, error) {
+func newCreateProjectResult(commonResp *CommonResponseResult) (*CreateProjectResult, error) {
 	cpr := &CreateProjectResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -78,7 +81,7 @@ type UpdateProjectResult struct {
 	CommonResponseResult
 }
 
-func NewUpdateProjectResult(commonResp *CommonResponseResult) (*UpdateProjectResult, error) {
+func newUpdateProjectResult(commonResp *CommonResponseResult) (*UpdateProjectResult, error) {
 	upr := &UpdateProjectResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -89,7 +92,7 @@ type DeleteProjectResult struct {
 	CommonResponseResult
 }
 
-func NewDeleteProjectResult(commonResp *CommonResponseResult) (*DeleteProjectResult, error) {
+func newDeleteProjectResult(commonResp *CommonResponseResult) (*DeleteProjectResult, error) {
 	dpr := &DeleteProjectResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -106,7 +109,7 @@ type GetProjectResult struct {
 }
 
 // convert the response body to GetProjectResult
-func NewGetProjectResult(data []byte, commonResp *CommonResponseResult) (*GetProjectResult, error) {
+func newGetProjectResult(data []byte, commonResp *CommonResponseResult) (*GetProjectResult, error) {
 	gpr := &GetProjectResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -120,7 +123,7 @@ type UpdateProjectVpcWhitelistResult struct {
 	CommonResponseResult
 }
 
-func NewUpdateProjectVpcWhitelistResult(commonResp *CommonResponseResult) (*UpdateProjectVpcWhitelistResult, error) {
+func newUpdateProjectVpcWhitelistResult(commonResp *CommonResponseResult) (*UpdateProjectVpcWhitelistResult, error) {
 	upvw := &UpdateProjectVpcWhitelistResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -132,7 +135,7 @@ type ListTopicResult struct {
 	TopicNames []string `json:"TopicNames"`
 }
 
-func NewListTopicResult(data []byte, commonResp *CommonResponseResult) (*ListTopicResult, error) {
+func newListTopicResult(data []byte, commonResp *CommonResponseResult) (*ListTopicResult, error) {
 	lt := &ListTopicResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -146,7 +149,7 @@ type CreateBlobTopicResult struct {
 	CommonResponseResult
 }
 
-func NewCreateBlobTopicResult(commonResp *CommonResponseResult) (*CreateBlobTopicResult, error) {
+func newCreateBlobTopicResult(commonResp *CommonResponseResult) (*CreateBlobTopicResult, error) {
 	cbrt := &CreateBlobTopicResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -157,7 +160,7 @@ type CreateTupleTopicResult struct {
 	CommonResponseResult
 }
 
-func NewCreateTupleTopicResult(commonResp *CommonResponseResult) (*CreateTupleTopicResult, error) {
+func newCreateTupleTopicResult(commonResp *CommonResponseResult) (*CreateTupleTopicResult, error) {
 	cttr := &CreateTupleTopicResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -168,7 +171,7 @@ type CreateTopicWithParaResult struct {
 	CommonResponseResult
 }
 
-func NewCreateTopicWithParaResult(commonResp *CommonResponseResult) (*CreateTopicWithParaResult, error) {
+func newCreateTopicWithParaResult(commonResp *CommonResponseResult) (*CreateTopicWithParaResult, error) {
 	ctwp := &CreateTopicWithParaResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -179,7 +182,7 @@ type UpdateTopicResult struct {
 	CommonResponseResult
 }
 
-func NewUpdateTopicResult(commonResp *CommonResponseResult) (*UpdateTopicResult, error) {
+func newUpdateTopicResult(commonResp *CommonResponseResult) (*UpdateTopicResult, error) {
 	utr := &UpdateTopicResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -190,40 +193,60 @@ type DeleteTopicResult struct {
 	CommonResponseResult
 }
 
-func NewDeleteTopicResult(commonResp *CommonResponseResult) (*DeleteTopicResult, error) {
+func newDeleteTopicResult(commonResp *CommonResponseResult) (*DeleteTopicResult, error) {
 	dtr := &DeleteTopicResult{
 		CommonResponseResult: *commonResp,
 	}
 	return dtr, nil
 }
 
+type topicExtraConfig struct {
+	protocol           Protocol
+	compressType       CompressorType
+	listShardInterval  time.Duration
+	listSchemaInterval time.Duration
+}
+
+func defaultTopicExtraConfig() topicExtraConfig {
+	return topicExtraConfig{
+		protocol:           Protobuf,
+		compressType:       NOCOMPRESS,
+		listShardInterval:  time.Minute * 1,
+		listSchemaInterval: time.Minute * 1,
+	}
+}
+
 type GetTopicResult struct {
 	CommonResponseResult
 	ProjectName    string
 	TopicName      string
-	ShardCount     int           `json:"ShardCount"`
-	LifeCycle      int           `json:"LifeCycle"`
-	RecordType     RecordType    `json:"RecordType"`
-	RecordSchema   *RecordSchema `json:"RecordSchema"`
-	Comment        string        `json:"Comment"`
-	CreateTime     int64         `json:"CreateTime"`
-	LastModifyTime int64         `json:"LastModifyTime"`
-	TopicStatus    TopicStatus   `json:"Status"`
-	ExpandMode     ExpandMode    `json:"ExpandMode"`
+	ShardCount     int              `json:"ShardCount"`
+	LifeCycle      int              `json:"LifeCycle"`
+	RecordType     RecordType       `json:"RecordType"`
+	RecordSchema   *RecordSchema    `json:"RecordSchema"`
+	Comment        string           `json:"Comment"`
+	CreateTime     int64            `json:"CreateTime"`
+	LastModifyTime int64            `json:"LastModifyTime"`
+	TopicStatus    TopicStatus      `json:"Status"`
+	ExpandMode     ExpandMode       `json:"ExpandMode"`
+	EnableSchema   bool             `json:"EnableSchemaRegistry"`
+	extraConfig    topicExtraConfig `json:"-"`
 }
 
 // for deserialize the RecordSchema
 func (gtr *GetTopicResult) UnmarshalJSON(data []byte) error {
 	msg := &struct {
-		ShardCount     int         `json:"ShardCount"`
-		LifeCycle      int         `json:"LifeCycle"`
-		RecordType     RecordType  `json:"RecordType"`
-		RecordSchema   string      `json:"RecordSchema"`
-		Comment        string      `json:"Comment"`
-		CreateTime     int64       `json:"CreateTime"`
-		LastModifyTime int64       `json:"LastModifyTime"`
-		TopicStatus    TopicStatus `json:"Status"`
-		ExpandMode     ExpandMode  `json:"ExpandMode"`
+		ShardCount     int               `json:"ShardCount"`
+		LifeCycle      int               `json:"LifeCycle"`
+		RecordType     RecordType        `json:"RecordType"`
+		RecordSchema   string            `json:"RecordSchema"`
+		Comment        string            `json:"Comment"`
+		CreateTime     int64             `json:"CreateTime"`
+		LastModifyTime int64             `json:"LastModifyTime"`
+		TopicStatus    TopicStatus       `json:"Status"`
+		ExpandMode     ExpandMode        `json:"ExpandMode"`
+		EnableSchema   bool              `json:"EnableSchemaRegistry"`
+		ExtraConfig    map[string]string `json:"ExtraConfig"`
 	}{}
 	if err := json.Unmarshal(data, msg); err != nil {
 		return err
@@ -237,6 +260,7 @@ func (gtr *GetTopicResult) UnmarshalJSON(data []byte) error {
 	gtr.LastModifyTime = msg.LastModifyTime
 	gtr.TopicStatus = msg.TopicStatus
 	gtr.ExpandMode = msg.ExpandMode
+	gtr.EnableSchema = msg.EnableSchema
 	if msg.RecordType == TUPLE {
 		rs := &RecordSchema{}
 		if err := json.Unmarshal([]byte(msg.RecordSchema), rs); err != nil {
@@ -247,10 +271,42 @@ func (gtr *GetTopicResult) UnmarshalJSON(data []byte) error {
 		}
 		gtr.RecordSchema = rs
 	}
+
+	gtr.extraConfig = defaultTopicExtraConfig()
+	val, ok := msg.ExtraConfig["DataProtocolType"]
+	if ok {
+		if strings.ToUpper(val) == "BATCH" {
+			gtr.extraConfig.protocol = Batch
+		} else {
+			gtr.extraConfig.protocol = Protobuf
+		}
+	}
+
+	val, ok = msg.ExtraConfig["CompressType"]
+	if ok {
+		gtr.extraConfig.compressType = parseCompressType(val)
+	}
+
+	val, ok = msg.ExtraConfig["ListShardInterval"]
+	if ok && val != "" {
+		ival, err := strconv.Atoi(val)
+		if err != nil {
+			gtr.extraConfig.listShardInterval = time.Millisecond * time.Duration(ival)
+		}
+	}
+
+	val, ok = msg.ExtraConfig["ListSchemaInterval"]
+	if ok && val != "" {
+		ival, err := strconv.Atoi(val)
+		if err != nil {
+			gtr.extraConfig.listSchemaInterval = time.Millisecond * time.Duration(ival)
+		}
+	}
+
 	return nil
 }
 
-func NewGetTopicResult(data []byte, commonResp *CommonResponseResult) (*GetTopicResult, error) {
+func newGetTopicResult(data []byte, commonResp *CommonResponseResult) (*GetTopicResult, error) {
 	gr := &GetTopicResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -267,7 +323,7 @@ type ListShardResult struct {
 	IntervalMs int64        `json:"Interval"`
 }
 
-func NewListShardResult(data []byte, commonResp *CommonResponseResult) (*ListShardResult, error) {
+func newListShardResult(data []byte, commonResp *CommonResponseResult) (*ListShardResult, error) {
 	lsr := &ListShardResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -282,7 +338,7 @@ type SplitShardResult struct {
 	NewShards []ShardEntry `json:"NewShards"`
 }
 
-func NewSplitShardResult(data []byte, commonResp *CommonResponseResult) (*SplitShardResult, error) {
+func newSplitShardResult(data []byte, commonResp *CommonResponseResult) (*SplitShardResult, error) {
 	ssr := &SplitShardResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -299,7 +355,7 @@ type MergeShardResult struct {
 	EndHashKey   string `json:"EndHashKey"`
 }
 
-func NewMergeShardResult(data []byte, commonResp *CommonResponseResult) (*MergeShardResult, error) {
+func newMergeShardResult(data []byte, commonResp *CommonResponseResult) (*MergeShardResult, error) {
 	ssr := &MergeShardResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -313,7 +369,7 @@ type ExtendShardResult struct {
 	CommonResponseResult
 }
 
-func NewExtendShardResult(commonResp *CommonResponseResult) (*ExtendShardResult, error) {
+func newExtendShardResult(commonResp *CommonResponseResult) (*ExtendShardResult, error) {
 	esr := &ExtendShardResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -327,7 +383,7 @@ type GetCursorResult struct {
 	Sequence   int64  `json:"Sequence"`
 }
 
-func NewGetCursorResult(data []byte, commonResp *CommonResponseResult) (*GetCursorResult, error) {
+func newGetCursorResult(data []byte, commonResp *CommonResponseResult) (*GetCursorResult, error) {
 	gcr := &GetCursorResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -343,7 +399,7 @@ type PutRecordsResult struct {
 	FailedRecords     []FailedRecord `json:"FailedRecords"`
 }
 
-func NewPutRecordsResult(data []byte, commonResp *CommonResponseResult) (*PutRecordsResult, error) {
+func newPutRecordsResult(data []byte, commonResp *CommonResponseResult) (*PutRecordsResult, error) {
 	prr := &PutRecordsResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -353,7 +409,7 @@ func NewPutRecordsResult(data []byte, commonResp *CommonResponseResult) (*PutRec
 	return prr, nil
 }
 
-func NewPutPBRecordsResult(data []byte, commonResp *CommonResponseResult) (*PutRecordsResult, error) {
+func newPutPBRecordsResult(data []byte, commonResp *CommonResponseResult) (*PutRecordsResult, error) {
 	pr := &PutRecordsResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -383,7 +439,7 @@ type PutRecordsByShardResult struct {
 	CommonResponseResult
 }
 
-func NewPutRecordsByShardResult(commonResp *CommonResponseResult) (*PutRecordsByShardResult, error) {
+func newPutRecordsByShardResult(commonResp *CommonResponseResult) (*PutRecordsByShardResult, error) {
 	prbs := &PutRecordsByShardResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -409,12 +465,12 @@ func (grr *GetRecordsResult) UnmarshalJSON(data []byte) error {
 		LatestSequence int64  `json:"LatestSeq"`
 		LatestTime     int64  `json:"LatestTime"`
 		Records        []*struct {
-			SystemTime    int64                  `json:"SystemTime"`
-			NextCursor    string                 `json:"NextCursor"`
-			CurrentCursor string                 `json:"Cursor"`
-			Sequence      int64                  `json:"Sequence"`
-			Attributes    map[string]interface{} `json:"Attributes"`
-			Data          interface{}            `json:"Data"`
+			SystemTime    int64             `json:"SystemTime"`
+			NextCursor    string            `json:"NextCursor"`
+			CurrentCursor string            `json:"Cursor"`
+			Sequence      int64             `json:"Sequence"`
+			Attributes    map[string]string `json:"Attributes"`
+			Data          interface{}       `json:"Data"`
 		} `json:"Records"`
 	}{}
 	err := json.Unmarshal(data, msg)
@@ -437,13 +493,13 @@ func (grr *GetRecordsResult) UnmarshalJSON(data []byte) error {
 			if grr.RecordSchema == nil {
 				return fmt.Errorf("tuple record type must set record schema")
 			}
-			grr.Records[idx] = NewTupleRecord(grr.RecordSchema, record.SystemTime)
+			grr.Records[idx] = NewTupleRecord(grr.RecordSchema)
 		case string:
-			grr.Records[idx] = NewBlobRecord([]byte(dt), record.SystemTime)
+			grr.Records[idx] = NewBlobRecord([]byte(dt))
 		default:
 			return fmt.Errorf("illegal record data type[%T]", dt)
 		}
-		if err := grr.Records[idx].FillData(record.Data); err != nil {
+		if err := grr.Records[idx].fillData(record.Data); err != nil {
 			return err
 		}
 		for key, val := range record.Attributes {
@@ -461,7 +517,7 @@ func (grr *GetRecordsResult) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func NewGetRecordsResult(data []byte, schema *RecordSchema, commonResp *CommonResponseResult) (*GetRecordsResult, error) {
+func newGetRecordsResult(data []byte, schema *RecordSchema, commonResp *CommonResponseResult) (*GetRecordsResult, error) {
 	grr := &GetRecordsResult{
 		CommonResponseResult: *commonResp,
 		RecordSchema:         schema,
@@ -472,7 +528,7 @@ func NewGetRecordsResult(data []byte, schema *RecordSchema, commonResp *CommonRe
 	return grr, nil
 }
 
-func NewGetPBRecordsResult(data []byte, schema *RecordSchema, commonResp *CommonResponseResult) (*GetRecordsResult, error) {
+func newGetPBRecordsResult(data []byte, schema *RecordSchema, commonResp *CommonResponseResult) (*GetRecordsResult, error) {
 	data, err := util.UnwrapMessage(data)
 	if err != nil {
 		return nil, err
@@ -505,13 +561,13 @@ func NewGetPBRecordsResult(data []byte, schema *RecordSchema, commonResp *Common
 			for idx, record := range grr.Records {
 				//Tuple topic
 				if result.RecordSchema != nil {
-					tr := NewTupleRecord(result.RecordSchema, *record.SystemTime)
+					tr := NewTupleRecord(result.RecordSchema)
 					if err := fillTupleData(tr, record); err != nil {
 						return nil, err
 					}
 					result.Records[idx] = tr
 				} else {
-					br := NewBlobRecord(record.Data.Data[0].Value, *record.SystemTime)
+					br := NewBlobRecord(record.Data.Data[0].Value)
 					if err := fillBlobData(br, record); err != nil {
 						return nil, err
 					}
@@ -595,7 +651,7 @@ func fillBlobData(br *BlobRecord, recordEntry *pbmodel.RecordEntry) error {
 	return nil
 }
 
-func NewGetBatchRecordsResult(data []byte, schema *RecordSchema, commonResp *CommonResponseResult, deserializer *batchDeserializer) (*GetRecordsResult, error) {
+func newGetBatchRecordsResult(data []byte, schema *RecordSchema, commonResp *CommonResponseResult, deserializer *batchDeserializer) (*GetRecordsResult, error) {
 	data, err := util.UnwrapMessage(data)
 	if err != nil {
 		return nil, err
@@ -652,7 +708,7 @@ type AppendFieldResult struct {
 	CommonResponseResult
 }
 
-func NewAppendFieldResult(commonResp *CommonResponseResult) (*AppendFieldResult, error) {
+func newAppendFieldResult(commonResp *CommonResponseResult) (*AppendFieldResult, error) {
 	afr := &AppendFieldResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -665,7 +721,7 @@ type GetMeterInfoResult struct {
 	Storage    int64 `json:"Storage"`
 }
 
-func NewGetMeterInfoResult(data []byte, commonResp *CommonResponseResult) (*GetMeterInfoResult, error) {
+func newGetMeterInfoResult(data []byte, commonResp *CommonResponseResult) (*GetMeterInfoResult, error) {
 	gmir := &GetMeterInfoResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -680,7 +736,7 @@ type ListConnectorResult struct {
 	ConnectorIds []string `json:"Connectors"`
 }
 
-func NewListConnectorResult(data []byte, commonResp *CommonResponseResult) (*ListConnectorResult, error) {
+func newListConnectorResult(data []byte, commonResp *CommonResponseResult) (*ListConnectorResult, error) {
 	lcr := &ListConnectorResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -695,7 +751,7 @@ type CreateConnectorResult struct {
 	ConnectorId string `json:"ConnectorId"`
 }
 
-func NewCreateConnectorResult(data []byte, commonResp *CommonResponseResult) (*CreateConnectorResult, error) {
+func newCreateConnectorResult(data []byte, commonResp *CommonResponseResult) (*CreateConnectorResult, error) {
 	ccr := &CreateConnectorResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -709,7 +765,7 @@ type UpdateConnectorResult struct {
 	CommonResponseResult
 }
 
-func NewUpdateConnectorResult(commonResp *CommonResponseResult) (*UpdateConnectorResult, error) {
+func newUpdateConnectorResult(commonResp *CommonResponseResult) (*UpdateConnectorResult, error) {
 	ucr := &UpdateConnectorResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -720,7 +776,7 @@ type DeleteConnectorResult struct {
 	CommonResponseResult
 }
 
-func NewDeleteConnectorResult(commonResp *CommonResponseResult) (*DeleteConnectorResult, error) {
+func newDeleteConnectorResult(commonResp *CommonResponseResult) (*DeleteConnectorResult, error) {
 	dcr := &DeleteConnectorResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -742,7 +798,7 @@ type GetConnectorResult struct {
 	Config         interface{}       `json:"Config"`
 }
 
-func NewGetConnectorResult(data []byte, commonResp *CommonResponseResult) (*GetConnectorResult, error) {
+func newGetConnectorResult(data []byte, commonResp *CommonResponseResult) (*GetConnectorResult, error) {
 	cType := &struct {
 		Type ConnectorType `json:"Type"`
 	}{}
@@ -781,7 +837,7 @@ type GetConnectorDoneTimeResult struct {
 	TimeWindow int    `json:"TimeWindow"`
 }
 
-func NewGetConnectorDoneTimeResult(data []byte, commonResp *CommonResponseResult) (*GetConnectorDoneTimeResult, error) {
+func newGetConnectorDoneTimeResult(data []byte, commonResp *CommonResponseResult) (*GetConnectorDoneTimeResult, error) {
 	gcdt := &GetConnectorDoneTimeResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -796,7 +852,7 @@ type GetConnectorShardStatusResult struct {
 	ShardStatus map[string]ConnectorShardStatusEntry `json:"ShardStatusInfos"`
 }
 
-func NewGetConnectorShardStatusResult(data []byte, commonResp *CommonResponseResult) (*GetConnectorShardStatusResult, error) {
+func newGetConnectorShardStatusResult(data []byte, commonResp *CommonResponseResult) (*GetConnectorShardStatusResult, error) {
 	gcss := &GetConnectorShardStatusResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -811,7 +867,7 @@ type GetConnectorShardStatusByShardResult struct {
 	ConnectorShardStatusEntry
 }
 
-func NewGetConnectorShardStatusByShardResult(data []byte, commonResp *CommonResponseResult) (*GetConnectorShardStatusByShardResult, error) {
+func newGetConnectorShardStatusByShardResult(data []byte, commonResp *CommonResponseResult) (*GetConnectorShardStatusByShardResult, error) {
 	csse := &ConnectorShardStatusEntry{}
 	if err := json.Unmarshal(data, csse); err != nil {
 		return nil, err
@@ -828,7 +884,7 @@ type ReloadConnectorResult struct {
 	CommonResponseResult
 }
 
-func NewReloadConnectorResult(commonResp *CommonResponseResult) (*ReloadConnectorResult, error) {
+func newReloadConnectorResult(commonResp *CommonResponseResult) (*ReloadConnectorResult, error) {
 	rcr := &ReloadConnectorResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -839,7 +895,7 @@ type ReloadConnectorByShardResult struct {
 	CommonResponseResult
 }
 
-func NewReloadConnectorByShardResult(commonResp *CommonResponseResult) (*ReloadConnectorByShardResult, error) {
+func newReloadConnectorByShardResult(commonResp *CommonResponseResult) (*ReloadConnectorByShardResult, error) {
 	rcsr := &ReloadConnectorByShardResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -850,7 +906,7 @@ type UpdateConnectorStateResult struct {
 	CommonResponseResult
 }
 
-func NewUpdateConnectorStateResult(commonResp *CommonResponseResult) (*UpdateConnectorStateResult, error) {
+func newUpdateConnectorStateResult(commonResp *CommonResponseResult) (*UpdateConnectorStateResult, error) {
 	ucsr := &UpdateConnectorStateResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -861,7 +917,7 @@ type UpdateConnectorOffsetResult struct {
 	CommonResponseResult
 }
 
-func NewUpdateConnectorOffsetResult(commonResp *CommonResponseResult) (*UpdateConnectorOffsetResult, error) {
+func newUpdateConnectorOffsetResult(commonResp *CommonResponseResult) (*UpdateConnectorOffsetResult, error) {
 	ucor := &UpdateConnectorOffsetResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -872,7 +928,7 @@ type AppendConnectorFieldResult struct {
 	CommonResponseResult
 }
 
-func NewAppendConnectorFieldResult(commonResp *CommonResponseResult) (*AppendConnectorFieldResult, error) {
+func newAppendConnectorFieldResult(commonResp *CommonResponseResult) (*AppendConnectorFieldResult, error) {
 	acfr := &AppendConnectorFieldResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -885,7 +941,7 @@ type ListSubscriptionResult struct {
 	Subscriptions []SubscriptionEntry `json:"Subscriptions"`
 }
 
-func NewListSubscriptionResult(data []byte, commonResp *CommonResponseResult) (*ListSubscriptionResult, error) {
+func newListSubscriptionResult(data []byte, commonResp *CommonResponseResult) (*ListSubscriptionResult, error) {
 	lsr := &ListSubscriptionResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -900,7 +956,7 @@ type CreateSubscriptionResult struct {
 	SubId string `json:"SubId"`
 }
 
-func NewCreateSubscriptionResult(data []byte, commonResp *CommonResponseResult) (*CreateSubscriptionResult, error) {
+func newCreateSubscriptionResult(data []byte, commonResp *CommonResponseResult) (*CreateSubscriptionResult, error) {
 	csr := &CreateSubscriptionResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -914,7 +970,7 @@ type UpdateSubscriptionResult struct {
 	CommonResponseResult
 }
 
-func NewUpdateSubscriptionResult(commonResp *CommonResponseResult) (*UpdateSubscriptionResult, error) {
+func newUpdateSubscriptionResult(commonResp *CommonResponseResult) (*UpdateSubscriptionResult, error) {
 	usr := &UpdateSubscriptionResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -925,7 +981,7 @@ type DeleteSubscriptionResult struct {
 	CommonResponseResult
 }
 
-func NewDeleteSubscriptionResult(commonResp *CommonResponseResult) (*DeleteSubscriptionResult, error) {
+func newDeleteSubscriptionResult(commonResp *CommonResponseResult) (*DeleteSubscriptionResult, error) {
 	dsr := &DeleteSubscriptionResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -937,7 +993,7 @@ type GetSubscriptionResult struct {
 	SubscriptionEntry
 }
 
-func NewGetSubscriptionResult(data []byte, commonResp *CommonResponseResult) (*GetSubscriptionResult, error) {
+func newGetSubscriptionResult(data []byte, commonResp *CommonResponseResult) (*GetSubscriptionResult, error) {
 	gsr := &GetSubscriptionResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -951,7 +1007,7 @@ type UpdateSubscriptionStateResult struct {
 	CommonResponseResult
 }
 
-func NewUpdateSubscriptionStateResult(commonResp *CommonResponseResult) (*UpdateSubscriptionStateResult, error) {
+func newUpdateSubscriptionStateResult(commonResp *CommonResponseResult) (*UpdateSubscriptionStateResult, error) {
 	ussr := &UpdateSubscriptionStateResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -963,7 +1019,7 @@ type OpenSubscriptionSessionResult struct {
 	Offsets map[string]SubscriptionOffset `json:"Offsets"`
 }
 
-func NewOpenSubscriptionSessionResult(data []byte, commonResp *CommonResponseResult) (*OpenSubscriptionSessionResult, error) {
+func newOpenSubscriptionSessionResult(data []byte, commonResp *CommonResponseResult) (*OpenSubscriptionSessionResult, error) {
 	ossr := &OpenSubscriptionSessionResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -978,7 +1034,7 @@ type GetSubscriptionOffsetResult struct {
 	Offsets map[string]SubscriptionOffset `json:"Offsets"`
 }
 
-func NewGetSubscriptionOffsetResult(data []byte, commonResp *CommonResponseResult) (*GetSubscriptionOffsetResult, error) {
+func newGetSubscriptionOffsetResult(data []byte, commonResp *CommonResponseResult) (*GetSubscriptionOffsetResult, error) {
 	gsor := &GetSubscriptionOffsetResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -992,7 +1048,7 @@ type CommitSubscriptionOffsetResult struct {
 	CommonResponseResult
 }
 
-func NewCommitSubscriptionOffsetResult(commonResp *CommonResponseResult) (*CommitSubscriptionOffsetResult, error) {
+func newCommitSubscriptionOffsetResult(commonResp *CommonResponseResult) (*CommitSubscriptionOffsetResult, error) {
 	csor := &CommitSubscriptionOffsetResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -1003,7 +1059,7 @@ type ResetSubscriptionOffsetResult struct {
 	CommonResponseResult
 }
 
-func NewResetSubscriptionOffsetResult(commonResp *CommonResponseResult) (*ResetSubscriptionOffsetResult, error) {
+func newResetSubscriptionOffsetResult(commonResp *CommonResponseResult) (*ResetSubscriptionOffsetResult, error) {
 	rsor := &ResetSubscriptionOffsetResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -1017,7 +1073,7 @@ type HeartbeatResult struct {
 	TotalPlan   string   `json:"TotalPlan"`
 }
 
-func NewHeartbeatResult(data []byte, commonResp *CommonResponseResult) (*HeartbeatResult, error) {
+func newHeartbeatResult(data []byte, commonResp *CommonResponseResult) (*HeartbeatResult, error) {
 	hr := &HeartbeatResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -1034,7 +1090,7 @@ type JoinGroupResult struct {
 	SessionTimeout int64  `json:"SessionTimeout"`
 }
 
-func NewJoinGroupResult(data []byte, commonResp *CommonResponseResult) (*JoinGroupResult, error) {
+func newJoinGroupResult(data []byte, commonResp *CommonResponseResult) (*JoinGroupResult, error) {
 	jgr := &JoinGroupResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -1048,7 +1104,7 @@ type SyncGroupResult struct {
 	CommonResponseResult
 }
 
-func NewSyncGroupResult(commonResp *CommonResponseResult) (*SyncGroupResult, error) {
+func newSyncGroupResult(commonResp *CommonResponseResult) (*SyncGroupResult, error) {
 	sgr := &SyncGroupResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -1059,7 +1115,7 @@ type LeaveGroupResult struct {
 	CommonResponseResult
 }
 
-func NewLeaveGroupResult(commonResp *CommonResponseResult) (*LeaveGroupResult, error) {
+func newLeaveGroupResult(commonResp *CommonResponseResult) (*LeaveGroupResult, error) {
 	lgr := &LeaveGroupResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -1104,7 +1160,7 @@ func (gtr *ListTopicSchemaResult) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func NewListTopicSchemaResult(data []byte, commonResp *CommonResponseResult) (*ListTopicSchemaResult, error) {
+func newListTopicSchemaResult(data []byte, commonResp *CommonResponseResult) (*ListTopicSchemaResult, error) {
 	ret := &ListTopicSchemaResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -1143,7 +1199,7 @@ func (gtr *GetTopicSchemaResult) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func NewGetTopicSchemaResult(data []byte, commonResp *CommonResponseResult) (*GetTopicSchemaResult, error) {
+func newGetTopicSchemaResult(data []byte, commonResp *CommonResponseResult) (*GetTopicSchemaResult, error) {
 	ret := &GetTopicSchemaResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -1158,7 +1214,7 @@ type RegisterTopicSchemaResult struct {
 	VersionId int `json:"VersionId"`
 }
 
-func NewRegisterTopicSchemaResult(data []byte, commonResp *CommonResponseResult) (*RegisterTopicSchemaResult, error) {
+func newRegisterTopicSchemaResult(data []byte, commonResp *CommonResponseResult) (*RegisterTopicSchemaResult, error) {
 	ret := &RegisterTopicSchemaResult{
 		CommonResponseResult: *commonResp,
 	}
@@ -1172,7 +1228,7 @@ type DeleteTopicSchemaResult struct {
 	CommonResponseResult
 }
 
-func NewDeleteTopicSchemaResult(commonResp *CommonResponseResult) (*DeleteTopicSchemaResult, error) {
+func newDeleteTopicSchemaResult(commonResp *CommonResponseResult) (*DeleteTopicSchemaResult, error) {
 	ret := &DeleteTopicSchemaResult{
 		CommonResponseResult: *commonResp,
 	}

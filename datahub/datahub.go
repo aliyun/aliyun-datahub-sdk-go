@@ -6,7 +6,7 @@ func NewClientWithConfig(endpoint string, config *Config, account Account) DataH
 		config.HttpClient = DefaultHttpClient()
 	}
 	if !validateCompressorType(config.CompressorType) {
-		config.CompressorType = NOCOMPRESS
+		config.CompressorType = LZ4
 	}
 
 	dh := &DataHub{
@@ -15,7 +15,7 @@ func NewClientWithConfig(endpoint string, config *Config, account Account) DataH
 		cType: config.CompressorType,
 	}
 
-	if config.EnableSchemaRegistry {
+	if config.Protocol == Batch {
 		dh.schemaClient = NewSchemaClient(dh)
 
 		// compress data in batch record, no need to compress http body
@@ -27,12 +27,8 @@ func NewClientWithConfig(endpoint string, config *Config, account Account) DataH
 			DataHub: *dh,
 		}
 	} else {
-		if config.EnableBinary {
-			return &DataHubPB{
-				DataHub: *dh,
-			}
-		} else {
-			return dh
+		return &DataHubPB{
+			DataHub: *dh,
 		}
 	}
 }
@@ -44,8 +40,7 @@ func New(accessId, accessKey, endpoint string) DataHubApi {
 
 func NewBatchClient(accessId, accessKey, endpoint string) DataHubApi {
 	config := NewDefaultConfig()
-	config.EnableSchemaRegistry = true
-	config.CompressorType = LZ4
+	config.Protocol = Batch
 	return NewClientWithConfig(endpoint, config, NewAliyunAccount(accessId, accessKey))
 }
 

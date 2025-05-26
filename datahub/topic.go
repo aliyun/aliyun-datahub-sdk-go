@@ -33,7 +33,7 @@ func NewRecordSchemaFromJson(SchemaJson string) (recordSchema *RecordSchema, err
 	}
 	for _, v := range recordSchema.Fields {
 		if !validateFieldType(v.Type) {
-			panic(fmt.Sprintf("field type %q illegal", v.Type))
+			return nil, fmt.Errorf("field type %q illegal", v.Type)
 		}
 	}
 	return
@@ -49,7 +49,9 @@ func (rs *RecordSchema) UnmarshalJSON(data []byte) error {
 
 	rs.fieldIndexMap = make(map[string]int)
 	for _, v := range schema.Fields {
-		rs.AddField(v)
+		if err := rs.AddField(v); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -78,18 +80,18 @@ func (rs *RecordSchema) String() string {
 }
 
 // AddField add a field
-func (rs *RecordSchema) AddField(f Field) *RecordSchema {
+func (rs *RecordSchema) AddField(f Field) error {
 	if !validateFieldType(f.Type) {
-		panic(fmt.Sprintf("field type %q illegal", f.Type))
+		return fmt.Errorf("field type %q illegal", f.Type)
 	}
 	for _, v := range rs.Fields {
 		if v.Name == f.Name {
-			panic(fmt.Sprintf("field %q duplicated", f.Name))
+			return fmt.Errorf("field %s duplicated", f.Name)
 		}
 	}
 	rs.Fields = append(rs.Fields, f)
 	rs.fieldIndexMap[f.Name] = len(rs.Fields) - 1
-	return rs
+	return nil
 }
 
 // GetFieldIndex get index of given field

@@ -69,44 +69,78 @@ func errorHandler(statusCode int, requestId string, errorCode string, message st
 
 	switch errorCode {
 	case InvalidParameter, InvalidSubscription, InvalidCursor:
-		return NewInvalidParameterError(statusCode, requestId, errorCode, message)
+		return newInvalidParameterError(statusCode, requestId, errorCode, message)
 	case ResourceNotFound, NoSuchTopic, NoSuchProject, NoSuchSubscription, NoSuchShard, NoSuchConnector,
 		NoSuchMeterInfo, NoSuchConsumer:
-		return NewResourceNotFoundError(statusCode, requestId, errorCode, message)
+		return newResourceNotFoundError(statusCode, requestId, errorCode, message)
 	case SeekOutOfRange:
-		return NewSeekOutOfRangeError(statusCode, requestId, errorCode, message)
+		return newSeekOutOfRangeError(statusCode, requestId, errorCode, message)
 	case ResourceAlreadyExist, ProjectAlreadyExist, TopicAlreadyExist, ConnectorAlreadyExist:
-		return NewResourceExistError(statusCode, requestId, errorCode, message)
+		return newResourceExistError(statusCode, requestId, errorCode, message)
 	case UnAuthorized:
-		return NewAuthorizationFailedError(statusCode, requestId, errorCode, message)
+		return newAuthorizationFailedError(statusCode, requestId, errorCode, message)
 	case NoPermission:
-		return NewNoPermissionError(statusCode, requestId, errorCode, message)
+		return newNoPermissionError(statusCode, requestId, errorCode, message)
 	case OperatorDenied:
-		return NewInvalidOperationError(statusCode, requestId, errorCode, message)
+		return newInvalidOperationError(statusCode, requestId, errorCode, message)
 	case LimitExceed:
-		return NewLimitExceededError(statusCode, requestId, errorCode, message)
+		return newLimitExceededError(statusCode, requestId, errorCode, message)
 	case SubscriptionOffline:
-		return NewSubscriptionOfflineError(statusCode, requestId, errorCode, message)
+		return newSubscriptionOfflineError(statusCode, requestId, errorCode, message)
 	case OffsetReseted:
-		return NewSubscriptionOffsetResetError(statusCode, requestId, errorCode, message)
+		return newSubscriptionOffsetResetError(statusCode, requestId, errorCode, message)
 	case OffsetSessionClosed, OffsetSessionChanged:
-		return NewSubscriptionSessionInvalidError(statusCode, requestId, errorCode, message)
+		return newSubscriptionSessionInvalidError(statusCode, requestId, errorCode, message)
 	case MalformedRecord:
-		return NewMalformedRecordError(statusCode, requestId, errorCode, message)
+		return newMalformedRecordError(statusCode, requestId, errorCode, message)
 	case ConsumerGroupInProcess:
-		return NewServiceInProcessError(statusCode, requestId, errorCode, message)
+		return newServiceInProcessError(statusCode, requestId, errorCode, message)
 	case InvalidShardOperation:
-		return NewShardSealedError(statusCode, requestId, errorCode, message)
+		return newShardSealedError(statusCode, requestId, errorCode, message)
 	}
-	return NewDatahubClientError(statusCode, requestId, errorCode, message)
+	return NewDatahubError(statusCode, requestId, errorCode, message)
+}
+
+func IsNetworkError(err error) bool {
+	_, ok := err.(*NetworkError)
+	return ok
+}
+
+func IsDataHubError(err error) bool {
+	_, ok := err.(*DatahubError)
+	return ok
+}
+
+func IsLimitExceedError(err error) bool {
+	_, ok := err.(*LimitExceededError)
+	return ok
+}
+
+func IsShardSealedError(err error) bool {
+	_, ok := err.(*ShardSealedError)
+	return ok
+}
+
+func IsRetryableError(err error) bool {
+	switch err.(type) {
+	case *InvalidParameterError, *ResourceNotFoundError, *ResourceExistError, *InvalidOperationError,
+		*AuthorizationFailedError, *NoPermissionError, *SeekOutOfRangeError, *SubscriptionOfflineError,
+		*SubscriptionOffsetResetError, *SubscriptionSessionInvalidError, *MalformedRecordError,
+		*ShardSealedError:
+		return false
+	case *NetworkError, *DatahubError, *LimitExceededError, *ServiceInProcessError:
+		return true
+	default:
+		return true
+	}
 }
 
 // create a new DatahubClientError
-func NewDatahubClientError(statusCode int, requestId string, code string, message string) *DatahubClientError {
+func newDatahubClientError(statusCode int, requestId string, code string, message string) *DatahubClientError {
 	return &DatahubClientError{StatusCode: statusCode, RequestId: requestId, Code: code, Message: message}
 }
 
-// DatahubError struct
+// Deprecated: Use DatahubError instead.
 type DatahubClientError struct {
 	StatusCode int    `json:"StatusCode"`   // Http status code
 	RequestId  string `json:"RequestId"`    // Request-id to trace the request
@@ -119,9 +153,25 @@ func (err *DatahubClientError) Error() string {
 		err.StatusCode, err.RequestId, err.Code, err.Message)
 }
 
-func NewInvalidParameterErrorWithMessage(message string) *InvalidParameterError {
+func NewDatahubError(statusCode int, requestId string, code string, message string) *DatahubError {
+	return &DatahubError{StatusCode: statusCode, RequestId: requestId, Code: code, Message: message}
+}
+
+type DatahubError struct {
+	StatusCode int    `json:"StatusCode"`   // Http status code
+	RequestId  string `json:"RequestId"`    // Request-id to trace the request
+	Code       string `json:"ErrorCode"`    // Datahub error code
+	Message    string `json:"ErrorMessage"` // Error msg of the error code
+}
+
+func (err *DatahubError) Error() string {
+	return fmt.Sprintf("statusCode: %d, requestId: %s, errCode: %s, errMsg: %s",
+		err.StatusCode, err.RequestId, err.Code, err.Message)
+}
+
+func newInvalidParameterErrorWithMessage(message string) *InvalidParameterError {
 	return &InvalidParameterError{
-		DatahubClientError{
+		DatahubError{
 			StatusCode: -1,
 			RequestId:  "",
 			Code:       "",
@@ -130,9 +180,9 @@ func NewInvalidParameterErrorWithMessage(message string) *InvalidParameterError 
 	}
 }
 
-func NewInvalidParameterError(statusCode int, requestId string, code string, message string) *InvalidParameterError {
+func newInvalidParameterError(statusCode int, requestId string, code string, message string) *InvalidParameterError {
 	return &InvalidParameterError{
-		DatahubClientError{
+		DatahubError{
 			StatusCode: statusCode,
 			RequestId:  requestId,
 			Code:       code,
@@ -143,12 +193,12 @@ func NewInvalidParameterError(statusCode int, requestId string, code string, mes
 
 // InvalidParameterError represent the parameter error
 type InvalidParameterError struct {
-	DatahubClientError
+	DatahubError
 }
 
-func NewResourceNotFoundError(statusCode int, requestId string, code string, message string) *ResourceNotFoundError {
+func newResourceNotFoundError(statusCode int, requestId string, code string, message string) *ResourceNotFoundError {
 	return &ResourceNotFoundError{
-		DatahubClientError{
+		DatahubError{
 			StatusCode: statusCode,
 			RequestId:  requestId,
 			Code:       code,
@@ -158,12 +208,12 @@ func NewResourceNotFoundError(statusCode int, requestId string, code string, mes
 }
 
 type ResourceNotFoundError struct {
-	DatahubClientError
+	DatahubError
 }
 
-func NewResourceExistError(statusCode int, requestId string, code string, message string) *ResourceExistError {
+func newResourceExistError(statusCode int, requestId string, code string, message string) *ResourceExistError {
 	return &ResourceExistError{
-		DatahubClientError{
+		DatahubError{
 			StatusCode: statusCode,
 			RequestId:  requestId,
 			Code:       code,
@@ -173,12 +223,12 @@ func NewResourceExistError(statusCode int, requestId string, code string, messag
 }
 
 type ResourceExistError struct {
-	DatahubClientError
+	DatahubError
 }
 
-func NewInvalidOperationError(statusCode int, requestId string, code string, message string) *InvalidOperationError {
+func newInvalidOperationError(statusCode int, requestId string, code string, message string) *InvalidOperationError {
 	return &InvalidOperationError{
-		DatahubClientError{
+		DatahubError{
 			StatusCode: statusCode,
 			RequestId:  requestId,
 			Code:       code,
@@ -188,12 +238,12 @@ func NewInvalidOperationError(statusCode int, requestId string, code string, mes
 }
 
 type InvalidOperationError struct {
-	DatahubClientError
+	DatahubError
 }
 
-func NewLimitExceededError(statusCode int, requestId string, code string, message string) *LimitExceededError {
+func newLimitExceededError(statusCode int, requestId string, code string, message string) *LimitExceededError {
 	return &LimitExceededError{
-		DatahubClientError{
+		DatahubError{
 			StatusCode: statusCode,
 			RequestId:  requestId,
 			Code:       code,
@@ -203,12 +253,12 @@ func NewLimitExceededError(statusCode int, requestId string, code string, messag
 }
 
 type LimitExceededError struct {
-	DatahubClientError
+	DatahubError
 }
 
-func NewAuthorizationFailedError(statusCode int, requestId string, code string, message string) *AuthorizationFailedError {
+func newAuthorizationFailedError(statusCode int, requestId string, code string, message string) *AuthorizationFailedError {
 	return &AuthorizationFailedError{
-		DatahubClientError{
+		DatahubError{
 			StatusCode: statusCode,
 			RequestId:  requestId,
 			Code:       code,
@@ -218,16 +268,12 @@ func NewAuthorizationFailedError(statusCode int, requestId string, code string, 
 }
 
 type AuthorizationFailedError struct {
-	DatahubClientError
+	DatahubError
 }
 
-//func (afe *AuthorizationFailureError) Error() string {
-//    return afe.DatahubClientError.Error()
-//}
-
-func NewNoPermissionError(statusCode int, requestId string, code string, message string) *NoPermissionError {
+func newNoPermissionError(statusCode int, requestId string, code string, message string) *NoPermissionError {
 	return &NoPermissionError{
-		DatahubClientError{
+		DatahubError{
 			StatusCode: statusCode,
 			RequestId:  requestId,
 			Code:       code,
@@ -237,12 +283,12 @@ func NewNoPermissionError(statusCode int, requestId string, code string, message
 }
 
 type NoPermissionError struct {
-	DatahubClientError
+	DatahubError
 }
 
-func NewSeekOutOfRangeError(statusCode int, requestId string, code string, message string) *SeekOutOfRangeError {
+func newSeekOutOfRangeError(statusCode int, requestId string, code string, message string) *SeekOutOfRangeError {
 	return &SeekOutOfRangeError{
-		DatahubClientError{
+		DatahubError{
 			StatusCode: statusCode,
 			RequestId:  requestId,
 			Code:       code,
@@ -252,12 +298,12 @@ func NewSeekOutOfRangeError(statusCode int, requestId string, code string, messa
 }
 
 type SeekOutOfRangeError struct {
-	DatahubClientError
+	DatahubError
 }
 
-func NewSubscriptionOfflineError(statusCode int, requestId string, code string, message string) *SubscriptionOfflineError {
+func newSubscriptionOfflineError(statusCode int, requestId string, code string, message string) *SubscriptionOfflineError {
 	return &SubscriptionOfflineError{
-		DatahubClientError{
+		DatahubError{
 			StatusCode: statusCode,
 			RequestId:  requestId,
 			Code:       code,
@@ -267,12 +313,12 @@ func NewSubscriptionOfflineError(statusCode int, requestId string, code string, 
 }
 
 type SubscriptionOfflineError struct {
-	DatahubClientError
+	DatahubError
 }
 
-func NewSubscriptionOffsetResetError(statusCode int, requestId string, code string, message string) *SubscriptionOffsetResetError {
+func newSubscriptionOffsetResetError(statusCode int, requestId string, code string, message string) *SubscriptionOffsetResetError {
 	return &SubscriptionOffsetResetError{
-		DatahubClientError{
+		DatahubError{
 			StatusCode: statusCode,
 			RequestId:  requestId,
 			Code:       code,
@@ -282,12 +328,12 @@ func NewSubscriptionOffsetResetError(statusCode int, requestId string, code stri
 }
 
 type SubscriptionOffsetResetError struct {
-	DatahubClientError
+	DatahubError
 }
 
-func NewSubscriptionSessionInvalidError(statusCode int, requestId string, code string, message string) *SubscriptionSessionInvalidError {
+func newSubscriptionSessionInvalidError(statusCode int, requestId string, code string, message string) *SubscriptionSessionInvalidError {
 	return &SubscriptionSessionInvalidError{
-		DatahubClientError{
+		DatahubError{
 			StatusCode: statusCode,
 			RequestId:  requestId,
 			Code:       code,
@@ -297,12 +343,12 @@ func NewSubscriptionSessionInvalidError(statusCode int, requestId string, code s
 }
 
 type SubscriptionSessionInvalidError struct {
-	DatahubClientError
+	DatahubError
 }
 
-func NewMalformedRecordError(statusCode int, requestId string, code string, message string) *MalformedRecordError {
+func newMalformedRecordError(statusCode int, requestId string, code string, message string) *MalformedRecordError {
 	return &MalformedRecordError{
-		DatahubClientError{
+		DatahubError{
 			StatusCode: statusCode,
 			RequestId:  requestId,
 			Code:       code,
@@ -312,12 +358,12 @@ func NewMalformedRecordError(statusCode int, requestId string, code string, mess
 }
 
 type MalformedRecordError struct {
-	DatahubClientError
+	DatahubError
 }
 
-func NewServiceInProcessError(statusCode int, requestId string, code string, message string) *ServiceInProcessError {
+func newServiceInProcessError(statusCode int, requestId string, code string, message string) *ServiceInProcessError {
 	return &ServiceInProcessError{
-		DatahubClientError{
+		DatahubError{
 			StatusCode: statusCode,
 			RequestId:  requestId,
 			Code:       code,
@@ -327,12 +373,12 @@ func NewServiceInProcessError(statusCode int, requestId string, code string, mes
 }
 
 type ServiceInProcessError struct {
-	DatahubClientError
+	DatahubError
 }
 
-func NewShardSealedError(statusCode int, requestId string, code string, message string) *ShardSealedError {
+func newShardSealedError(statusCode int, requestId string, code string, message string) *ShardSealedError {
 	return &ShardSealedError{
-		DatahubClientError{
+		DatahubError{
 			StatusCode: statusCode,
 			RequestId:  requestId,
 			Code:       code,
@@ -342,12 +388,12 @@ func NewShardSealedError(statusCode int, requestId string, code string, message 
 }
 
 type ShardSealedError struct {
-	DatahubClientError
+	DatahubError
 }
 
-func NewServiceTemporaryUnavailableError(message string) *ServiceTemporaryUnavailableError {
+func newServiceTemporaryUnavailableError(message string) *ServiceTemporaryUnavailableError {
 	return &ServiceTemporaryUnavailableError{
-		DatahubClientError{
+		DatahubError{
 			StatusCode: -1,
 			RequestId:  "",
 			Code:       "",
@@ -356,9 +402,9 @@ func NewServiceTemporaryUnavailableError(message string) *ServiceTemporaryUnavai
 	}
 }
 
-func NewServiceTemporaryUnavailableErrorWithCode(statusCode int, requestId string, code string, message string) *ServiceTemporaryUnavailableError {
+func newServiceTemporaryUnavailableErrorWithCode(statusCode int, requestId string, code string, message string) *ServiceTemporaryUnavailableError {
 	return &ServiceTemporaryUnavailableError{
-		DatahubClientError{
+		DatahubError{
 			StatusCode: statusCode,
 			RequestId:  requestId,
 			Code:       code,
@@ -368,5 +414,19 @@ func NewServiceTemporaryUnavailableErrorWithCode(statusCode int, requestId strin
 }
 
 type ServiceTemporaryUnavailableError struct {
-	DatahubClientError
+	DatahubError
+}
+
+func newNetworkError(err error) *NetworkError {
+	return &NetworkError{
+		oriErr: err,
+	}
+}
+
+type NetworkError struct {
+	oriErr error
+}
+
+func (ne *NetworkError) Error() string {
+	return ne.oriErr.Error()
 }

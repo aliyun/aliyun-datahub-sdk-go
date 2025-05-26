@@ -166,7 +166,7 @@ type SinkOdpsConfig struct {
 func marshalCreateOdpsConnector(ccr *CreateConnectorRequest) ([]byte, error) {
 	soConf, ok := ccr.Config.(SinkOdpsConfig)
 	if !ok {
-		return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkOdpsConfig", reflect.TypeOf(ccr.Config)))
+		return nil, newInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkOdpsConfig", reflect.TypeOf(ccr.Config)))
 	}
 
 	// set default value
@@ -237,7 +237,7 @@ func marshalUpdateConnector(ucr *UpdateConnectorRequest) ([]byte, error) {
 func marshalUpdateOdpsConnector(ucr *UpdateConnectorRequest) ([]byte, error) {
 	soConf, ok := ucr.Config.(SinkOdpsConfig)
 	if !ok {
-		return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkOdpsConfig", reflect.TypeOf(ucr.Config)))
+		return nil, newInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkOdpsConfig", reflect.TypeOf(ucr.Config)))
 	}
 
 	// set default value
@@ -276,7 +276,7 @@ type SinkOssConfig struct {
 func marshalCreateOssConnector(ccr *CreateConnectorRequest) ([]byte, error) {
 	soConf, ok := ccr.Config.(SinkOssConfig)
 	if !ok {
-		return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkOssConfig", reflect.TypeOf(ccr.Config)))
+		return nil, newInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkOssConfig", reflect.TypeOf(ccr.Config)))
 	}
 
 	// set default value
@@ -332,7 +332,7 @@ func unmarshalGetOssConnector(commonResp *CommonResponseResult, data []byte) (*G
 func marshalUpdateOssConnector(ucr *UpdateConnectorRequest) ([]byte, error) {
 	soConf, ok := ucr.Config.(SinkOssConfig)
 	if !ok {
-		return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkOssConfig", reflect.TypeOf(ucr.Config)))
+		return nil, newInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkOssConfig", reflect.TypeOf(ucr.Config)))
 	}
 
 	// set default value
@@ -376,7 +376,7 @@ const (
 func marshalCreateMysqlConnector(ccr *CreateConnectorRequest) ([]byte, error) {
 	soConf, ok := ccr.Config.(SinkMysqlConfig)
 	if !ok {
-		return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkMysqlConfig", reflect.TypeOf(ccr.Config)))
+		return nil, newInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkMysqlConfig", reflect.TypeOf(ccr.Config)))
 	}
 
 	// set default value
@@ -426,7 +426,7 @@ func unmarshalGetMysqlConnector(commonResp *CommonResponseResult, data []byte) (
 func marshalUpdateMysqlConnector(ucr *UpdateConnectorRequest) ([]byte, error) {
 	soConf, ok := ucr.Config.(SinkMysqlConfig)
 	if !ok {
-		return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkMysqlConfig", reflect.TypeOf(ucr.Config)))
+		return nil, newInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkMysqlConfig", reflect.TypeOf(ucr.Config)))
 	}
 
 	// set default value
@@ -456,7 +456,7 @@ type SinkAdsConfig struct {
 func marshalCreateAdsConnector(ccr *CreateConnectorRequest) ([]byte, error) {
 	soConf, ok := ccr.Config.(SinkAdsConfig)
 	if !ok {
-		return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkAdsConfig", reflect.TypeOf(ccr.Config)))
+		return nil, newInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkAdsConfig", reflect.TypeOf(ccr.Config)))
 	}
 
 	// set default value
@@ -501,7 +501,7 @@ func unmarshalGetAdsConnector(commonResp *CommonResponseResult, data []byte) (*G
 func marshalUpdateAdsConnector(ucr *UpdateConnectorRequest) ([]byte, error) {
 	soConf, ok := ucr.Config.(SinkAdsConfig)
 	if !ok {
-		return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkAdsConfig", reflect.TypeOf(ucr.Config)))
+		return nil, newInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkAdsConfig", reflect.TypeOf(ucr.Config)))
 	}
 
 	// set default value
@@ -537,7 +537,7 @@ type SinkDatahubConfig struct {
 func marshalCreateDatahubConnector(ccr *CreateConnectorRequest) ([]byte, error) {
 	soConf, ok := ccr.Config.(SinkDatahubConfig)
 	if !ok {
-		return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkDatahubConfig", reflect.TypeOf(ccr.Config)))
+		return nil, newInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkDatahubConfig", reflect.TypeOf(ccr.Config)))
 	}
 
 	// set default value
@@ -582,7 +582,7 @@ func unmarshalGetDatahubConnector(commonResp *CommonResponseResult, data []byte)
 func marshalUpdateDatahubConnector(ucr *UpdateConnectorRequest) ([]byte, error) {
 	soConf, ok := ucr.Config.(SinkDatahubConfig)
 	if !ok {
-		return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkDatahubConfig", reflect.TypeOf(ucr.Config)))
+		return nil, newInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkDatahubConfig", reflect.TypeOf(ucr.Config)))
 	}
 
 	// set default value
@@ -620,7 +620,7 @@ type SinkEsConfig struct {
 func marshalCreateEsConnector(ccr *CreateConnectorRequest) ([]byte, error) {
 	soConf, ok := ccr.Config.(SinkEsConfig)
 	if !ok {
-		return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkEsConfig", reflect.TypeOf(ccr.Config)))
+		return nil, newInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkEsConfig", reflect.TypeOf(ccr.Config)))
 	}
 
 	// set default value
@@ -717,7 +717,7 @@ func unmarshalGetEsConnector(commonResp *CommonResponseResult, data []byte) (*Ge
 func marshalUpdateEsConnector(ucr *UpdateConnectorRequest) ([]byte, error) {
 	soConf, ok := ucr.Config.(SinkEsConfig)
 	if !ok {
-		return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkEsConfig", reflect.TypeOf(ucr.Config)))
+		return nil, newInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkEsConfig", reflect.TypeOf(ucr.Config)))
 	}
 
 	// set default value
@@ -761,7 +761,7 @@ type SinkFcConfig struct {
 func marshalCreateFcConnector(ccr *CreateConnectorRequest) ([]byte, error) {
 	soConf, ok := ccr.Config.(SinkFcConfig)
 	if !ok {
-		return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkFcConfig", reflect.TypeOf(ccr.Config)))
+		return nil, newInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkFcConfig", reflect.TypeOf(ccr.Config)))
 	}
 
 	// set default value
@@ -809,7 +809,7 @@ func unmarshalGetFcConnector(commonResp *CommonResponseResult, data []byte) (*Ge
 func marshalUpdateFcConnector(ucr *UpdateConnectorRequest) ([]byte, error) {
 	soConf, ok := ucr.Config.(SinkFcConfig)
 	if !ok {
-		return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkFcConfig", reflect.TypeOf(ucr.Config)))
+		return nil, newInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkFcConfig", reflect.TypeOf(ucr.Config)))
 	}
 
 	// set default value
@@ -853,7 +853,7 @@ type SinkOtsConfig struct {
 func marshalCreateOtsConnector(ccr *CreateConnectorRequest) ([]byte, error) {
 	soConf, ok := ccr.Config.(SinkOtsConfig)
 	if !ok {
-		return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkOtsConfig", reflect.TypeOf(ccr.Config)))
+		return nil, newInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkOtsConfig", reflect.TypeOf(ccr.Config)))
 	}
 
 	// set default value
@@ -901,7 +901,7 @@ func unmarshalGetOtsConnector(commonResp *CommonResponseResult, data []byte) (*G
 func marshalUpdateOtsConnector(ucr *UpdateConnectorRequest) ([]byte, error) {
 	soConf, ok := ucr.Config.(SinkOtsConfig)
 	if !ok {
-		return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkMysqlConfig", reflect.TypeOf(ucr.Config)))
+		return nil, newInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkMysqlConfig", reflect.TypeOf(ucr.Config)))
 	}
 
 	// set default value
@@ -932,7 +932,7 @@ type SinkHologresConfig struct {
 func marshalCreateHologresConnector(ccr *CreateConnectorRequest) ([]byte, error) {
 	soConf, ok := ccr.Config.(SinkHologresConfig)
 	if !ok {
-		return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkHologresConfig", reflect.TypeOf(ccr.Config)))
+		return nil, newInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkHologresConfig", reflect.TypeOf(ccr.Config)))
 	}
 
 	// set default value
@@ -977,7 +977,7 @@ func unmarshalGetHologresConnector(commonResp *CommonResponseResult, data []byte
 func marshalUpdateHologresConnector(ucr *UpdateConnectorRequest) ([]byte, error) {
 	soConf, ok := ucr.Config.(SinkHologresConfig)
 	if !ok {
-		return nil, NewInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkHologresConfig", reflect.TypeOf(ucr.Config)))
+		return nil, newInvalidParameterErrorWithMessage(fmt.Sprintf("config type error,your input config type is %s,should be SinkHologresConfig", reflect.TypeOf(ucr.Config)))
 	}
 
 	// set default value

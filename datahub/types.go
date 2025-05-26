@@ -79,6 +79,12 @@ func (si Smallint) String() string {
 	return strconv.FormatInt(int64(si), 10)
 }
 
+type Json string
+
+func (j Json) String() string {
+	return string(j)
+}
+
 // FieldType
 type FieldType string
 
@@ -122,12 +128,15 @@ const (
 
 	// 2-byte signed integer
 	SMALLINT FieldType = "SMALLINT"
+
+	// json
+	JSON FieldType = "JSON"
 )
 
 // validateFieldType validate field type
 func validateFieldType(ft FieldType) bool {
 	switch ft {
-	case BIGINT, STRING, BOOLEAN, DOUBLE, TIMESTAMP, DECIMAL, INTEGER, FLOAT, TINYINT, SMALLINT:
+	case BIGINT, STRING, BOOLEAN, DOUBLE, TIMESTAMP, DECIMAL, INTEGER, FLOAT, TINYINT, SMALLINT, JSON:
 		return true
 	default:
 		return false
@@ -332,6 +341,22 @@ func validateFieldValue(ft FieldType, val interface{}) (DataType, error) {
 			return nil, fmt.Errorf("%T exceed the range of TINYINT", val)
 		}
 		return Smallint(realval), nil
+	case JSON:
+		var realval Json
+		switch v := val.(type) {
+		case Json:
+			realval = v
+		case string:
+			realval = Json(v)
+		default:
+			return nil, fmt.Errorf("value type[%T] not match field type[JSON]", val)
+		}
+
+		var js json.RawMessage
+		if err := json.Unmarshal([]byte(realval), &js); err != nil {
+			return nil, fmt.Errorf("invalid json, error:%v", err)
+		}
+		return realval, nil
 	default:
 		return nil, fmt.Errorf("field type[%T] is not illegal", ft)
 	}
@@ -396,6 +421,8 @@ func castValueFromString(str string, ft FieldType) (DataType, error) {
 			return Smallint(v), nil
 		}
 		return nil, err
+	case JSON:
+		return Json(str), nil
 	default:
 		return nil, fmt.Errorf("not support field type %s", string(ft))
 	}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/zlib"
 	"io"
+	"strings"
 
 	"github.com/pierrec/lz4"
 
@@ -41,6 +42,22 @@ func getCompressTypeFromValue(value int) CompressorType {
 	case 3:
 		return ZLIB
 	case 4:
+		return ZSTD
+	default:
+		return NOCOMPRESS
+	}
+}
+
+func parseCompressType(str string) CompressorType {
+	lower := strings.ToLower(str)
+	switch lower {
+	case "lz4":
+		return LZ4
+	case "deflate":
+		return DEFLATE
+	case "zlib":
+		return ZLIB
+	case "zstd":
 		return ZSTD
 	default:
 		return NOCOMPRESS

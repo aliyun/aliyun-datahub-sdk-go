@@ -544,11 +544,7 @@ func (serializer *binaryRecordContextSerializer) dhRecord2BinaryRecord(record IR
 
 	attributes := record.GetAttributes()
 	for key, val := range attributes {
-		strVal, ok := val.(string)
-		if !ok {
-			return nil, fmt.Errorf("attribute only support map[string]string now")
-		}
-		bRecord.addAttribute(key, strVal)
+		bRecord.addAttribute(key, val)
 	}
 	return bRecord, nil
 }
@@ -587,7 +583,7 @@ func (serializer *binaryRecordContextSerializer) binaryRecord2DhRecord(bRecord *
 }
 
 func (serializer *binaryRecordContextSerializer) binary2TupleRecord(bRecord *binaryRecord, schema *RecordSchema) (*TupleRecord, error) {
-	record := NewTupleRecord(schema, 0)
+	record := NewTupleRecord(schema)
 	for idx := 0; idx < schema.Size(); idx = idx + 1 {
 		val, err := bRecord.getField(idx)
 		if err != nil {
@@ -609,5 +605,5 @@ func (serializer *binaryRecordContextSerializer) binary2BlobRecord(bRecord *bina
 	if !ok {
 		return nil, fmt.Errorf("only support write byte[] for no schema")
 	}
-	return NewBlobRecord(data, 0), nil
+	return NewBlobRecord(data), nil
 }

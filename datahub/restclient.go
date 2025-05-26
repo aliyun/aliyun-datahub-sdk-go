@@ -202,7 +202,7 @@ func (client *RestClient) request(method, resource string, requestModel RequestM
 	resp, err := client.HttpClient.Do(req)
 	if err != nil {
 		if strings.Contains(err.Error(), "EOF") {
-			return nil, nil, NewServiceTemporaryUnavailableError(err.Error())
+			return nil, nil, newNetworkError(err)
 		}
 		return nil, nil, err
 	}
@@ -221,8 +221,12 @@ func (client *RestClient) request(method, resource string, requestModel RequestM
 	//detect error
 	respResult, err := newCommonResponseResult(resp.StatusCode, &resp.Header, respBody)
 	if log.IsLevelEnabled(log.DebugLevel) {
+		n := len(reqBody)
+		if n > 100 {
+			n = 100
+		}
 		log.Debugf("request id: %s\nrequest url: %s\nrequest headers: %v\nrequest body: %s\nresponse headers: %v\nresponse body: %s",
-			respResult.RequestId, url, req.Header, string(reqBody), resp.Header, string(respBody))
+			respResult.RequestId, url, req.Header, string(reqBody[:n]), resp.Header, string(respBody))
 	}
 
 	if err != nil {
@@ -261,10 +265,6 @@ func (client *RestClient) buildSignature(header *http.Header, method, url string
 
 	builder = append(builder, url)
 	canonString := strings.Join(builder, "\n")
-
-	if log.IsLevelEnabled(log.DebugLevel) {
-		log.Debugf("canonString: %s, accesskey: %s", canonString, client.Account.GetAccountKey())
-	}
 
 	hash := hmac.New(sha1.New, []byte(client.Account.GetAccountKey()))
 	hash.Write([]byte(canonString))

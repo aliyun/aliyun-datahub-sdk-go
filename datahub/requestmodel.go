@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/aliyun/aliyun-datahub-sdk-go/datahub/pbmodel"
 	"github.com/aliyun/aliyun-datahub-sdk-go/datahub/util"
-	"github.com/golang/protobuf/proto"
 )
 
 // handel the http request
