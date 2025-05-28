@@ -12,19 +12,17 @@ func NewClientWithConfig(endpoint string, config *Config, account Account) DataH
 	dh := &DataHub{
 		Client: NewRestClient(endpoint, config.UserAgent, config.HttpClient,
 			account, config.CompressorType),
-		cType: config.CompressorType,
 	}
 
 	if config.Protocol == Batch {
-		dh.schemaClient = NewSchemaClient(dh)
-
 		// compress data in batch record, no need to compress http body
 		if config.CompressorType != NOCOMPRESS {
 			dh.Client.CompressorType = NOCOMPRESS
 		}
 
 		return &DataHubBatch{
-			DataHub: *dh,
+			DataHub:      *dh,
+			compressType: config.CompressorType,
 		}
 	} else {
 		return &DataHubPB{

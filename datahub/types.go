@@ -287,7 +287,7 @@ func validateFieldValue(ft FieldType, val interface{}) (DataType, error) {
 			}
 			realval = Timestamp(nval)
 		default:
-			return nil, fmt.Errorf("value type[%T] not match field type[TIMESTAMP]", val)
+			return nil, fmt.Errorf("value[%v] type[%T] not match field type[TIMESTAMP]", val, val)
 		}
 		return realval, nil
 	case DECIMAL:
@@ -295,6 +295,25 @@ func validateFieldValue(ft FieldType, val interface{}) (DataType, error) {
 		switch v := val.(type) {
 		case decimal.Decimal:
 			realval = Decimal(v)
+		case string:
+			tmp, err := decimal.NewFromString(v)
+			if err != nil {
+				return nil, err
+			}
+			realval = Decimal(tmp)
+		case int8, int16, int32, int64, uint8, uint16, uint32:
+			rv, _ := getIntegerValue(v)
+			realval = Decimal(decimal.NewFromInt(rv))
+		case uint64:
+			tmp, err := decimal.NewFromString(strconv.FormatUint(v, 10))
+			if err != nil {
+				return nil, err
+			}
+			realval = Decimal(tmp)
+		case float32:
+			realval = Decimal(decimal.NewFromFloat32(v))
+		case float64:
+			realval = Decimal(decimal.NewFromFloat(v))
 		default:
 			return nil, fmt.Errorf("value type[%T] not match field type[DECIMAL]", val)
 		}

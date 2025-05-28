@@ -40,8 +40,6 @@ func getCompressTypeFromValue(value int) CompressorType {
 	case 2:
 		return LZ4
 	case 3:
-		return ZLIB
-	case 4:
 		return ZSTD
 	default:
 		return NOCOMPRESS
@@ -76,10 +74,8 @@ func (ct *CompressorType) toValue() int {
 		return 1
 	case LZ4:
 		return 2
-	case ZLIB:
-		return 3
 	case ZSTD:
-		return 4
+		return 3
 	default:
 		return 0
 	}

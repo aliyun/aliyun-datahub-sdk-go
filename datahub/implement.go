@@ -9,10 +9,6 @@ import (
 
 type DataHub struct {
 	Client *RestClient
-
-	// for batch client
-	cType        CompressorType
-	schemaClient *schemaRegistryClient
 }
 
 // ListProjects list all projects
@@ -1545,10 +1541,6 @@ func (datahub *DataHub) DeleteTopicSchema(projectName, topicName string, version
 	return newDeleteTopicSchemaResult(commonResp)
 }
 
-func (datahub *DataHub) getSchemaRegistry() *schemaRegistryClient {
-	return datahub.schemaClient
-}
-
 type DataHubPB struct {
 	DataHub
 }
@@ -1663,6 +1655,9 @@ func (datahub *DataHubPB) GetBlobRecords(projectName, topicName, shardId, cursor
 
 type DataHubBatch struct {
 	DataHub
+
+	// for batch compress
+	compressType CompressorType
 }
 
 func (datahub *DataHubBatch) PutRecords(projectName, topicName string, records []IRecord) (*PutRecordsResult, error) {
@@ -1687,7 +1682,8 @@ func (datahub *DataHubBatch) PutRecordsByShard(projectName, topicName, shardId s
 			httpHeaderRequestAction: httpPublistContent},
 	}
 
-	serializer := newBatchSerializer(projectName, topicName, datahub.cType, datahub.schemaClient)
+	schemaCache := schemaClientInstance().getTopicSchemaCache(projectName, topicName, datahub)
+	serializer := newBatchSerializer(projectName, topicName, schemaCache, datahub.compressType)
 	prr := &PutBatchRecordsRequest{
 		serializer: serializer,
 		Records:    records,
@@ -1729,7 +1725,8 @@ func (datahub *DataHubBatch) GetTupleRecords(projectName, topicName, shardId, cu
 		return nil, err
 	}
 
-	deserializer := newBatchDeserializer(projectName, topicName, shardId, recordSchema, datahub.schemaClient)
+	schemaCache := schemaClientInstance().getTopicSchemaCache(projectName, topicName, datahub)
+	deserializer := newBatchDeserializer(projectName, topicName, shardId, schemaCache)
 	return newGetBatchRecordsResult(respBody, recordSchema, commonResp, deserializer)
 }
 

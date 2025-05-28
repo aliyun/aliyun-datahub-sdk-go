@@ -14,6 +14,7 @@ type BaseRecord struct {
 	HashKey      string            `json:"HashKey,omitempty"`
 	SystemTime   int64             `json:"SystemTime,omitempty"`
 	Sequence     int64             `json:"Sequence,omitempty"`
+	BatchIndex   int               `json:"-"`
 	Cursor       string            `json:"Cursor,omitempty"`
 	NextCursor   string            `json:"NextCursor,omitempty"`
 	Serial       int64             `json:"Serial,omitempty"`
@@ -28,6 +29,10 @@ func (br *BaseRecord) GetSequence() int64 {
 	return br.Sequence
 }
 
+func (br *BaseRecord) GetBatchIndex() int {
+	return br.BatchIndex
+}
+
 // SetAttribute set or modify(if exist) attribute
 func (br *BaseRecord) SetAttribute(key string, val string) {
 	if br.Attributes == nil {
@@ -38,6 +43,16 @@ func (br *BaseRecord) SetAttribute(key string, val string) {
 
 func (br *BaseRecord) GetAttributes() map[string]string {
 	return br.Attributes
+}
+
+func (br *BaseRecord) setMetaInfo(sequence, systemTime, serial int64, index int, shardId, cursor, nextCursor string) {
+	br.Sequence = sequence
+	br.SystemTime = systemTime
+	br.Serial = serial
+	br.BatchIndex = index
+	br.ShardId = shardId
+	br.Cursor = cursor
+	br.NextCursor = nextCursor
 }
 
 // RecordEntry
@@ -51,12 +66,14 @@ type IRecord interface {
 	fmt.Stringer
 	GetSystemTime() int64
 	GetSequence() int64
+	GetBatchIndex() int
 	GetData() interface{}
 	fillData(data interface{}) error
 	GetBaseRecord() BaseRecord
 	SetBaseRecord(baseRecord BaseRecord)
 	SetAttribute(key string, val string)
 	GetAttributes() map[string]string
+	setMetaInfo(sequence, systemTime, serial int64, index int, shardId, cursor, nextCursor string)
 }
 
 // BlobRecord blob type record
@@ -107,6 +124,10 @@ func (br *BlobRecord) GetData() interface{} {
 	return br.RawData
 }
 
+func (br *BlobRecord) GetRawData() []byte {
+	return br.RawData
+}
+
 // GetBaseRecord get base record enbry
 func (br *BlobRecord) GetBaseRecord() BaseRecord {
 	return br.BaseRecord
@@ -131,20 +152,6 @@ func NewTupleRecord(schema *RecordSchema) *TupleRecord {
 		tr.Values = make([]DataType, schema.Size())
 	}
 	tr.Attributes = make(map[string]string)
-	for idx := range tr.Values {
-		tr.Values[idx] = nil
-	}
-	return tr
-}
-
-func newTupleRecordWithTime(schema *RecordSchema, systemTime int64) *TupleRecord {
-	tr := &TupleRecord{}
-	if schema != nil {
-		tr.RecordSchema = schema
-		tr.Values = make([]DataType, schema.Size())
-	}
-	tr.Attributes = make(map[string]string)
-	tr.SystemTime = systemTime
 	for idx := range tr.Values {
 		tr.Values[idx] = nil
 	}
@@ -193,12 +200,18 @@ func (tr *TupleRecord) SetValueByName(name string, val any) error {
 	return tr.SetValueByIdx(idx, val)
 }
 
-func (tr *TupleRecord) GetValueByIdx(idx int) DataType {
-	return tr.Values[idx]
+func (tr *TupleRecord) GetValueByIdx(idx int) (DataType, error) {
+	if idx < 0 || idx >= tr.RecordSchema.Size() {
+		return nil, fmt.Errorf("index[%d] out range", idx)
+	}
+	return tr.Values[idx], nil
 }
 
-func (tr *TupleRecord) GetValueByName(name string) DataType {
+func (tr *TupleRecord) GetValueByName(name string) (DataType, error) {
 	idx := tr.RecordSchema.GetFieldIndex(name)
+	if idx < 0 {
+		return nil, fmt.Errorf("field[%s] not exist", name)
+	}
 	return tr.GetValueByIdx(idx)
 }
 

@@ -30,71 +30,6 @@ type Producer interface {
 	Close() error
 }
 
-func newSchemaManager(project, topic string, dh DataHubApi, listSchemaInterval time.Duration) (*schemaManager, error) {
-	res := &schemaManager{
-		project:       project,
-		topic:         topic,
-		client:        dh,
-		interval:      listSchemaInterval,
-		nextFreshTime: time.Now(),
-		schemaMap:     make(map[int]*RecordSchema),
-	}
-
-	err := res.freshSchema()
-	if err != nil {
-		return nil, err
-	}
-	return res, nil
-}
-
-type schemaManager struct {
-	project       string
-	topic         string
-	client        DataHubApi
-	interval      time.Duration
-	nextFreshTime time.Time
-	mutex         sync.RWMutex
-	schemaMap     map[int]*RecordSchema
-}
-
-func (sm *schemaManager) GetSchema(versionId int) (*RecordSchema, error) {
-	sm.mutex.RLock()
-	defer sm.mutex.RUnlock()
-
-	schema, ok := sm.schemaMap[versionId]
-	if ok {
-		return schema, nil
-	} else {
-		return nil, fmt.Errorf("schema version %d not found", versionId)
-	}
-}
-
-func (sm *schemaManager) freshSchema() error {
-	if time.Now().Before(sm.nextFreshTime) {
-		return nil
-	}
-
-	res, err := sm.client.ListTopicSchema(sm.project, sm.topic)
-	if err != nil {
-		return err
-	}
-
-	newMap := make(map[int]*RecordSchema)
-	newVersions := make([]int, 0)
-	for _, schema := range res.SchemaInfoList {
-		newMap[schema.VersionId] = &schema.RecordSchema
-		newVersions = append(newVersions, schema.VersionId)
-	}
-
-	sm.mutex.RLock()
-	defer sm.mutex.RUnlock()
-
-	sm.schemaMap = newMap
-	sm.nextFreshTime = time.Now().Add(sm.interval)
-	log.Infof("%s/%s schema fresh success, versionIds:%v", sm.project, sm.topic, newVersions)
-	return nil
-}
-
 type producerImpl struct {
 	config             *ProducerConfig
 	project            string
@@ -102,14 +37,15 @@ type producerImpl struct {
 	shards             []string
 	index              int32
 	freshShardInterval time.Duration
-	nextFreshShardTime time.Time
+	nextFreshShardTime atomic.Value
 	mutex              sync.RWMutex
 	client             DataHubApi
-	schemaMngr         *schemaManager
-	stop               chan bool
+	schemaCache        *topicSchemaCache
 }
 
 func NewProducer(cfg *ProducerConfig) Producer {
+	var now atomic.Value
+	now.Store(time.Now())
 	return &producerImpl{
 		config:             cfg,
 		project:            cfg.Project,
@@ -117,8 +53,7 @@ func NewProducer(cfg *ProducerConfig) Producer {
 		shards:             make([]string, 0),
 		index:              0,
 		freshShardInterval: time.Minute,
-		// lastFreshShardTime: time.Now(),
-		stop: make(chan bool),
+		nextFreshShardTime: now,
 	}
 }
 
@@ -146,17 +81,12 @@ func (pi *producerImpl) initMeta() error {
 
 	if res.EnableSchema {
 		config.Protocol = Batch
-		// TODO
-		// config.CompressorType = res.extraConfig.compressType
 	} else {
 		config.Protocol = res.extraConfig.protocol
 	}
 
 	pi.client = NewClientWithConfig(pi.config.Endpoint, config, pi.config.Account)
-	pi.schemaMngr, err = newSchemaManager(pi.project, pi.topic, tmpClient, res.extraConfig.listSchemaInterval)
-	if err != nil {
-		return err
-	}
+	pi.schemaCache = schemaClientInstance().getTopicSchemaCache(pi.project, pi.topic, pi.client)
 
 	err = pi.freshShard(true)
 	if err != nil {
@@ -279,7 +209,14 @@ func shardsEqual(shards1, shards2 []string) bool {
 }
 
 func (pi *producerImpl) freshShard(force bool) error {
-	if !force && time.Now().Before(pi.nextFreshShardTime) {
+	nextTime := pi.nextFreshShardTime.Load().(time.Time)
+	if !force && time.Now().Before(nextTime) {
+		return nil
+	}
+
+	// pervent fresh shard by multi goroutine
+	newNextTime := time.Now().Add(pi.freshShardInterval)
+	if !pi.nextFreshShardTime.CompareAndSwap(nextTime, newNextTime) {
 		return nil
 	}
 
@@ -315,16 +252,20 @@ func (pi *producerImpl) freshShard(force bool) error {
 			pi.project, pi.topic, newShards)
 	}
 
-	pi.nextFreshShardTime = time.Now().Add(pi.freshShardInterval)
 	return nil
 }
 
 func (pi *producerImpl) GetSchema() (*RecordSchema, error) {
-	return pi.GetSchemaByVersionId(0)
+	return pi.GetSchemaByVersionId(-1)
 }
 
 func (pi *producerImpl) GetSchemaByVersionId(versionId int) (*RecordSchema, error) {
-	return pi.schemaMngr.GetSchema(versionId)
+	schema := pi.schemaCache.getSchemaByVersionId(versionId)
+	if schema != nil {
+		return schema, nil
+	}
+
+	return nil, fmt.Errorf("%s/%s schema not found, version:%d", pi.project, pi.topic, versionId)
 }
 
 func (pi *producerImpl) GetActiveShards() []string {

@@ -3,13 +3,32 @@ package datahub
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 type Field struct {
 	Name      string    `json:"name"`
 	Type      FieldType `json:"type"`
-	AllowNull bool      `json:"notnull"`
+	AllowNull bool      `json:"notnull"` // Double negation is hard to understand, allownull is easier to understand
 	Comment   string    `json:"comment"`
+}
+
+func NewField(name string, Type FieldType) *Field {
+	return &Field{
+		Name:      name,
+		Type:      Type,
+		AllowNull: true,
+		Comment:   "",
+	}
+}
+
+func NewFieldWithProp(name string, Type FieldType, allowNull bool, comment string) *Field {
+	return &Field{
+		Name:      name,
+		Type:      Type,
+		AllowNull: allowNull,
+		Comment:   comment,
+	}
 }
 
 // RecordSchema
@@ -84,11 +103,13 @@ func (rs *RecordSchema) AddField(f Field) error {
 	if !validateFieldType(f.Type) {
 		return fmt.Errorf("field type %q illegal", f.Type)
 	}
-	for _, v := range rs.Fields {
-		if v.Name == f.Name {
-			return fmt.Errorf("field %s duplicated", f.Name)
-		}
+
+	f.Name = strings.ToLower(f.Name)
+	_, exists := rs.fieldIndexMap[f.Name]
+	if exists {
+		return fmt.Errorf("field %s duplicated", f.Name)
 	}
+
 	rs.Fields = append(rs.Fields, f)
 	rs.fieldIndexMap[f.Name] = len(rs.Fields) - 1
 	return nil
@@ -96,7 +117,8 @@ func (rs *RecordSchema) AddField(f Field) error {
 
 // GetFieldIndex get index of given field
 func (rs *RecordSchema) GetFieldIndex(fname string) int {
-	if idx, ok := rs.fieldIndexMap[fname]; ok {
+	name := strings.ToLower(fname)
+	if idx, ok := rs.fieldIndexMap[name]; ok {
 		return idx
 	}
 	return -1
@@ -111,7 +133,8 @@ func (rs *RecordSchema) GetFieldByIndex(idx int) (*Field, error) {
 }
 
 func (rs *RecordSchema) GetFieldByName(fname string) (*Field, error) {
-	idx := rs.GetFieldIndex(fname)
+	name := strings.ToLower(fname)
+	idx := rs.GetFieldIndex(name)
 
 	if idx == -1 {
 		return nil, fmt.Errorf("field %s not exists", fname)
