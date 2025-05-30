@@ -173,8 +173,8 @@ type zstdCompressor struct {
 }
 
 func (zc *zstdCompressor) Compress(data []byte) ([]byte, error) {
-	var buf bytes.Buffer
-	writer, err := zstd.NewWriter(&buf)
+	buffer := bytes.NewBuffer(make([]byte, 0, 16*1024))
+	writer, err := zstd.NewWriter(buffer, zstd.WithEncoderLevel(zstd.SpeedFastest))
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +187,7 @@ func (zc *zstdCompressor) Compress(data []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	return buf.Bytes(), nil
+	return buffer.Bytes(), nil
 }
 
 func (zc *zstdCompressor) DeCompress(data []byte, rawSize int64) ([]byte, error) {

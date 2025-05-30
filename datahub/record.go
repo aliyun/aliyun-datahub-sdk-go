@@ -158,6 +158,32 @@ func NewTupleRecord(schema *RecordSchema) *TupleRecord {
 	return tr
 }
 
+func NewTupleRecordFromJson(schema *RecordSchema, jsonBuf []byte, opts ...JsonParseOption) (*TupleRecord, error) {
+	record := NewTupleRecord(schema)
+
+	cfg, err := getJsonParseConfig(opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	obj, err := parseJson(jsonBuf)
+	if err != nil {
+		return nil, err
+	}
+
+	for k, v := range obj {
+		err = record.SetValueByName(k, v)
+		if err != nil {
+			if IsFieldNotExistsError(err) && cfg.ignoreNotExistKey {
+				continue
+			}
+			return nil, err
+		}
+	}
+
+	return record, nil
+}
+
 func (tr *TupleRecord) String() string {
 	record := struct {
 		RecordSchema *RecordSchema     `json:"RecordSchema"`
@@ -175,7 +201,7 @@ func (tr *TupleRecord) String() string {
 // SetValueByIdx set a value by idx
 func (tr *TupleRecord) SetValueByIdx(idx int, val any) error {
 	if idx < 0 || idx >= tr.RecordSchema.Size() {
-		return fmt.Errorf("index[%d] out range", idx)
+		return newFieldNotExistsError(fmt.Sprintf("field index[%d] out of range", idx))
 	}
 
 	field := tr.RecordSchema.Fields[idx]
@@ -195,14 +221,14 @@ func (tr *TupleRecord) SetValueByIdx(idx int, val any) error {
 func (tr *TupleRecord) SetValueByName(name string, val any) error {
 	idx := tr.RecordSchema.GetFieldIndex(name)
 	if idx < 0 {
-		return fmt.Errorf("field[%s] not exist", name)
+		return newFieldNotExistsError(fmt.Sprintf("field[%s] not exist", name))
 	}
 	return tr.SetValueByIdx(idx, val)
 }
 
 func (tr *TupleRecord) GetValueByIdx(idx int) (DataType, error) {
 	if idx < 0 || idx >= tr.RecordSchema.Size() {
-		return nil, fmt.Errorf("index[%d] out range", idx)
+		return nil, newFieldNotExistsError(fmt.Sprintf("field index[%d] out of range", idx))
 	}
 	return tr.Values[idx], nil
 }
@@ -210,7 +236,7 @@ func (tr *TupleRecord) GetValueByIdx(idx int) (DataType, error) {
 func (tr *TupleRecord) GetValueByName(name string) (DataType, error) {
 	idx := tr.RecordSchema.GetFieldIndex(name)
 	if idx < 0 {
-		return nil, fmt.Errorf("field[%s] not exist", name)
+		return nil, newFieldNotExistsError(fmt.Sprintf("field[%s] not exist", name))
 	}
 	return tr.GetValueByIdx(idx)
 }

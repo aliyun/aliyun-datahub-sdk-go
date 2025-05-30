@@ -48,7 +48,7 @@ type topicSchemaCache struct {
 	topic              string
 	topicResult        *GetTopicResult
 	maxSchemaVersionId int
-	schemaMap          map[string]int
+	schemaMap          map[uint32]int
 	versionMap         map[int]SchemaItem
 	nextFreshTime      atomic.Value
 	lock               sync.RWMutex
@@ -77,7 +77,8 @@ func (tsc *topicSchemaCache) freshSchema(force bool) error {
 		return err
 	}
 
-	newSchemaMap := map[string]int{}
+	newSchemaList := make([]int, 0)
+	newSchemaMap := map[uint32]int{}
 	newVersionMap := map[int]SchemaItem{}
 	maxVersion := -1
 	for _, schema := range res.SchemaInfoList {
@@ -91,11 +92,12 @@ func (tsc *topicSchemaCache) freshSchema(force bool) error {
 			maxVersion = schema.VersionId
 		}
 
+		newSchemaList = append(newSchemaList, schema.VersionId)
 		newVersionMap[schema.VersionId] = SchemaItem{
 			avroSchema: avroSchema,
 			dhSchema:   &schema.RecordSchema,
 		}
-		newSchemaMap[schema.RecordSchema.String()] = schema.VersionId
+		newSchemaMap[schema.RecordSchema.hashCode()] = schema.VersionId
 	}
 
 	tsc.lock.Lock()
@@ -104,7 +106,7 @@ func (tsc *topicSchemaCache) freshSchema(force bool) error {
 	tsc.schemaMap = newSchemaMap
 	tsc.versionMap = newVersionMap
 
-	log.Infof("%s/%s fresh schema success, newSchema:%v", tsc.project, tsc.topic, newSchemaMap)
+	log.Infof("%s/%s fresh schema success, newSchemaVersions:%v", tsc.project, tsc.topic, newSchemaList)
 	return nil
 
 }
@@ -145,7 +147,7 @@ func (tsc *topicSchemaCache) getVersionIdBySchema(schema *RecordSchema) int {
 	tsc.lock.RLock()
 	defer tsc.lock.RUnlock()
 
-	if version, ok := tsc.schemaMap[schema.String()]; ok {
+	if version, ok := tsc.schemaMap[schema.hashCode()]; ok {
 		return version
 	}
 
@@ -161,7 +163,7 @@ func (tsc *topicSchemaCache) getAvroSchema(schema *RecordSchema) avro.Schema {
 
 	tsc.lock.RLock()
 	defer tsc.lock.RUnlock()
-	if version, ok := tsc.schemaMap[schema.String()]; ok {
+	if version, ok := tsc.schemaMap[schema.hashCode()]; ok {
 		return tsc.versionMap[version].avroSchema
 	}
 

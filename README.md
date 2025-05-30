@@ -6,7 +6,7 @@ To use the SDK, you’ll need [Go setup up on your computer](https://golang.org/
 
 ## Dependencies
 
-- go(>=1.14)
+- go(>=1.23.0)
 
 ## Installation
 

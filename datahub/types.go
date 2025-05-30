@@ -314,6 +314,12 @@ func validateFieldValue(ft FieldType, val interface{}) (DataType, error) {
 			realval = Decimal(decimal.NewFromFloat32(v))
 		case float64:
 			realval = Decimal(decimal.NewFromFloat(v))
+		case json.Number:
+			tmp, err := decimal.NewFromString(v.String())
+			if err != nil {
+				return nil, err
+			}
+			realval = Decimal(tmp)
 		default:
 			return nil, fmt.Errorf("value type[%T] not match field type[DECIMAL]", val)
 		}

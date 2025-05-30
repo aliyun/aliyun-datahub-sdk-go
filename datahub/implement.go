@@ -1726,7 +1726,7 @@ func (datahub *DataHubBatch) GetTupleRecords(projectName, topicName, shardId, cu
 	}
 
 	schemaCache := schemaClientInstance().getTopicSchemaCache(projectName, topicName, datahub)
-	deserializer := newBatchDeserializer(projectName, topicName, shardId, schemaCache)
+	deserializer := newBatchDeserializer(shardId, schemaCache)
 	return newGetBatchRecordsResult(respBody, recordSchema, commonResp, deserializer)
 }
 

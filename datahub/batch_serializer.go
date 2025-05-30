@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"hash/crc32"
 )
 
 const (
@@ -16,11 +15,6 @@ var (
 	batchMagicBytes = []byte{'D', 'H', 'U', 'B'}
 	batchMagicNum   = int32(binary.LittleEndian.Uint32(batchMagicBytes))
 )
-
-func calculateCrc32(buf []byte) uint32 {
-	table := crc32.MakeTable(crc32.Castagnoli)
-	return crc32.Checksum(buf, table)
-}
 
 type respMeta struct {
 	cursor     string
@@ -86,6 +80,11 @@ func newBatchSerializer(project, topic string, schemaCache *topicSchemaCache, cT
 }
 
 func (bs *batchSerializer) serialize(records []IRecord) ([]byte, error) {
+	err := bs.preCheck(records)
+	if err != nil {
+		return nil, err
+	}
+
 	schemaVersionId, err := bs.getSchemaVersion(records[0])
 	if err != nil {
 		return nil, err
@@ -126,6 +125,35 @@ func (bs *batchSerializer) serialize(records []IRecord) ([]byte, error) {
 	return res.Bytes(), nil
 }
 
+func (bs *batchSerializer) preCheck(record []IRecord) error {
+	if len(record) == 0 {
+		return fmt.Errorf("records is empty")
+	}
+
+	var schemaCode uint32 = 0
+	tupleRecord, ok := record[0].(*TupleRecord)
+	if ok {
+		schemaCode = tupleRecord.RecordSchema.hashCode()
+	}
+
+	for _, record := range record {
+		switch realRecord := record.(type) {
+		case *BlobRecord:
+			if schemaCode != 0 {
+				return fmt.Errorf("blob record can not be mixed with tuple record in single request")
+			}
+		case *TupleRecord:
+			if schemaCode == 0 {
+				return fmt.Errorf("blob record can not be mixed with tuple record in single request")
+			}
+			if realRecord.RecordSchema.hashCode() != schemaCode {
+				return fmt.Errorf("record schema is not same in single request")
+			}
+		}
+	}
+	return nil
+}
+
 func (bs *batchSerializer) getSchemaVersion(record IRecord) (int32, error) {
 	var dhSchema *RecordSchema = nil
 	tupleRecord, ok := record.(*TupleRecord)
@@ -164,7 +192,7 @@ type batchDeserializer struct {
 	deserializer dataDeserializer
 }
 
-func newBatchDeserializer(project, topic, shardId string, schemaCache *topicSchemaCache) *batchDeserializer {
+func newBatchDeserializer(shardId string, schemaCache *topicSchemaCache) *batchDeserializer {
 	return &batchDeserializer{
 		shardId:      shardId,
 		deserializer: newDataDeserializer(schemaCache),

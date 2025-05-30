@@ -121,6 +121,11 @@ func IsShardSealedError(err error) bool {
 	return ok
 }
 
+func IsFieldNotExistsError(err error) bool {
+	_, ok := err.(*FieldNotExistsError)
+	return ok
+}
+
 func IsRetryableError(err error) bool {
 	switch err.(type) {
 	case *InvalidParameterError, *ResourceNotFoundError, *ResourceExistError, *InvalidOperationError,
@@ -429,4 +434,18 @@ type NetworkError struct {
 
 func (ne *NetworkError) Error() string {
 	return ne.oriErr.Error()
+}
+
+func newFieldNotExistsError(msg string) *FieldNotExistsError {
+	return &FieldNotExistsError{
+		msg: msg,
+	}
+}
+
+type FieldNotExistsError struct {
+	msg string
+}
+
+func (ne *FieldNotExistsError) Error() string {
+	return ne.msg
 }

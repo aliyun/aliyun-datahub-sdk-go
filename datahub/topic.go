@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync/atomic"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type Field struct {
@@ -35,6 +38,7 @@ func NewFieldWithProp(name string, Type FieldType, allowNull bool, comment strin
 type RecordSchema struct {
 	Fields        []Field        `json:"fields"`
 	fieldIndexMap map[string]int `json:"-"`
+	hashVal       uint32
 }
 
 // NewRecordSchema create a new record schema for tuple record
@@ -42,6 +46,7 @@ func NewRecordSchema() *RecordSchema {
 	return &RecordSchema{
 		Fields:        make([]Field, 0),
 		fieldIndexMap: make(map[string]int),
+		hashVal:       0,
 	}
 }
 
@@ -74,6 +79,30 @@ func (rs *RecordSchema) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+func (rs *RecordSchema) HashCode() uint32 {
+	return rs.hashCode()
+}
+
+func (rs *RecordSchema) hashCode() uint32 {
+	if val := atomic.LoadUint32(&rs.hashVal); val != 0 {
+		return val
+
+	}
+
+	schemaStr := rs.String()
+	newVal, err := calculateHashCode(schemaStr)
+	if err != nil {
+		log.Warnf("Calculate hash code failed, schema:%s, error:%v", schemaStr, err)
+	}
+
+	if atomic.CompareAndSwapUint32(&rs.hashVal, 0, newVal) && log.IsLevelEnabled(log.DebugLevel) {
+		log.Debugf("Calculate hash code success schema:%s, code:%d", schemaStr, newVal)
+		return newVal
+	} else {
+		return atomic.LoadUint32(&rs.hashVal)
+	}
 }
 
 func (rs *RecordSchema) String() string {
@@ -126,18 +155,17 @@ func (rs *RecordSchema) GetFieldIndex(fname string) int {
 
 func (rs *RecordSchema) GetFieldByIndex(idx int) (*Field, error) {
 	if idx < 0 || idx >= len(rs.Fields) {
-		return nil, fmt.Errorf("invalid Filed index %d", idx)
+		return nil, newFieldNotExistsError(fmt.Sprintf("field index[%d] out of range", idx))
 	}
 
 	return &rs.Fields[idx], nil
 }
 
 func (rs *RecordSchema) GetFieldByName(fname string) (*Field, error) {
-	name := strings.ToLower(fname)
-	idx := rs.GetFieldIndex(name)
+	idx := rs.GetFieldIndex(strings.ToLower(fname))
 
 	if idx == -1 {
-		return nil, fmt.Errorf("field %s not exists", fname)
+		return nil, newFieldNotExistsError(fmt.Sprintf("field[%s] not exist", fname))
 	}
 
 	return rs.GetFieldByIndex(idx)

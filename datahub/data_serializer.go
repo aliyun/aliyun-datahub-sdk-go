@@ -34,12 +34,13 @@ func (as *avroDataSerializer) serialize(records []IRecord) ([]byte, error) {
 		return nil, err
 	}
 
-	buf := make([]byte, 0, 1024)
-	buffer := bytes.NewBuffer(buf)
+	buffer := bytes.NewBuffer(make([]byte, 0, 16*1024))
 	encoder := avro.NewEncoderForSchema(avroSchema, buffer)
 
-	for _, record := range records {
-		avroRecord := as.convertRecord(record)
+	avroRecord := as.genAvroRecord(records[0])
+	for _, dhRecord := range records {
+		// resuse record can reduce cost of allocate memory
+		as.assignRecord(dhRecord, avroRecord)
 		err := encoder.Encode(avroRecord)
 		if err != nil {
 			return nil, err
@@ -49,25 +50,50 @@ func (as *avroDataSerializer) serialize(records []IRecord) ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func (as *avroDataSerializer) convertRecord(record IRecord) map[string]any {
-	var avroRecord map[string]any
+func (as *avroDataSerializer) genAvroRecord(record IRecord) map[string]any {
+	avroRecord := map[string]any{}
 
 	switch realRecord := record.(type) {
 	case *TupleRecord:
-		avroRecord = as.convertTupleRecord(realRecord)
+		for _, field := range realRecord.RecordSchema.Fields {
+			avroRecord[field.Name] = nil
+		}
 	case *BlobRecord:
-		avroRecord = as.convertBlobRecord(realRecord)
+		avroRecord[defaultAvroBlobColumnName] = nil
 	}
 
 	attrCol := map[string]any{}
-	if len(record.GetAttributes()) > 0 {
-		attr := record.GetAttributes()
-		attrCol = map[string]any{
-			"map": attr,
-		}
+	avroRecord[defaultAvroAttributeName] = attrCol
+	return avroRecord
+}
+
+func (as *avroDataSerializer) setTupleRecord(dhRecord *TupleRecord, avroRecord map[string]any) {
+	for _, field := range dhRecord.RecordSchema.Fields {
+		val, _ := dhRecord.GetValueByName(field.Name)
+		colVal := as.getColumnValue(val, field.Type)
+		avroRecord[field.Name] = colVal
+	}
+}
+
+func (as *avroDataSerializer) setBlobRecord(dhRecord *BlobRecord, avroRecord map[string]any) {
+	avroRecord[defaultAvroBlobColumnName] = dhRecord.GetRawData()
+}
+
+func (as *avroDataSerializer) assignRecord(record IRecord, avroRecord map[string]any) map[string]any {
+	switch realRecord := record.(type) {
+	case *TupleRecord:
+		as.setTupleRecord(realRecord, avroRecord)
+	case *BlobRecord:
+		as.setBlobRecord(realRecord, avroRecord)
 	}
 
-	avroRecord[defaultAvroAttributeName] = attrCol
+	attrCol := avroRecord[defaultAvroAttributeName].(map[string]any)
+	var attrVal map[string]string = nil
+	if len(record.GetAttributes()) > 0 {
+		attrVal = record.GetAttributes()
+	}
+	attrCol["map"] = attrVal
+
 	return avroRecord
 }
 
@@ -114,24 +140,6 @@ func (as *avroDataSerializer) getColumnValue(data DataType, fieldType FieldType)
 	}
 
 	return value
-}
-
-func (as *avroDataSerializer) convertTupleRecord(record *TupleRecord) map[string]any {
-	avroRecord := make(map[string]any)
-
-	for _, field := range record.RecordSchema.Fields {
-		val, _ := record.GetValueByName(field.Name)
-		colVal := as.getColumnValue(val, field.Type)
-		avroRecord[field.Name] = colVal
-	}
-
-	return avroRecord
-}
-
-func (as *avroDataSerializer) convertBlobRecord(record *BlobRecord) map[string]any {
-	avroRecord := make(map[string]any)
-	avroRecord[defaultAvroBlobColumnName] = record.GetRawData()
-	return avroRecord
 }
 
 type avroDataDeserializer struct {
