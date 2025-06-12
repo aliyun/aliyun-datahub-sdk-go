@@ -20,29 +20,93 @@ const (
 var (
 	sSchemaOnce   sync.Once
 	sSchemaClient schemaClient
-
-	sBlobAvroSchemaOnce sync.Once
-	sBlobAvroSchema     avro.Schema
 )
+
+type topicSchemaCache interface {
+	getSchemaByVersionId(versionId int) *RecordSchema
+	getVersionIdBySchema(schema *RecordSchema) int
+	getAvroSchema(schema *RecordSchema) avro.Schema
+	getAvroSchemaByVersionId(versionId int) avro.Schema
+}
+
+type topicSchemaItem struct {
+	accessTime atomic.Value
+	cache      topicSchemaCache
+}
+
+func NewTopicSchemaCache(project string, topic string, client DataHubApi) *topicSchemaItem {
+	var now atomic.Value
+	now.Store(time.Now())
+	return &topicSchemaItem{
+		accessTime: now,
+		cache: &topicSchemaCacheImpl{
+			client:        client,
+			project:       project,
+			topic:         topic,
+			nextFreshTime: now,
+		},
+	}
+}
+
+func (tsi *topicSchemaItem) getSchemaCache() topicSchemaCache {
+	tsi.accessTime.Store(time.Now())
+	return tsi.cache
+}
+
+type schemaClient struct {
+	lock       sync.RWMutex
+	topicCache map[string]*topicSchemaItem
+}
+
+func schemaClientInstance() *schemaClient {
+	sSchemaOnce.Do(func() {
+		sSchemaClient = schemaClient{
+			topicCache: map[string]*topicSchemaItem{},
+		}
+	})
+
+	return &sSchemaClient
+}
+
+func getTopicKey(project, topic string) string {
+	return fmt.Sprintf("%s/%s", project, topic)
+}
+
+func (sc *schemaClient) addTopicSchemaCache(project, topic string, client DataHubApi) topicSchemaCache {
+	sc.lock.Lock()
+	defer sc.lock.Unlock()
+
+	// only ensure not to continue growing
+	for k, v := range sc.topicCache {
+		if time.Since(v.accessTime.Load().(time.Time)) > time.Duration(5)*time.Minute {
+			delete(sc.topicCache, k)
+		}
+	}
+
+	cache := NewTopicSchemaCache(project, topic, client)
+	sc.topicCache[getTopicKey(project, topic)] = cache
+	return cache.getSchemaCache()
+}
+
+func (sc *schemaClient) getTopicSchemaCache(project, topic string, client DataHubApi) topicSchemaCache {
+	sc.lock.RLock()
+
+	cache, exists := sc.topicCache[getTopicKey(project, topic)]
+	if exists {
+		defer sc.lock.RUnlock()
+		return cache.getSchemaCache()
+	}
+
+	sc.lock.RUnlock()
+	return sc.addTopicSchemaCache(project, topic, client)
+}
 
 type SchemaItem struct {
 	dhSchema   *RecordSchema
 	avroSchema avro.Schema
 }
 
-func NewTopicSchemaCache1(project string, topic string, client DataHubApi) *topicSchemaCache {
-	var now atomic.Value
-	now.Store(time.Now())
-
-	return &topicSchemaCache{
-		client:        client,
-		project:       project,
-		topic:         topic,
-		nextFreshTime: now,
-	}
-}
-
-type topicSchemaCache struct {
+type topicSchemaCacheImpl struct {
 	client             DataHubApi
 	project            string
 	topic              string
@@ -54,7 +118,7 @@ type topicSchemaCache struct {
 	lock               sync.RWMutex
 }
 
-func (tsc *topicSchemaCache) freshSchema(force bool) error {
+func (tsc *topicSchemaCacheImpl) freshSchema(force bool) error {
 	nextTime := tsc.nextFreshTime.Load().(time.Time)
 	if !force && time.Now().Before(nextTime) {
 		return nil
@@ -82,7 +146,7 @@ func (tsc *topicSchemaCache) freshSchema(force bool) error {
 	newVersionMap := map[int]SchemaItem{}
 	maxVersion := -1
 	for _, schema := range res.SchemaInfoList {
-		avroSchema, err := GetAvroSchema(&schema.RecordSchema)
+		avroSchema, err := getAvroSchema(&schema.RecordSchema)
 		if err != nil {
 			log.Errorf("%s/%s fresh schema failed, error:%v", tsc.project, tsc.topic, err)
 			return err
@@ -111,14 +175,7 @@ func (tsc *topicSchemaCache) freshSchema(force bool) error {
 
 }
 
-func getAvroBlobSchema() avro.Schema {
-	sBlobAvroSchemaOnce.Do(func() {
-		sBlobAvroSchema, _ = GetAvroSchema(nil)
-	})
-	return sBlobAvroSchema
-}
-
-func (tsc *topicSchemaCache) getSchemaByVersionId(versionId int) *RecordSchema {
+func (tsc *topicSchemaCacheImpl) getSchemaByVersionId(versionId int) *RecordSchema {
 	tsc.freshSchema(false)
 	tsc.lock.RLock()
 	defer tsc.lock.RUnlock()
@@ -138,7 +195,7 @@ func (tsc *topicSchemaCache) getSchemaByVersionId(versionId int) *RecordSchema {
 	return nil
 }
 
-func (tsc *topicSchemaCache) getVersionIdBySchema(schema *RecordSchema) int {
+func (tsc *topicSchemaCacheImpl) getVersionIdBySchema(schema *RecordSchema) int {
 	if schema == nil {
 		return blobSchemaVersionId
 	}
@@ -154,7 +211,7 @@ func (tsc *topicSchemaCache) getVersionIdBySchema(schema *RecordSchema) int {
 	return invalidSchemaVersionId
 }
 
-func (tsc *topicSchemaCache) getAvroSchema(schema *RecordSchema) avro.Schema {
+func (tsc *topicSchemaCacheImpl) getAvroSchema(schema *RecordSchema) avro.Schema {
 	if schema == nil {
 		return getAvroBlobSchema()
 	}
@@ -170,7 +227,7 @@ func (tsc *topicSchemaCache) getAvroSchema(schema *RecordSchema) avro.Schema {
 	return nil
 }
 
-func (tsc *topicSchemaCache) getAvroSchemaByVersionId(versionId int) avro.Schema {
+func (tsc *topicSchemaCacheImpl) getAvroSchemaByVersionId(versionId int) avro.Schema {
 	if versionId < 0 {
 		return getAvroBlobSchema()
 	}
@@ -184,76 +241,4 @@ func (tsc *topicSchemaCache) getAvroSchemaByVersionId(versionId int) avro.Schema
 	}
 
 	return nil
-}
-
-type topicSchemaItem struct {
-	accessTime atomic.Value
-	cache      *topicSchemaCache
-}
-
-func NewTopicSchemaCache(project string, topic string, client DataHubApi) *topicSchemaItem {
-	var now atomic.Value
-	now.Store(time.Now())
-	return &topicSchemaItem{
-		accessTime: now,
-		cache: &topicSchemaCache{
-			client:        client,
-			project:       project,
-			topic:         topic,
-			nextFreshTime: now,
-		},
-	}
-}
-
-func (tsi *topicSchemaItem) getSchemaCache() *topicSchemaCache {
-	tsi.accessTime.Store(time.Now())
-	return tsi.cache
-}
-
-type schemaClient struct {
-	lock       sync.RWMutex
-	topicCache map[string]*topicSchemaItem
-}
-
-func schemaClientInstance() *schemaClient {
-	sSchemaOnce.Do(func() {
-		sSchemaClient = schemaClient{
-			topicCache: map[string]*topicSchemaItem{},
-		}
-	})
-
-	return &sSchemaClient
-}
-
-func getTopicKey(project, topic string) string {
-	return fmt.Sprintf("%s/%s", project, topic)
-}
-
-func (sc *schemaClient) addTopicSchemaCache(project, topic string, client DataHubApi) *topicSchemaCache {
-	sc.lock.Lock()
-	defer sc.lock.Unlock()
-
-	// only ensure not to continue growing
-	for k, v := range sc.topicCache {
-		if time.Since(v.accessTime.Load().(time.Time)) > time.Duration(5)*time.Minute {
-			delete(sc.topicCache, k)
-		}
-	}
-
-	cache := NewTopicSchemaCache(project, topic, client)
-	sc.topicCache[getTopicKey(project, topic)] = cache
-	return cache.getSchemaCache()
-}
-
-func (sc *schemaClient) getTopicSchemaCache(project, topic string, client DataHubApi) *topicSchemaCache {
-	sc.lock.RLock()
-
-	cache, exists := sc.topicCache[getTopicKey(project, topic)]
-	if exists {
-		defer sc.lock.RUnlock()
-		return cache.getSchemaCache()
-	}
-
-	sc.lock.RUnlock()
-	return sc.addTopicSchemaCache(project, topic, client)
 }

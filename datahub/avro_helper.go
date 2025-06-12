@@ -2,6 +2,7 @@ package datahub
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/hamba/avro/v2"
 )
@@ -12,6 +13,18 @@ const (
 	defaultAvroRecordName       = "AvroRecord"
 	defaultInnterAvroRecordName = "InnerAvroRecord"
 )
+
+var (
+	sBlobAvroSchemaOnce sync.Once
+	sBlobAvroSchema     avro.Schema
+)
+
+func getAvroBlobSchema() avro.Schema {
+	sBlobAvroSchemaOnce.Do(func() {
+		sBlobAvroSchema, _ = getAvroSchema(nil)
+	})
+	return sBlobAvroSchema
+}
 
 func getAvroColumnSchema(fieldType FieldType) (avro.Schema, error) {
 	switch fieldType {
@@ -90,7 +103,7 @@ func getBlobFields() ([]*avro.Field, error) {
 	return avroFields, nil
 }
 
-func GetAvroSchema(schema *RecordSchema) (avro.Schema, error) {
+func getAvroSchema(schema *RecordSchema) (avro.Schema, error) {
 	var avroFields []*avro.Field = nil
 	var err error = nil
 	if schema != nil {

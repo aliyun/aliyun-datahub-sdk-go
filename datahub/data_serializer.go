@@ -12,7 +12,7 @@ type dataSerializer interface {
 	serialize(records []IRecord) ([]byte, error)
 }
 
-func newDataSerializer(schemaCache *topicSchemaCache) dataSerializer {
+func newDataSerializer(schemaCache topicSchemaCache) dataSerializer {
 	return &avroDataSerializer{schemaCache: schemaCache}
 }
 
@@ -20,12 +20,12 @@ type dataDeserializer interface {
 	deserialize(data []byte, header *batchHeader) ([]IRecord, error)
 }
 
-func newDataDeserializer(schemaCache *topicSchemaCache) dataDeserializer {
+func newDataDeserializer(schemaCache topicSchemaCache) dataDeserializer {
 	return &avroDataDeserializer{schemaCache: schemaCache}
 }
 
 type avroDataSerializer struct {
-	schemaCache *topicSchemaCache
+	schemaCache topicSchemaCache
 }
 
 func (as *avroDataSerializer) serialize(records []IRecord) ([]byte, error) {
@@ -143,7 +143,7 @@ func (as *avroDataSerializer) getColumnValue(data DataType, fieldType FieldType)
 }
 
 type avroDataDeserializer struct {
-	schemaCache *topicSchemaCache
+	schemaCache topicSchemaCache
 }
 
 func (ad *avroDataDeserializer) deserialize(data []byte, header *batchHeader) ([]IRecord, error) {
@@ -152,8 +152,7 @@ func (ad *avroDataDeserializer) deserialize(data []byte, header *batchHeader) ([
 
 	// avro schema cannot be null
 	if avroSchema == nil || (header.schemaVersion >= 0 && dhSchema == nil) {
-		return nil, fmt.Errorf("%s/%s cannot get schema, version:%d",
-			ad.schemaCache.project, ad.schemaCache.topic, header.schemaVersion)
+		return nil, fmt.Errorf("cannot get schema, version:%d", header.schemaVersion)
 	}
 
 	buffer := bytes.NewBuffer(data)

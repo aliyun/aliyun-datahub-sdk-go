@@ -66,10 +66,10 @@ type batchSerializer struct {
 	topic      string
 	cType      CompressorType
 	serializer dataSerializer
-	cache      *topicSchemaCache
+	cache      topicSchemaCache
 }
 
-func newBatchSerializer(project, topic string, schemaCache *topicSchemaCache, cType CompressorType) *batchSerializer {
+func newBatchSerializer(project, topic string, schemaCache topicSchemaCache, cType CompressorType) *batchSerializer {
 	return &batchSerializer{
 		project:    project,
 		topic:      topic,
@@ -192,7 +192,7 @@ type batchDeserializer struct {
 	deserializer dataDeserializer
 }
 
-func newBatchDeserializer(shardId string, schemaCache *topicSchemaCache) *batchDeserializer {
+func newBatchDeserializer(shardId string, schemaCache topicSchemaCache) *batchDeserializer {
 	return &batchDeserializer{
 		shardId:      shardId,
 		deserializer: newDataDeserializer(schemaCache),

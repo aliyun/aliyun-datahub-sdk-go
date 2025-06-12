@@ -9,8 +9,13 @@ func NewClientWithConfig(endpoint string, config *Config, account Account) DataH
 		config.CompressorType = LZ4
 	}
 
+	userAgent := DefaultUserAgent()
+	if config.UserAgent != "" {
+		userAgent = userAgent + " " + config.UserAgent
+	}
+
 	dh := &DataHub{
-		Client: NewRestClient(endpoint, config.UserAgent, config.HttpClient,
+		Client: NewRestClient(endpoint, userAgent, config.HttpClient,
 			account, config.CompressorType),
 	}
 
@@ -44,6 +49,8 @@ func NewBatchClient(accessId, accessKey, endpoint string) DataHubApi {
 
 // Datahub provides restful apis for visiting examples service.
 type DataHubApi interface {
+	setUserAgent(userAgent string)
+
 	// List all projects the user owns.
 	ListProject() (*ListProjectResult, error)
 

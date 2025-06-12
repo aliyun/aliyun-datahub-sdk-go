@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aliyun/aliyun-datahub-sdk-go/datahub"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
+	"github.com/aliyun/aliyun-datahub-sdk-go/datahub"
 )
 
 var subId string

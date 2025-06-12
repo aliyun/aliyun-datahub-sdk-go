@@ -40,7 +40,7 @@ type producerImpl struct {
 	nextFreshShardTime atomic.Value
 	mutex              sync.RWMutex
 	client             DataHubApi
-	schemaCache        *topicSchemaCache
+	schemaCache        topicSchemaCache
 }
 
 func NewProducer(cfg *ProducerConfig) Producer {
@@ -69,7 +69,6 @@ func (pi *producerImpl) initMeta() error {
 	}
 
 	config := &Config{
-		UserAgent:      defaultClientAgent(),
 		CompressorType: LZ4,
 		Protocol:       Protobuf,
 		HttpClient:     DefaultHttpClient(),
@@ -85,7 +84,13 @@ func (pi *producerImpl) initMeta() error {
 		config.Protocol = res.extraConfig.protocol
 	}
 
+	userAgent := defaultClientAgent()
+	if len(pi.config.UserAgent) > 0 {
+		userAgent = userAgent + " " + pi.config.UserAgent
+	}
+
 	pi.client = NewClientWithConfig(pi.config.Endpoint, config, pi.config.Account)
+	pi.client.setUserAgent(userAgent)
 	pi.schemaCache = schemaClientInstance().getTopicSchemaCache(pi.project, pi.topic, pi.client)
 
 	err = pi.freshShard(true)

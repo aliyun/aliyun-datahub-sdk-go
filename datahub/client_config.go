@@ -11,6 +11,7 @@ const (
 
 type BaseConfig struct {
 	Account       Account
+	UserAgent     string
 	Endpoint      string
 	Project       string
 	Topic         string

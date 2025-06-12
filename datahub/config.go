@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"os"
 	"runtime"
 	"time"
 )
@@ -50,9 +51,11 @@ func DefaultHttpClient() *http.Client {
 
 // DefaultUserAgent returns a default user agent
 func DefaultUserAgent() string {
-	return fmt.Sprintf("godatahub/%s golang/%s %s", DATAHUB_SDK_VERSION, runtime.Version(), runtime.GOOS)
+	hostIp, _ := getHostIP()
+	return fmt.Sprintf("godatahub/%s %s@%s#%s#%d", DATAHUB_SDK_VERSION, runtime.Version(), runtime.GOOS, hostIp, os.Getpid())
 }
 
 func defaultClientAgent() string {
-	return fmt.Sprintf("goclient/%s golang/%s %s", DATAHUB_SDK_VERSION, runtime.Version(), runtime.GOOS)
+	hostIp, _ := getHostIP()
+	return fmt.Sprintf("goclient/%s %s@%s#%s#%d", DATAHUB_SDK_VERSION, runtime.Version(), runtime.GOOS, hostIp, os.Getpid())
 }

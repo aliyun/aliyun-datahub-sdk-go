@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/aliyun/aliyun-datahub-sdk-go/datahub"
 	"github.com/stretchr/testify/assert"
+	"github.com/aliyun/aliyun-datahub-sdk-go/datahub"
 )
 
 var _accessId string = ""

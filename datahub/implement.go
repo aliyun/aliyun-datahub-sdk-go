@@ -11,6 +11,10 @@ type DataHub struct {
 	Client *RestClient
 }
 
+func (datahub *DataHub) setUserAgent(userAgent string) {
+	datahub.Client.Useragent = userAgent
+}
+
 // ListProjects list all projects
 func (datahub *DataHub) ListProject() (*ListProjectResult, error) {
 	path := projectsPath

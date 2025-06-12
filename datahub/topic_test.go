@@ -93,13 +93,16 @@ func TestSchemaGetFiled(t *testing.T) {
 
 	col, err = schema.GetFieldByName("f4")
 	assert.Nil(t, col)
-	assert.Equal(t, err.Error(), "field f4 not exists")
+	assert.True(t, IsFieldNotExistsError(err))
+	assert.Equal(t, err.Error(), "field[f4] not exist")
 
 	col, err = schema.GetFieldByIndex(3)
 	assert.Nil(t, col)
-	assert.Equal(t, err.Error(), "invalid Filed index 3")
+	assert.True(t, IsFieldNotExistsError(err))
+	assert.Equal(t, err.Error(), "field index[3] out of range")
 
 	col, err = schema.GetFieldByIndex(-1)
 	assert.Nil(t, col)
-	assert.Equal(t, err.Error(), "invalid Filed index -1")
+	assert.True(t, IsFieldNotExistsError(err))
+	assert.Equal(t, err.Error(), "field index[-1] out of range")
 }

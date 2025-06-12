@@ -17,12 +17,9 @@ func TestGetCompressTypeFromValue(t *testing.T) {
 	assert.Equal(t, LZ4, ret)
 
 	ret = getCompressTypeFromValue(3)
-	assert.Equal(t, ZLIB, ret)
-
-	ret = getCompressTypeFromValue(4)
 	assert.Equal(t, ZSTD, ret)
 
-	ret = getCompressTypeFromValue(5)
+	ret = getCompressTypeFromValue(4)
 	assert.Equal(t, NOCOMPRESS, ret)
 
 	ret = getCompressTypeFromValue(-1)
