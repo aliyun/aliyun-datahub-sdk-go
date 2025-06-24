@@ -21,7 +21,13 @@ type BaseConfig struct {
 
 type ProducerConfig struct {
 	BaseConfig
-	SendStrategy SendStrategy
+	SendStrategy         SendStrategy
+	Parittioner          PartitionFunc
+	MaxAsyncFlightingNum int
+	MaxAsyncBufferNum    int
+	MaxAsyncBufferTime   time.Duration
+	EnableSuccessCh      bool
+	EnableErrorCh        bool
 }
 
 func NewProducerConfig() *ProducerConfig {
@@ -30,6 +36,12 @@ func NewProducerConfig() *ProducerConfig {
 			MaxRetry:      3,
 			RetryInterval: 500 * time.Millisecond,
 		},
-		SendStrategy: RoundRobin,
+		SendStrategy:         RoundRobin,
+		Parittioner:          DefaultPartitionFunc,
+		MaxAsyncFlightingNum: 16,
+		MaxAsyncBufferNum:    1000,
+		MaxAsyncBufferTime:   5 * time.Second,
+		EnableSuccessCh:      true,
+		EnableErrorCh:        true,
 	}
 }

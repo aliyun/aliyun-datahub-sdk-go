@@ -11,6 +11,7 @@ import (
 
 type DataType interface {
 	fmt.Stringer
+	Size() int
 }
 
 // Bigint
@@ -20,11 +21,19 @@ func (bi Bigint) String() string {
 	return strconv.FormatInt(int64(bi), 10)
 }
 
+func (bi Bigint) Size() int {
+	return 8
+}
+
 // String
 type String string
 
 func (str String) String() string {
 	return string(str)
+}
+
+func (str String) Size() int {
+	return len(str)
 }
 
 // Boolean
@@ -34,11 +43,19 @@ func (bl Boolean) String() string {
 	return strconv.FormatBool(bool(bl))
 }
 
+func (bl Boolean) Size() int {
+	return 1
+}
+
 // Double
 type Double float64
 
 func (d Double) String() string {
 	return strconv.FormatFloat(float64(d), 'f', -1, 64)
+}
+
+func (d Double) Size() int {
+	return 8
 }
 
 // Timestamp
@@ -48,11 +65,19 @@ func (t Timestamp) String() string {
 	return strconv.FormatUint(uint64(t), 10)
 }
 
+func (t Timestamp) Size() int {
+	return 8
+}
+
 // DECIMAL
 type Decimal decimal.Decimal
 
 func (d Decimal) String() string {
 	return decimal.Decimal(d).String()
+}
+
+func (d Decimal) Size() int {
+	return len(d.String())
 }
 
 type Integer int32
@@ -61,10 +86,18 @@ func (i Integer) String() string {
 	return strconv.FormatInt(int64(i), 10)
 }
 
+func (i Integer) Size() int {
+	return 4
+}
+
 type Float float32
 
 func (f Float) String() string {
 	return strconv.FormatFloat(float64(f), 'f', -1, 32)
+}
+
+func (f Float) Size() int {
+	return 4
 }
 
 type Tinyint int8
@@ -73,16 +106,28 @@ func (ti Tinyint) String() string {
 	return strconv.FormatInt(int64(ti), 10)
 }
 
+func (ti Tinyint) Size() int {
+	return 1
+}
+
 type Smallint int16
 
 func (si Smallint) String() string {
 	return strconv.FormatInt(int64(si), 10)
 }
 
+func (si Smallint) Size() int {
+	return 2
+}
+
 type Json string
 
 func (j Json) String() string {
 	return string(j)
+}
+
+func (j Json) Size() int {
+	return len(j)
 }
 
 // FieldType

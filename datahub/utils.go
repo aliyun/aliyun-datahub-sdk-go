@@ -1,11 +1,16 @@
 package datahub
 
 import (
+	"crypto/md5"
 	"fmt"
 	"hash/crc32"
 	"hash/fnv"
+	"io"
 	"net"
 	"os"
+	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func calculateCrc32(buf []byte) uint32 {
@@ -20,6 +25,17 @@ func calculateHashCode(input string) (uint32, error) {
 		return 0, err
 	}
 	return fnv32.Sum32(), nil
+}
+
+func calculateMD5(input string) (string, error) {
+	hasher := md5.New()
+	_, err := io.WriteString(hasher, input)
+	if err != nil {
+		return "", err
+	}
+
+	hashBytes := hasher.Sum(nil)
+	return fmt.Sprintf("%x", hashBytes), nil
 }
 
 func getHostIP() (string, error) {
@@ -40,4 +56,15 @@ func getHostIP() (string, error) {
 	}
 
 	return "", fmt.Errorf("cannot get host ip")
+}
+
+func withRecover(key string, fn func()) {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Errorf("%s panic, err:%v", key, err)
+		}
+		time.Sleep(time.Second)
+	}()
+
+	fn()
 }

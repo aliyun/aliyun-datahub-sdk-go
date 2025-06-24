@@ -164,15 +164,31 @@ func (tsc *topicSchemaCacheImpl) freshSchema(force bool) error {
 		newSchemaMap[schema.RecordSchema.hashCode()] = schema.VersionId
 	}
 
-	tsc.lock.Lock()
-	defer tsc.lock.Unlock()
-	tsc.maxSchemaVersionId = maxVersion
-	tsc.schemaMap = newSchemaMap
-	tsc.versionMap = newVersionMap
+	update := false
+	tsc.lock.RLock()
+	if len(newVersionMap) != len(tsc.versionMap) {
+		update = true
+	} else {
+		for versionId := range tsc.versionMap {
+			if _, ok := newVersionMap[versionId]; !ok {
+				update = true
+				break
+			}
+		}
+	}
+	tsc.lock.RUnlock()
 
-	log.Infof("%s/%s fresh schema success, newSchemaVersions:%v", tsc.project, tsc.topic, newSchemaList)
+	if !update {
+		log.Infof("%s/%s fresh schema success, no schema change", tsc.project, tsc.topic)
+	} else {
+		tsc.lock.Lock()
+		defer tsc.lock.Unlock()
+		tsc.maxSchemaVersionId = maxVersion
+		tsc.schemaMap = newSchemaMap
+		tsc.versionMap = newVersionMap
+		log.Infof("%s/%s fresh schema success, newSchemaVersions:%v", tsc.project, tsc.topic, newSchemaList)
+	}
 	return nil
-
 }
 
 func (tsc *topicSchemaCacheImpl) getSchemaByVersionId(versionId int) *RecordSchema {

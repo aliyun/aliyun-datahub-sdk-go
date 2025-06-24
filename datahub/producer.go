@@ -136,7 +136,7 @@ func (pi *producerImpl) SendByShard(records []IRecord, shardId string) error {
 
 func (pi *producerImpl) sendWithRetry(records []IRecord, shardId string) error {
 	var returnErr error = nil
-	for i := 0; pi.config.MaxRetry <= 0 || i < pi.config.MaxRetry; i++ {
+	for i := 0; pi.config.MaxRetry < 0 || i <= pi.config.MaxRetry; i++ {
 		now := time.Now()
 		res, err := pi.client.PutRecordsByShard(pi.project, pi.topic, shardId, records)
 		if err == nil {
@@ -157,8 +157,8 @@ func (pi *producerImpl) sendWithRetry(records []IRecord, shardId string) error {
 		sleepTime := pi.config.RetryInterval
 		if IsNetworkError(err) {
 			if log.IsLevelEnabled(log.DebugLevel) {
-				log.Debugf("%s/%s/%s send records %d success, cost: %v, rid:%s",
-					pi.project, pi.topic, shardId, len(records), time.Since(now), res.RequestId)
+				log.Debugf("%s/%s/%s send records %d with network error, cost: %v, error:%v",
+					pi.project, pi.topic, shardId, len(records), time.Since(now), err)
 			}
 		} else if IsLimitExceedError(err) {
 			sleepTime = 100 * time.Millisecond

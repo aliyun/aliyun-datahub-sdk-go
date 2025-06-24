@@ -55,6 +55,14 @@ func (br *BaseRecord) setMetaInfo(sequence, systemTime, serial int64, index int,
 	br.NextCursor = nextCursor
 }
 
+func (br *BaseRecord) SetShardId(shardId string) {
+	br.ShardId = shardId
+}
+
+func (br *BaseRecord) SetPartitionKey(key string) {
+	br.PartitionKey = key
+}
+
 // RecordEntry
 type RecordEntry struct {
 	Data interface{} `json:"Data"`
@@ -74,6 +82,9 @@ type IRecord interface {
 	SetAttribute(key string, val string)
 	GetAttributes() map[string]string
 	setMetaInfo(sequence, systemTime, serial int64, index int, shardId, cursor, nextCursor string)
+	SetShardId(shardId string)
+	SetPartitionKey(key string)
+	GetSize() int
 }
 
 // BlobRecord blob type record
@@ -135,6 +146,16 @@ func (br *BlobRecord) GetBaseRecord() BaseRecord {
 
 func (br *BlobRecord) SetBaseRecord(baseRecord BaseRecord) {
 	br.BaseRecord = baseRecord
+}
+
+func (br *BlobRecord) GetSize() int {
+	size := 0
+	for k, v := range br.Attributes {
+		size += len(k) + len(v)
+	}
+
+	size += len(br.RawData)
+	return size
 }
 
 // TupleRecord tuple type record
@@ -301,6 +322,26 @@ func (tr *TupleRecord) GetData() interface{} {
 		}
 	}
 	return result
+}
+
+func (tr *TupleRecord) GetSize() int {
+	size := 0
+	for k, v := range tr.Attributes {
+		size += len(k) + len(v)
+	}
+
+	for _, val := range tr.Values {
+		if val != nil {
+			size += len(val.String())
+		}
+	}
+
+	for _, val := range tr.Values {
+		if val != nil {
+			size += val.Size()
+		}
+	}
+	return size
 }
 
 // GetBaseRecord get base record entry

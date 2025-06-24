@@ -121,6 +121,11 @@ func IsShardSealedError(err error) bool {
 	return ok
 }
 
+func IsSeekOutOfRange(err error) bool {
+	_, ok := err.(*SeekOutOfRangeError)
+	return ok
+}
+
 func IsFieldNotExistsError(err error) bool {
 	_, ok := err.(*FieldNotExistsError)
 	return ok
