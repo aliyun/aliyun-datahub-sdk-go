@@ -209,7 +209,7 @@ type topicExtraConfig struct {
 
 func defaultTopicExtraConfig() topicExtraConfig {
 	return topicExtraConfig{
-		protocol:           Protobuf,
+		protocol:           unknownProtocol,
 		compressType:       NOCOMPRESS,
 		listShardInterval:  time.Minute * 1,
 		listSchemaInterval: time.Minute * 1,
@@ -275,10 +275,12 @@ func (gtr *GetTopicResult) UnmarshalJSON(data []byte) error {
 	gtr.extraConfig = defaultTopicExtraConfig()
 	val, ok := msg.ExtraConfig["DataProtocolType"]
 	if ok {
-		if strings.ToUpper(val) == "BATCH" {
-			gtr.extraConfig.protocol = Batch
-		} else {
-			gtr.extraConfig.protocol = Protobuf
+		if val != "" {
+			if strings.ToUpper(val) == "BATCH" {
+				gtr.extraConfig.protocol = Batch
+			} else {
+				gtr.extraConfig.protocol = Protobuf
+			}
 		}
 	}
 

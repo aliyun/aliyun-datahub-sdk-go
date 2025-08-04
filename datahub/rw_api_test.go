@@ -26,7 +26,9 @@ func TestPutBlobRecordsPB(t *testing.T) {
 
 	defer ts.Close()
 
-	dh := New("a", "a", ts.URL)
+	cfg := NewDefaultConfig()
+	cfg.Protocol = Protobuf
+	dh := NewClientWithConfig(ts.URL, cfg, NewAliyunAccount("a", "a"))
 
 	records := make([]IRecord, 0)
 	record1 := NewBlobRecord([]byte("AAAA"))
@@ -64,7 +66,9 @@ func TestPutBlobRecordsByShardPB(t *testing.T) {
 
 	defer ts.Close()
 
-	dh := New("a", "a", ts.URL)
+	cfg := NewDefaultConfig()
+	cfg.Protocol = Protobuf
+	dh := NewClientWithConfig(ts.URL, cfg, NewAliyunAccount("a", "a"))
 
 	records := make([]IRecord, 0)
 	record1 := NewBlobRecord([]byte("AAAA"))
@@ -98,7 +102,9 @@ func TestPutTupleRecordsPB(t *testing.T) {
 
 	defer ts.Close()
 
-	dh := New("a", "a", ts.URL)
+	cfg := NewDefaultConfig()
+	cfg.Protocol = Protobuf
+	dh := NewClientWithConfig(ts.URL, cfg, NewAliyunAccount("a", "a"))
 
 	recordSchema := NewRecordSchema()
 	recordSchema.AddField(Field{Name: "f1", Type: BIGINT, AllowNull: true})
@@ -142,7 +148,9 @@ func TestPutTupleRecordsByShardPB(t *testing.T) {
 
 	defer ts.Close()
 
-	dh := New("a", "a", ts.URL)
+	cfg := NewDefaultConfig()
+	cfg.Protocol = Protobuf
+	dh := NewClientWithConfig(ts.URL, cfg, NewAliyunAccount("a", "a"))
 
 	recordSchema := NewRecordSchema()
 	recordSchema.AddField(Field{Name: "f1", Type: BIGINT, AllowNull: true})
@@ -183,7 +191,9 @@ func TestGetBlobRecordsPB(t *testing.T) {
 
 	defer ts.Close()
 
-	dh := New("a", "a", ts.URL)
+	cfg := NewDefaultConfig()
+	cfg.Protocol = Protobuf
+	dh := NewClientWithConfig(ts.URL, cfg, NewAliyunAccount("a", "a"))
 
 	ret, err := dh.GetBlobRecords("test_project", "test_topic", "0", "30005af19b3800000000000000000000", 1)
 	assert.Nil(t, err)
@@ -218,7 +228,9 @@ func TestGetTupleRecordsPB(t *testing.T) {
 
 	defer ts.Close()
 
-	dh := New("a", "a", ts.URL)
+	cfg := NewDefaultConfig()
+	cfg.Protocol = Protobuf
+	dh := NewClientWithConfig(ts.URL, cfg, NewAliyunAccount("a", "a"))
 
 	recordSchema := NewRecordSchema()
 	recordSchema.AddField(Field{Name: "field1", Type: STRING, AllowNull: true})

@@ -12,7 +12,8 @@ import (
 type Protocol int
 
 const (
-	Protobuf Protocol = iota
+	unknownProtocol Protocol = iota
+	Protobuf
 	Batch
 )
 
@@ -26,8 +27,8 @@ type Config struct {
 func NewDefaultConfig() *Config {
 	return &Config{
 		UserAgent:      DefaultUserAgent(),
-		CompressorType: LZ4,
-		Protocol:       Protobuf,
+		CompressorType: ZSTD,
+		Protocol:       Batch,
 		HttpClient:     DefaultHttpClient(),
 	}
 }

@@ -23,6 +23,7 @@ type ProducerConfig struct {
 	BaseConfig
 	SendStrategy         SendStrategy
 	Parittioner          PartitionFunc
+	Protocol             Protocol
 	MaxAsyncFlightingNum int
 	MaxAsyncBufferNum    int
 	MaxAsyncBufferTime   time.Duration
@@ -38,6 +39,7 @@ func NewProducerConfig() *ProducerConfig {
 		},
 		SendStrategy:         RoundRobin,
 		Parittioner:          DefaultPartitionFunc,
+		Protocol:             Batch,
 		MaxAsyncFlightingNum: 16,
 		MaxAsyncBufferNum:    1000,
 		MaxAsyncBufferTime:   5 * time.Second,

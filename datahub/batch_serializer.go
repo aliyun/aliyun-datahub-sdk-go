@@ -7,8 +7,9 @@ import (
 )
 
 const (
-	batchRecordHeaderSize = 36
-	avroDataType          = 2
+	defaultBatchHeaderSize = 36
+	currentBatchHeaderSize = 40
+	avroDataType           = 2
 )
 
 var (
@@ -35,6 +36,25 @@ type batchHeader struct {
 	schemaVersion int32
 	dataOffset    int32
 	recordCount   int32
+
+	// extra info
+	schemaColumnNum int32
+}
+
+func newBatchHeader() *batchHeader {
+	return &batchHeader{
+		magic:           batchMagicNum,
+		version:         1,
+		length:          0,
+		rawSize:         0,
+		crc32:           0,
+		attribute:       0,
+		dataType:        avroDataType,
+		schemaVersion:   0,
+		dataOffset:      currentBatchHeaderSize,
+		recordCount:     0,
+		schemaColumnNum: 0,
+	}
 }
 
 func setCompressType(attrbuite int16, cType CompressorType) int16 {
@@ -47,7 +67,7 @@ func getCompressType(attribute int16) CompressorType {
 }
 
 func (serializer *batchSerializer) serializeBatchHeader(bHeader *batchHeader) []byte {
-	buf := make([]byte, batchRecordHeaderSize)
+	buf := make([]byte, currentBatchHeaderSize)
 	copy(buf, batchMagicBytes)
 	binary.LittleEndian.PutUint32(buf[4:], uint32(bHeader.version))
 	binary.LittleEndian.PutUint32(buf[8:], uint32(bHeader.length))
@@ -58,6 +78,7 @@ func (serializer *batchSerializer) serializeBatchHeader(bHeader *batchHeader) []
 	binary.LittleEndian.PutUint32(buf[24:], uint32(bHeader.schemaVersion))
 	binary.LittleEndian.PutUint32(buf[28:], uint32(bHeader.dataOffset))
 	binary.LittleEndian.PutUint32(buf[32:], uint32(bHeader.recordCount))
+	binary.LittleEndian.PutUint32(buf[36:], uint32(bHeader.schemaColumnNum))
 	return buf
 }
 
@@ -101,17 +122,23 @@ func (bs *batchSerializer) serialize(records []IRecord) ([]byte, error) {
 		return nil, err
 	}
 
+	columnNum := 0
+	if tr, ok := records[0].(*TupleRecord); ok {
+		columnNum = tr.RecordSchema.Size()
+	}
+
 	header := batchHeader{
-		magic:         batchMagicNum,
-		version:       1,
-		length:        int32(len(buf)) + batchRecordHeaderSize,
-		rawSize:       int32(len(rawBuf)),
-		crc32:         calculateCrc32(buf),
-		attribute:     attrbuite,
-		dataType:      avroDataType,
-		schemaVersion: schemaVersionId,
-		dataOffset:    batchRecordHeaderSize,
-		recordCount:   int32(len(records)),
+		magic:           batchMagicNum,
+		version:         1,
+		length:          int32(len(buf)) + currentBatchHeaderSize,
+		rawSize:         int32(len(rawBuf)),
+		crc32:           calculateCrc32(buf),
+		attribute:       attrbuite,
+		dataType:        avroDataType,
+		schemaVersion:   schemaVersionId,
+		dataOffset:      currentBatchHeaderSize,
+		recordCount:     int32(len(records)),
+		schemaColumnNum: int32(columnNum),
 	}
 
 	headerBuf := bs.serializeBatchHeader(&header)
@@ -205,7 +232,7 @@ func (bd *batchDeserializer) deserialize(data []byte, meta *respMeta) ([]IRecord
 		return nil, err
 	}
 
-	rawBuf, err := bd.decompress(data[batchRecordHeaderSize:], header)
+	rawBuf, err := bd.decompress(data[header.dataOffset:], header)
 	if err != nil {
 		return nil, err
 	}
@@ -238,11 +265,11 @@ func (deserializer *batchDeserializer) decompress(data []byte, header *batchHead
 }
 
 func parseBatchHeader(data []byte) (*batchHeader, error) {
-	if len(data) < batchRecordHeaderSize {
+	if len(data) < defaultBatchHeaderSize {
 		return nil, fmt.Errorf("read batch header fail, current length[%d] not enough", len(data))
 	}
 
-	header := &batchHeader{}
+	header := newBatchHeader()
 	header.magic = int32(binary.LittleEndian.Uint32(data[0:]))
 	header.version = int32(binary.LittleEndian.Uint32(data[4:]))
 	header.length = int32(binary.LittleEndian.Uint32(data[8:]))
@@ -254,6 +281,14 @@ func parseBatchHeader(data []byte) (*batchHeader, error) {
 	header.dataOffset = int32(binary.LittleEndian.Uint32(data[28:]))
 	header.recordCount = int32(binary.LittleEndian.Uint32(data[32:]))
 
+	if header.dataOffset > int32(len(data)) {
+		return nil, fmt.Errorf("read batch header fail, current length[%d] not enough", len(data))
+	}
+
+	if header.dataOffset >= currentBatchHeaderSize {
+		header.schemaColumnNum = int32(binary.LittleEndian.Uint32(data[36:]))
+	}
+
 	if header.magic != batchMagicNum {
 		return nil, fmt.Errorf("check magic number fail")
 	}
@@ -263,7 +298,7 @@ func parseBatchHeader(data []byte) (*batchHeader, error) {
 	}
 
 	if header.crc32 != 0 {
-		calCrc := calculateCrc32(data[batchRecordHeaderSize:])
+		calCrc := calculateCrc32(data[header.dataOffset:])
 		if calCrc != header.crc32 {
 			return nil, fmt.Errorf("check crc fail. expect:%d, real:%d", header.crc32, calCrc)
 		}

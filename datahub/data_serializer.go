@@ -147,8 +147,10 @@ type avroDataDeserializer struct {
 }
 
 func (ad *avroDataDeserializer) deserialize(data []byte, header *batchHeader) ([]IRecord, error) {
-	dhSchema := ad.schemaCache.getSchemaByVersionId(int(header.schemaVersion))
-	avroSchema := ad.schemaCache.getAvroSchemaByVersionId(int(header.schemaVersion))
+	dhSchema, avroSchema, err := ad.getSchema(header)
+	if err != nil {
+		return nil, err
+	}
 
 	// avro schema cannot be null
 	if avroSchema == nil || (header.schemaVersion >= 0 && dhSchema == nil) {
@@ -175,6 +177,33 @@ func (ad *avroDataDeserializer) deserialize(data []byte, header *batchHeader) ([
 	}
 
 	return records, nil
+}
+
+func (ad *avroDataDeserializer) getSchema(header *batchHeader) (*RecordSchema, avro.Schema, error) {
+	schema := ad.schemaCache.getSchemaByVersionId(int(header.schemaVersion))
+
+	truncated := false
+	dhSchema := schema
+	if dhSchema != nil && header.schemaColumnNum != 0 && int(header.schemaColumnNum) != dhSchema.Size() {
+		dhSchema = NewRecordSchema()
+		for i := 0; i < int(header.schemaColumnNum); i++ {
+			dhSchema.AddField(schema.Fields[i])
+		}
+		truncated = true
+	}
+
+	var avroSchema avro.Schema
+	if !truncated {
+		avroSchema = ad.schemaCache.getAvroSchemaByVersionId(int(header.schemaVersion))
+	} else {
+		tmp, err := getAvroSchema(dhSchema)
+		if err != nil {
+			return nil, nil, err
+		}
+		avroSchema = tmp
+	}
+
+	return dhSchema, avroSchema, nil
 }
 
 func (ad *avroDataDeserializer) convertRecord(dhSchema *RecordSchema, avroRecord map[string]any) (IRecord, error) {

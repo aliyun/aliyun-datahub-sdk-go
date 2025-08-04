@@ -23,6 +23,7 @@ var (
 )
 
 type topicSchemaCache interface {
+	getMaxSchemaVersionId() int
 	getSchemaByVersionId(versionId int) *RecordSchema
 	getVersionIdBySchema(schema *RecordSchema) int
 	getAvroSchema(schema *RecordSchema) avro.Schema
@@ -40,10 +41,11 @@ func NewTopicSchemaCache(project string, topic string, client DataHubApi) *topic
 	return &topicSchemaItem{
 		accessTime: now,
 		cache: &topicSchemaCacheImpl{
-			client:        client,
-			project:       project,
-			topic:         topic,
-			nextFreshTime: now,
+			client:             client,
+			project:            project,
+			topic:              topic,
+			maxSchemaVersionId: -1,
+			nextFreshTime:      now,
 		},
 	}
 }
@@ -191,17 +193,20 @@ func (tsc *topicSchemaCacheImpl) freshSchema(force bool) error {
 	return nil
 }
 
-func (tsc *topicSchemaCacheImpl) getSchemaByVersionId(versionId int) *RecordSchema {
+func (tsc *topicSchemaCacheImpl) getMaxSchemaVersionId() int {
 	tsc.freshSchema(false)
 	tsc.lock.RLock()
 	defer tsc.lock.RUnlock()
 
-	if !tsc.topicResult.EnableSchema {
-		return tsc.topicResult.RecordSchema
-	} else {
-		if versionId < 0 {
-			versionId = tsc.maxSchemaVersionId
-		}
+	return tsc.maxSchemaVersionId
+}
+
+func (tsc *topicSchemaCacheImpl) getSchemaByVersionId(versionId int) *RecordSchema {
+	tsc.freshSchema(false)
+
+	if versionId >= 0 {
+		tsc.lock.RLock()
+		defer tsc.lock.RUnlock()
 
 		if schemaItem, ok := tsc.versionMap[versionId]; ok {
 			return schemaItem.dhSchema

@@ -207,13 +207,11 @@ func NewTupleRecordFromJson(schema *RecordSchema, jsonBuf []byte, opts ...JsonPa
 
 func (tr *TupleRecord) String() string {
 	record := struct {
-		RecordSchema *RecordSchema     `json:"RecordSchema"`
-		Values       []DataType        `json:"Values"`
-		Attributes   map[string]string `json:"Attributes"`
+		Values     []DataType        `json:"Values"`
+		Attributes map[string]string `json:"Attributes"`
 	}{
-		RecordSchema: tr.RecordSchema,
-		Values:       tr.Values,
-		Attributes:   tr.Attributes,
+		Values:     tr.Values,
+		Attributes: tr.Attributes,
 	}
 	byts, _ := json.Marshal(record)
 	return string(byts)

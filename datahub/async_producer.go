@@ -185,11 +185,7 @@ func (ap *asyncProducerImpl) initMeta() error {
 		ap.freshShardInterval = ap.topicMeta.extraConfig.listShardInterval
 	}
 
-	config := &Config{
-		CompressorType: LZ4,
-		Protocol:       Protobuf,
-		HttpClient:     DefaultHttpClient(),
-	}
+	config := NewDefaultConfig()
 
 	if ap.topicMeta.extraConfig.compressType != NOCOMPRESS {
 		config.CompressorType = ap.topicMeta.extraConfig.compressType
@@ -198,7 +194,11 @@ func (ap *asyncProducerImpl) initMeta() error {
 	if ap.topicMeta.EnableSchema {
 		config.Protocol = Batch
 	} else {
-		config.Protocol = ap.topicMeta.extraConfig.protocol
+		if ap.topicMeta.extraConfig.protocol != unknownProtocol {
+			config.Protocol = ap.topicMeta.extraConfig.protocol
+		} else {
+			config.Protocol = ap.config.Protocol
+		}
 	}
 
 	userAgent := defaultClientAgent()
@@ -231,6 +231,14 @@ func (ap *asyncProducerImpl) GetSchema() (*RecordSchema, error) {
 }
 
 func (ap *asyncProducerImpl) GetSchemaByVersionId(versionId int) (*RecordSchema, error) {
+	if versionId < 0 {
+		versionId = ap.schemaCache.getMaxSchemaVersionId()
+	}
+
+	if versionId < 0 { // blob
+		return nil, nil
+	}
+
 	schema := ap.schemaCache.getSchemaByVersionId(versionId)
 	if schema != nil {
 		return schema, nil

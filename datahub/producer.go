@@ -68,11 +68,7 @@ func (pi *producerImpl) initMeta() error {
 		pi.freshShardInterval = res.extraConfig.listShardInterval
 	}
 
-	config := &Config{
-		CompressorType: LZ4,
-		Protocol:       Protobuf,
-		HttpClient:     DefaultHttpClient(),
-	}
+	config := NewDefaultConfig()
 
 	if res.extraConfig.compressType != NOCOMPRESS {
 		config.CompressorType = res.extraConfig.compressType
@@ -81,7 +77,11 @@ func (pi *producerImpl) initMeta() error {
 	if res.EnableSchema {
 		config.Protocol = Batch
 	} else {
-		config.Protocol = res.extraConfig.protocol
+		if res.extraConfig.protocol != unknownProtocol {
+			config.Protocol = res.extraConfig.protocol
+		} else {
+			config.Protocol = pi.config.Protocol
+		}
 	}
 
 	userAgent := defaultClientAgent()
@@ -265,6 +265,14 @@ func (pi *producerImpl) GetSchema() (*RecordSchema, error) {
 }
 
 func (pi *producerImpl) GetSchemaByVersionId(versionId int) (*RecordSchema, error) {
+	if versionId < 0 {
+		versionId = pi.schemaCache.getMaxSchemaVersionId()
+	}
+
+	if versionId < 0 { // blob
+		return nil, nil
+	}
+
 	schema := pi.schemaCache.getSchemaByVersionId(versionId)
 	if schema != nil {
 		return schema, nil

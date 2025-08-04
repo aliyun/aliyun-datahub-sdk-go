@@ -17,6 +17,9 @@ type topicSchemaCacheForTest struct {
 	dhSchema   *RecordSchema
 }
 
+func (tsc *topicSchemaCacheForTest) getMaxSchemaVersionId() int {
+	return 1
+}
 func (tsc *topicSchemaCacheForTest) getSchemaByVersionId(versionId int) *RecordSchema {
 	return tsc.dhSchema
 }
