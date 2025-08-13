@@ -9,21 +9,22 @@ import (
 )
 
 func offset_consumption() {
+	projectName := "test_project"
+	topicName := "test_topic"
+	subId := "174479399622950OBW"
+	shardId := "0"
 
 	// add config to examples client
 	config := &datahub.Config{
-		// create a datahubClint  support binary transmission
-		EnableBinary: true,
-		//use lz4 compress data
-		CompressorType: datahub.LZ4,
+		Protocol:       datahub.Batch,
+		CompressorType: datahub.ZSTD,
 	}
 
-	account := datahub.NewAliyunAccount(accessId, accessKey)
-	dh := datahub.NewClientWithConfig(endpoint, config, account)
+	account := datahub.NewAliyunAccount("ak", "sk")
+	dh := datahub.NewClientWithConfig("endpoint", config, account)
 
-	shardId := "3"
 	// add your want to open shardId
-	shardIds := []string{"0", "1", "2", "3"}
+	shardIds := []string{shardId}
 	session, err := dh.OpenSubscriptionSession(projectName, topicName, subId, shardIds)
 	if err != nil {
 		fmt.Println("open session failed")

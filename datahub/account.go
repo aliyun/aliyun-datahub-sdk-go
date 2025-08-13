@@ -2,6 +2,8 @@ package datahub
 
 import (
 	"fmt"
+
+	"github.com/aliyun/credentials-go/credentials"
 )
 
 type Account interface {
@@ -41,6 +43,44 @@ func (a AliyunAccount) GetAccountKey() string {
 
 func (a AliyunAccount) GetSecurityToken() string {
 	return ""
+}
+
+type CredentialAccount struct {
+	provider credentials.Credential
+}
+
+func NewCredentialAccount(credential credentials.Credential) *CredentialAccount {
+	return &CredentialAccount{
+		provider: credential,
+	}
+}
+
+func (a CredentialAccount) String() string {
+	credential := a.getCredential()
+	return fmt.Sprintf("credential: %s", credential.String())
+}
+
+func (a CredentialAccount) getCredential() *credentials.CredentialModel {
+	credential, err := a.provider.GetCredential()
+	if err != nil {
+		panic(err)
+	}
+	return credential
+}
+
+func (a CredentialAccount) GetAccountId() string {
+	credential := a.getCredential()
+	return *credential.AccessKeyId
+}
+
+func (a CredentialAccount) GetAccountKey() string {
+	credential := a.getCredential()
+	return *credential.AccessKeySecret
+}
+
+func (a CredentialAccount) GetSecurityToken() string {
+	credential := a.getCredential()
+	return *credential.SecurityToken
 }
 
 type StsCredential struct {

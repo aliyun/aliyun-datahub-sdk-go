@@ -26,6 +26,7 @@ type respMeta struct {
 }
 
 type batchHeader struct {
+	fmt.Stringer
 	magic         int32
 	version       int32
 	length        int32
@@ -55,6 +56,11 @@ func newBatchHeader() *batchHeader {
 		recordCount:     0,
 		schemaColumnNum: 0,
 	}
+}
+
+func (bh *batchHeader) String() string {
+	return fmt.Sprintf("version:%d, length:%d, rawSize:%d, crc32:%d, attribute:%d, dataType:%d, schemaVersion:%d, dataOffset:%d, recordCount:%d, schemaColumnNum:%d",
+		bh.version, bh.length, bh.rawSize, bh.crc32, bh.attribute, bh.dataType, bh.schemaVersion, bh.dataOffset, bh.recordCount, bh.schemaColumnNum)
 }
 
 func setCompressType(attrbuite int16, cType CompressorType) int16 {

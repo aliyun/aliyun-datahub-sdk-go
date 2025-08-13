@@ -23,17 +23,11 @@ func main() {
 }
 
 func createTupleTopic() {
-	fields := []datahub.Field{
-		{"string_field", datahub.STRING, true, "comment1"},
-		{"bigint_field", datahub.BIGINT, false, ""},
-		{"timestamp_field", datahub.TIMESTAMP, true, ""},
-		{"double_field", datahub.DOUBLE, true, ""},
-		{"boolean_field", datahub.BOOLEAN, true, ""},
-		{"decimal_field", datahub.DECIMAL, true, ""},
-	}
-	schema := &datahub.RecordSchema{
-		fields,
-	}
+	schema := datahub.NewRecordSchema()
+	schema.AddField(*datahub.NewField("string_field", datahub.STRING))
+	schema.AddField(*datahub.NewFieldWithProp("bigint_field", datahub.BIGINT, false, "test11"))
+	schema.AddField(*datahub.NewField("double_field", datahub.DOUBLE))
+	schema.AddField(*datahub.NewField("boolean_field", datahub.BOOLEAN))
 
 	if _, err := dh.CreateTupleTopic(projectName, topicName, "topic comment", 7, 3, schema); err != nil {
 		if _, ok := err.(*datahub.ResourceExistError); ok {
@@ -135,28 +129,24 @@ func getSchema(dh datahub.DataHub, projectName, topicName string) {
 }
 
 func createSchema1() {
-	fields := []datahub.Field{
-		{"field1", datahub.STRING, true, "comment"},
-		{"field2", datahub.BIGINT, false, ""},
-	}
-	schema := datahub.RecordSchema{
-		fields,
-	}
+	schema := datahub.NewRecordSchema()
+	schema.AddField(*datahub.NewField("field1", datahub.STRING))
+	schema.AddField(*datahub.NewFieldWithProp("field2", datahub.BIGINT, false, "comment"))
 
 	fmt.Println(schema)
 }
 func createSchema2() {
 	recordSchema := datahub.NewRecordSchema()
-	recordSchema.AddField(datahub.Field{Name: "bigint_field", Type: datahub.BIGINT, AllowNull: true}).
-		AddField(datahub.Field{Name: "timestamp_field", Type: datahub.TIMESTAMP, AllowNull: false}).
-		AddField(datahub.Field{Name: "string_field", Type: datahub.STRING}).
-		AddField(datahub.Field{Name: "double_field", Type: datahub.DOUBLE}).
-		AddField(datahub.Field{Name: "boolean_field", Type: datahub.BOOLEAN}).
-		AddField(datahub.Field{Name: "decimal_field", Type: datahub.DECIMAL})
+	recordSchema.AddField(datahub.Field{Name: "bigint_field", Type: datahub.BIGINT, AllowNull: true})
+	recordSchema.AddField(datahub.Field{Name: "timestamp_field", Type: datahub.TIMESTAMP, AllowNull: false})
+	recordSchema.AddField(datahub.Field{Name: "string_field", Type: datahub.STRING})
+	recordSchema.AddField(datahub.Field{Name: "double_field", Type: datahub.DOUBLE})
+	recordSchema.AddField(datahub.Field{Name: "boolean_field", Type: datahub.BOOLEAN})
+	recordSchema.AddField(datahub.Field{Name: "decimal_field", Type: datahub.DECIMAL})
 }
 
 func createSchema3() {
-	str := ""
+	str := "{\"fields\":[{\"name\":\"field1\",\"type\":\"STRING\",\"notnull\":true,\"comment\":\"\"},{\"name\":\"field2\",\"type\":\"BIGINT\",\"notnull\":false,\"comment\":\"comment\"}]}"
 	schema, err := datahub.NewRecordSchemaFromJson(str)
 	if err != nil {
 		fmt.Println("create recordSchema failed")
