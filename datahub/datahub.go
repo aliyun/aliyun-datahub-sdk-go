@@ -16,7 +16,7 @@ func NewClientWithConfig(endpoint string, config *Config, account Account) DataH
 
 	dh := &DataHub{
 		Client: NewRestClient(endpoint, userAgent, config.HttpClient,
-			account, config.CompressorType),
+			account, config.CompressorType, config.Protocol),
 	}
 
 	if config.Protocol == Batch {

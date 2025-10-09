@@ -108,10 +108,11 @@ type RestClient struct {
 	// Account
 	Account        Account
 	CompressorType CompressorType
+	Protocol       Protocol
 }
 
 // NewRestClient create a new rest client
-func NewRestClient(endpoint string, useragent string, httpClient *http.Client, account Account, cType CompressorType) *RestClient {
+func NewRestClient(endpoint string, useragent string, httpClient *http.Client, account Account, cType CompressorType, protocol Protocol) *RestClient {
 	endpoint = strings.TrimSuffix(endpoint, "/")
 	return &RestClient{
 		Endpoint:       endpoint,
@@ -119,6 +120,7 @@ func NewRestClient(endpoint string, useragent string, httpClient *http.Client, a
 		HttpClient:     httpClient,
 		Account:        account,
 		CompressorType: cType,
+		Protocol:       protocol,
 	}
 }
 
@@ -163,6 +165,12 @@ func (client *RestClient) request(method, resource string, requestModel RequestM
 	}
 
 	rawSize := len(reqBody)
+	if client.Protocol == Batch {
+		if rsize, err := parseBatchRawSize(reqBody); err == nil {
+			rawSize = rsize
+		}
+	}
+
 	client.compressIfNeed(header, &reqBody)
 	reqSize := len(reqBody)
 

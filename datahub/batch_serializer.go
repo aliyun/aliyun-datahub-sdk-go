@@ -270,6 +270,13 @@ func (deserializer *batchDeserializer) decompress(data []byte, header *batchHead
 	return buf, nil
 }
 
+func parseBatchRawSize(data []byte) (int, error) {
+	if len(data) < defaultBatchHeaderSize {
+		return 0, fmt.Errorf("read batch header fail, current length[%d] not enough", len(data))
+	}
+	return int(binary.LittleEndian.Uint32(data[12:])), nil
+}
+
 func parseBatchHeader(data []byte) (*batchHeader, error) {
 	if len(data) < defaultBatchHeaderSize {
 		return nil, fmt.Errorf("read batch header fail, current length[%d] not enough", len(data))
