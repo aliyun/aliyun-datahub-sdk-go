@@ -37,14 +37,18 @@ func newProduceError(shardId string, records []IRecord, latency time.Duration, e
 type ProduceSuccess struct {
 	ShardId   string
 	RequestId string
+	ReqSize   int
+	RawSize   int
 	Records   []IRecord
 	Latency   time.Duration
 }
 
-func newProduceSuccess(shardId, rid string, records []IRecord, latency time.Duration) *ProduceSuccess {
+func newProduceSuccess(shardId, rid string, reqSize, rawSzie int, records []IRecord, latency time.Duration) *ProduceSuccess {
 	return &ProduceSuccess{
 		ShardId:   shardId,
 		RequestId: rid,
+		ReqSize:   reqSize,
+		RawSize:   rawSzie,
 		Records:   records,
 		Latency:   latency,
 	}
@@ -531,7 +535,7 @@ func (ss *shardWriter) sendRun() {
 	for batch := range ss.buffer.output() {
 		res, latency, err := ss.sendWithRetry(batch)
 		if err == nil && ss.config.EnableSuccessCh {
-			ss.parentSuccess <- newProduceSuccess(ss.shardId, res.RequestId, batch, latency)
+			ss.parentSuccess <- newProduceSuccess(ss.shardId, res.RequestId, res.ReqSize, res.RawSize, batch, latency)
 		} else {
 			if IsShardSealedError(err) {
 				ss.updateShardCh <- true

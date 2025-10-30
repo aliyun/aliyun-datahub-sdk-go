@@ -106,26 +106,26 @@ func newBatchSerializer(project, topic string, schemaCache topicSchemaCache, cTy
 	}
 }
 
-func (bs *batchSerializer) serialize(records []IRecord) ([]byte, error) {
+func (bs *batchSerializer) serialize(records []IRecord) ([]byte, *batchHeader, error) {
 	err := bs.preCheck(records)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	schemaVersionId, err := bs.getSchemaVersion(records[0])
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	rawBuf, err := bs.serializer.serialize(records)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var attrbuite int16 = 0
 	buf, err := bs.compress(rawBuf, &attrbuite)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	columnNum := 0
@@ -133,7 +133,7 @@ func (bs *batchSerializer) serialize(records []IRecord) ([]byte, error) {
 		columnNum = tr.RecordSchema.Size()
 	}
 
-	header := batchHeader{
+	header := &batchHeader{
 		magic:           batchMagicNum,
 		version:         1,
 		length:          int32(len(buf)) + currentBatchHeaderSize,
@@ -147,15 +147,15 @@ func (bs *batchSerializer) serialize(records []IRecord) ([]byte, error) {
 		schemaColumnNum: int32(columnNum),
 	}
 
-	headerBuf := bs.serializeBatchHeader(&header)
+	headerBuf := bs.serializeBatchHeader(header)
 
 	res := bytes.NewBuffer(headerBuf)
 	_, err = res.Write(buf)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return res.Bytes(), nil
+	return res.Bytes(), header, nil
 }
 
 func (bs *batchSerializer) preCheck(record []IRecord) error {
@@ -268,13 +268,6 @@ func (deserializer *batchDeserializer) decompress(data []byte, header *batchHead
 	}
 
 	return buf, nil
-}
-
-func parseBatchRawSize(data []byte) (int, error) {
-	if len(data) < defaultBatchHeaderSize {
-		return 0, fmt.Errorf("read batch header fail, current length[%d] not enough", len(data))
-	}
-	return int(binary.LittleEndian.Uint32(data[12:])), nil
 }
 
 func parseBatchHeader(data []byte) (*batchHeader, error) {

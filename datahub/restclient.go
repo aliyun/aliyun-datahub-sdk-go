@@ -124,51 +124,40 @@ func NewRestClient(endpoint string, useragent string, httpClient *http.Client, a
 	}
 }
 
-type RequestParameter struct {
-	Header map[string]string
-	Query  map[string]string
-}
-
 // Get send HTTP Get method request
-func (client *RestClient) Get(resource string, para *RequestParameter) ([]byte, *CommonResponseResult, error) {
-	return client.request(http.MethodGet, resource, &EmptyRequest{}, para)
+func (client *RestClient) Get(resource string, model RequestModel) ([]byte, *CommonResponseResult, error) {
+	return client.request(http.MethodGet, resource, model)
 }
 
 // Post send HTTP Post method request
-func (client *RestClient) Post(resource string, model RequestModel, para *RequestParameter) ([]byte, *CommonResponseResult, error) {
-	return client.request(http.MethodPost, resource, model, para)
+func (client *RestClient) Post(resource string, model RequestModel) ([]byte, *CommonResponseResult, error) {
+	return client.request(http.MethodPost, resource, model)
 }
 
 // Put send HTTP Put method request
-func (client *RestClient) Put(resource string, model RequestModel, para *RequestParameter) (interface{}, *CommonResponseResult, error) {
-	return client.request(http.MethodPut, resource, model, para)
+func (client *RestClient) Put(resource string, model RequestModel) (interface{}, *CommonResponseResult, error) {
+	return client.request(http.MethodPut, resource, model)
 }
 
 // Delete send HTTP Delete method request
-func (client *RestClient) Delete(resource string, para *RequestParameter) (interface{}, *CommonResponseResult, error) {
-	return client.request(http.MethodDelete, resource, &EmptyRequest{}, para)
+func (client *RestClient) Delete(resource string, model RequestModel) (interface{}, *CommonResponseResult, error) {
+	return client.request(http.MethodDelete, resource, model)
 }
 
-func (client *RestClient) request(method, resource string, requestModel RequestModel, para *RequestParameter) ([]byte, *CommonResponseResult, error) {
+func (client *RestClient) request(method, resource string, requestModel RequestModel) ([]byte, *CommonResponseResult, error) {
 	url := fmt.Sprintf("%s%s", client.Endpoint, resource)
 
 	header := map[string]string{
 		httpHeaderClientVersion: DATAHUB_CLIENT_VERSION,
 		httpHeaderDate:          time.Now().UTC().Format(http.TimeFormat),
 		httpHeaderUserAgent:     client.Useragent,
+		httpHeaderContentType:   httpJsonContent,
 	}
 
 	//serialization
-	reqBody, err := requestModel.requestBodyEncode()
+	reqBody, reqInfo, err := requestModel.requestBodyEncode()
 	if err != nil {
 		return nil, nil, err
-	}
-
-	rawSize := len(reqBody)
-	if client.Protocol == Batch {
-		if rsize, err := parseBatchRawSize(reqBody); err == nil {
-			rawSize = rsize
-		}
 	}
 
 	client.compressIfNeed(header, &reqBody)
@@ -189,17 +178,15 @@ func (client *RestClient) request(method, resource string, requestModel RequestM
 		return nil, nil, err
 	}
 
-	if para != nil {
-		for k, v := range para.Header {
-			header[k] = v
-		}
-
-		query := req.URL.Query()
-		for k, v := range para.Query {
-			query.Add(k, v)
-		}
-		req.URL.RawQuery = query.Encode()
+	for k, v := range requestModel.getExtraHeader() {
+		header[k] = v
 	}
+
+	query := req.URL.Query()
+	for k, v := range requestModel.getExtraQuery() {
+		query.Add(k, v)
+	}
+	req.URL.RawQuery = query.Encode()
 
 	for k, v := range header {
 		req.Header.Add(k, v)
@@ -241,7 +228,7 @@ func (client *RestClient) request(method, resource string, requestModel RequestM
 		return nil, nil, err
 	}
 
-	respResult.RawSize = rawSize
+	respResult.RawSize = reqInfo.rawSzie
 	respResult.ReqSize = reqSize
 	return respBody, respResult, nil
 }

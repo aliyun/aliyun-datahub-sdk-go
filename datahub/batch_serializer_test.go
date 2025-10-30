@@ -34,9 +34,7 @@ func TestBatchNormalSerialize(t *testing.T) {
 		records = append(records, genTupleRecord(dhSchema))
 	}
 
-	buf, err := ser.serialize(records)
-	assert.Nil(t, err)
-	header, err := parseBatchHeader(buf)
+	buf, header, err := ser.serialize(records)
 	assert.Nil(t, err)
 
 	assert.Equal(t, batchMagicNum, header.magic)
@@ -100,9 +98,7 @@ func TestBatchSerializeWithNullValue(t *testing.T) {
 		records = append(records, genTupleRecordWithNull(dhSchema, 20))
 	}
 
-	buf, err := ser.serialize(records)
-	assert.Nil(t, err)
-	header, err := parseBatchHeader(buf)
+	buf, header, err := ser.serialize(records)
 	assert.Nil(t, err)
 
 	assert.Equal(t, batchMagicNum, header.magic)
@@ -168,9 +164,7 @@ func TestDeserializeWithTruncateSchema(t *testing.T) {
 		records = append(records, genTupleRecord(dhSchema))
 	}
 
-	buf, err := ser.serialize(records)
-	assert.Nil(t, err)
-	header, err := parseBatchHeader(buf)
+	buf, header, err := ser.serialize(records)
 	assert.Nil(t, err)
 
 	assert.Equal(t, batchMagicNum, header.magic)

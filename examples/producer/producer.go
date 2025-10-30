@@ -53,12 +53,12 @@ func syncSend() {
 		records = append(records, genRecord(schema))
 	}
 
-	shardId, err := producer.Send(records)
+	deatils, err := producer.Send(records)
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Printf("send to shard %s success\n", shardId)
+	fmt.Printf("send to shard %s success\n", deatils.ShardId)
 }
 
 func main() {

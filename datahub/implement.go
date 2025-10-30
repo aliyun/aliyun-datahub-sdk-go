@@ -18,11 +18,7 @@ func (datahub *DataHub) setUserAgent(userAgent string) {
 // ListProjects list all projects
 func (datahub *DataHub) ListProject() (*ListProjectResult, error) {
 	path := projectsPath
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
-
-	responseBody, commonResp, err := datahub.Client.Get(path, reqPara)
+	responseBody, commonResp, err := datahub.Client.Get(path, newDefaultRequest())
 	if err != nil {
 		return nil, err
 	}
@@ -32,12 +28,11 @@ func (datahub *DataHub) ListProject() (*ListProjectResult, error) {
 // ListProjects list projects with filter
 func (datahub *DataHub) ListProjectWithFilter(filter string) (*ListProjectResult, error) {
 	path := projectsPath
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-		Query:  map[string]string{httpFilterQuery: filter},
+	req := &commonRequest{
+		query: map[string]string{httpFilterQuery: filter},
 	}
 
-	responseBody, commonResp, err := datahub.Client.Get(path, reqPara)
+	responseBody, commonResp, err := datahub.Client.Get(path, req)
 	if err != nil {
 		return nil, err
 	}
@@ -54,14 +49,11 @@ func (datahub *DataHub) CreateProject(projectName, comment string) (*CreateProje
 	}
 
 	path := fmt.Sprintf(projectPath, projectName)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	requestBody := &CreateProjectRequest{
 		Comment: comment,
 	}
 
-	_, commonResp, err := datahub.Client.Post(path, requestBody, reqPara)
+	_, commonResp, err := datahub.Client.Post(path, requestBody)
 	if err != nil {
 		return nil, err
 	}
@@ -78,14 +70,11 @@ func (datahub *DataHub) UpdateProject(projectName, comment string) (*UpdateProje
 	}
 
 	path := fmt.Sprintf(projectPath, projectName)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	requestBody := &UpdateProjectRequest{
 		Comment: comment,
 	}
 
-	_, commonResp, err := datahub.Client.Put(path, requestBody, reqPara)
+	_, commonResp, err := datahub.Client.Put(path, requestBody)
 	if err != nil {
 		return nil, err
 	}
@@ -99,11 +88,7 @@ func (datahub *DataHub) DeleteProject(projectName string) (*DeleteProjectResult,
 	}
 
 	path := fmt.Sprintf(projectPath, projectName)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
-
-	_, commonResp, err := datahub.Client.Delete(path, reqPara)
+	_, commonResp, err := datahub.Client.Delete(path, newDefaultRequest())
 	if err != nil {
 		return nil, err
 	}
@@ -117,11 +102,7 @@ func (datahub *DataHub) GetProject(projectName string) (*GetProjectResult, error
 	}
 
 	path := fmt.Sprintf(projectPath, projectName)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
-
-	respBody, commonResp, err := datahub.Client.Get(path, reqPara)
+	respBody, commonResp, err := datahub.Client.Get(path, newDefaultRequest())
 	if err != nil {
 		return nil, err
 	}
@@ -142,14 +123,11 @@ func (datahub *DataHub) UpdateProjectVpcWhitelist(projectName, vpcIds string) (*
 	}
 
 	path := fmt.Sprintf(projectPath, projectName)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	requestBody := &UpdateProjectVpcWhitelistRequest{
 		VpcIds: vpcIds,
 	}
 
-	_, commonResp, err := datahub.Client.Put(path, requestBody, reqPara)
+	_, commonResp, err := datahub.Client.Put(path, requestBody)
 	if err != nil {
 		return nil, err
 	}
@@ -201,10 +179,7 @@ func (datahub *DataHub) ListTopic(projectName string) (*ListTopicResult, error) 
 	}
 
 	path := fmt.Sprintf(topicsPath, projectName)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
-	respBody, commonResp, err := datahub.Client.Get(path, reqPara)
+	respBody, commonResp, err := datahub.Client.Get(path, newDefaultRequest())
 	if err != nil {
 		return nil, err
 	}
@@ -217,11 +192,10 @@ func (datahub *DataHub) ListTopicWithFilter(projectName, filter string) (*ListTo
 	}
 
 	path := fmt.Sprintf(topicsPath, projectName)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-		Query:  map[string]string{httpFilterQuery: filter},
+	req := &commonRequest{
+		query: map[string]string{httpFilterQuery: filter},
 	}
-	respBody, commonResp, err := datahub.Client.Get(path, reqPara)
+	respBody, commonResp, err := datahub.Client.Get(path, req)
 	if err != nil {
 		return nil, err
 	}
@@ -286,9 +260,6 @@ func (datahub *DataHub) CreateTopicWithPara(projectName, topicName string, para 
 	}
 
 	path := fmt.Sprintf(topicPath, projectName, topicName)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	ctr := &CreateTopicRequest{
 		Action:       "create",
 		ShardCount:   para.ShardCount,
@@ -299,7 +270,7 @@ func (datahub *DataHub) CreateTopicWithPara(projectName, topicName string, para 
 		ExpandMode:   para.ExpandMode,
 	}
 
-	_, commonResp, err := datahub.Client.Post(path, ctr, reqPara)
+	_, commonResp, err := datahub.Client.Post(path, ctr)
 	if err != nil {
 		return nil, err
 	}
@@ -330,15 +301,12 @@ func (datahub *DataHub) UpdateTopicWithPara(projectName, topicName string, para 
 	}
 
 	path := fmt.Sprintf(topicPath, projectName, topicName)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	ut := &UpdateTopicRequest{
 		Lifecycle: para.LifeCycle,
 		Comment:   para.Comment,
 	}
 
-	_, commonResp, err := datahub.Client.Put(path, ut, reqPara)
+	_, commonResp, err := datahub.Client.Put(path, ut)
 	if err != nil {
 		return nil, err
 	}
@@ -354,10 +322,7 @@ func (datahub *DataHub) DeleteTopic(projectName, topicName string) (*DeleteTopic
 	}
 
 	path := fmt.Sprintf(topicPath, projectName, topicName)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
-	_, commonResp, err := datahub.Client.Delete(path, reqPara)
+	_, commonResp, err := datahub.Client.Delete(path, newDefaultRequest())
 	if err != nil {
 		return nil, err
 	}
@@ -373,10 +338,7 @@ func (datahub *DataHub) GetTopic(projectName, topicName string) (*GetTopicResult
 	}
 
 	path := fmt.Sprintf(topicPath, projectName, topicName)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
-	respBody, commonResp, err := datahub.Client.Get(path, reqPara)
+	respBody, commonResp, err := datahub.Client.Get(path, newDefaultRequest())
 	if err != nil {
 		return nil, err
 	}
@@ -399,10 +361,7 @@ func (datahub *DataHub) ListShard(projectName, topicName string) (*ListShardResu
 	}
 
 	path := fmt.Sprintf(shardsPath, projectName, topicName)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
-	respBody, commonResp, err := datahub.Client.Get(path, reqPara)
+	respBody, commonResp, err := datahub.Client.Get(path, newDefaultRequest())
 	if err != nil {
 		return nil, err
 	}
@@ -426,16 +385,13 @@ func (datahub *DataHub) SplitShard(projectName, topicName, shardId string) (*Spl
 		return nil, err
 	}
 	path := fmt.Sprintf(shardsPath, projectName, topicName)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	ssr := &SplitShardRequest{
 		Action:   "split",
 		ShardId:  shardId,
 		SplitKey: splitKey,
 	}
 
-	respBody, commonResp, err := datahub.Client.Post(path, ssr, reqPara)
+	respBody, commonResp, err := datahub.Client.Post(path, ssr)
 	if err != nil {
 		return nil, err
 	}
@@ -456,16 +412,13 @@ func (datahub *DataHub) SplitShardBySplitKey(projectName, topicName, shardId, sp
 	}
 
 	path := fmt.Sprintf(shardsPath, projectName, topicName)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	ssr := &SplitShardRequest{
 		Action:   "split",
 		ShardId:  shardId,
 		SplitKey: splitKey,
 	}
 
-	respBody, commonResp, err := datahub.Client.Post(path, ssr, reqPara)
+	respBody, commonResp, err := datahub.Client.Post(path, ssr)
 	if err != nil {
 		return nil, err
 	}
@@ -484,16 +437,13 @@ func (datahub *DataHub) MergeShard(projectName, topicName, shardId, adjacentShar
 	}
 
 	path := fmt.Sprintf(shardsPath, projectName, topicName)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	mss := &MergeShardRequest{
 		Action:          "merge",
 		ShardId:         shardId,
 		AdjacentShardId: adjacentShardId,
 	}
 
-	respBody, commonResp, err := datahub.Client.Post(path, mss, reqPara)
+	respBody, commonResp, err := datahub.Client.Post(path, mss)
 	if err != nil {
 		return nil, err
 	}
@@ -512,16 +462,13 @@ func (datahub *DataHub) ExtendShard(projectName, topicName string, shardCount in
 	}
 
 	path := fmt.Sprintf(shardsPath, projectName, topicName)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	mss := &ExtendShardRequest{
 		Action:     "extend",
 		ExtendMode: "TO",
 		ShardCount: shardCount,
 	}
 
-	_, commonResp, err := datahub.Client.Post(path, mss, reqPara)
+	_, commonResp, err := datahub.Client.Post(path, mss)
 	if err != nil {
 		return nil, err
 	}
@@ -543,9 +490,6 @@ func (datahub *DataHub) GetCursor(projectName, topicName, shardId string, ctype 
 	}
 
 	path := fmt.Sprintf(shardPath, projectName, topicName, shardId)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	gcr := &GetCursorRequest{
 		Action:     "cursor",
 		CursorType: ctype,
@@ -568,7 +512,7 @@ func (datahub *DataHub) GetCursor(projectName, topicName, shardId string, ctype 
 		gcr.Sequence = param[0]
 	}
 
-	respBody, commonResp, err := datahub.Client.Post(path, gcr, reqPara)
+	respBody, commonResp, err := datahub.Client.Post(path, gcr)
 	if err != nil {
 		return nil, err
 	}
@@ -586,14 +530,11 @@ func (datahub *DataHub) PutRecords(projectName, topicName string, records []IRec
 	}
 
 	path := fmt.Sprintf(shardsPath, projectName, topicName)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	prr := &PutRecordsRequest{
 		Action:  "pub",
 		Records: records,
 	}
-	respBody, commonResp, err := datahub.Client.Post(path, prr, reqPara)
+	respBody, commonResp, err := datahub.Client.Post(path, prr)
 	if err != nil {
 		return nil, err
 	}
@@ -619,15 +560,12 @@ func (datahub *DataHub) GetTupleRecords(projectName, topicName, shardId, cursor 
 	}
 
 	path := fmt.Sprintf(shardPath, projectName, topicName, shardId)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	grr := &GetRecordRequest{
 		Action: "sub",
 		Cursor: cursor,
 		Limit:  limit,
 	}
-	respBody, commonResp, err := datahub.Client.Post(path, grr, reqPara)
+	respBody, commonResp, err := datahub.Client.Post(path, grr)
 	if err != nil {
 		return nil, err
 	}
@@ -657,15 +595,12 @@ func (datahub *DataHub) GetBlobRecords(projectName, topicName, shardId, cursor s
 	}
 
 	path := fmt.Sprintf(shardPath, projectName, topicName, shardId)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	grr := &GetRecordRequest{
 		Action: "sub",
 		Cursor: cursor,
 		Limit:  limit,
 	}
-	respBody, commonResp, err := datahub.Client.Post(path, grr, reqPara)
+	respBody, commonResp, err := datahub.Client.Post(path, grr)
 	if err != nil {
 		return nil, err
 	}
@@ -681,16 +616,13 @@ func (datahub *DataHub) AppendField(projectName, topicName string, field Field) 
 	}
 
 	path := fmt.Sprintf(topicPath, projectName, topicName)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	afr := &AppendFieldRequest{
 		Action:    "AppendField",
 		FieldName: field.Name,
 		FieldType: field.Type,
 	}
 
-	_, commonResp, err := datahub.Client.Post(path, afr, reqPara)
+	_, commonResp, err := datahub.Client.Post(path, afr)
 	if err != nil {
 		return nil, err
 	}
@@ -709,13 +641,10 @@ func (datahub *DataHub) GetMeterInfo(projectName, topicName, shardId string) (*G
 	}
 
 	path := fmt.Sprintf(shardPath, projectName, topicName, shardId)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	gmir := &GetMeterInfoRequest{
 		Action: "meter",
 	}
-	respBody, commonResp, err := datahub.Client.Post(path, gmir, reqPara)
+	respBody, commonResp, err := datahub.Client.Post(path, gmir)
 	if err != nil {
 		return nil, err
 	}
@@ -731,11 +660,10 @@ func (datahub *DataHub) ListConnector(projectName, topicName string) (*ListConne
 	}
 
 	path := fmt.Sprintf(connectorsPath, projectName, topicName)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-		Query:  map[string]string{httpHeaderConnectorMode: "id"},
+	req := &commonRequest{
+		query: map[string]string{httpHeaderConnectorMode: "id"},
 	}
-	respBody, commonResp, err := datahub.Client.Get(path, reqPara)
+	respBody, commonResp, err := datahub.Client.Get(path, req)
 	if err != nil {
 		return nil, err
 	}
@@ -774,9 +702,6 @@ func (datahub *DataHub) CreateConnectorWithPara(projectName, topicName string, p
 	}
 
 	path := fmt.Sprintf(connectorPath, projectName, topicName, para.ConnectorType.String())
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	ccr := &CreateConnectorRequest{
 		Action:        "create",
 		Type:          para.ConnectorType,
@@ -785,7 +710,7 @@ func (datahub *DataHub) CreateConnectorWithPara(projectName, topicName string, p
 		ColumnNameMap: para.ColumnNameMap,
 		Config:        para.Config,
 	}
-	respBody, commonResp, err := datahub.Client.Post(path, ccr, reqPara)
+	respBody, commonResp, err := datahub.Client.Post(path, ccr)
 	if err != nil {
 		return nil, err
 	}
@@ -801,10 +726,7 @@ func (datahub *DataHub) GetConnector(projectName, topicName, connectorId string)
 	}
 
 	path := fmt.Sprintf(connectorPath, projectName, topicName, connectorId)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
-	respBody, commonResp, err := datahub.Client.Get(path, reqPara)
+	respBody, commonResp, err := datahub.Client.Get(path, newDefaultRequest())
 	if err != nil {
 		return nil, err
 	}
@@ -833,16 +755,13 @@ func (datahub *DataHub) UpdateConnectorWithPara(projectName, topicName, connecto
 	}
 
 	path := fmt.Sprintf(connectorPath, projectName, topicName, connectorId)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	ucr := &UpdateConnectorRequest{
 		Action:        "updateconfig",
 		ColumnFields:  para.ColumnFields,
 		ColumnNameMap: para.ColumnNameMap,
 		Config:        para.Config,
 	}
-	_, commonResp, err := datahub.Client.Post(path, ucr, reqPara)
+	_, commonResp, err := datahub.Client.Post(path, ucr)
 	if err != nil {
 		return nil, err
 	}
@@ -858,10 +777,7 @@ func (datahub *DataHub) DeleteConnector(projectName, topicName, connectorId stri
 	}
 
 	path := fmt.Sprintf(connectorPath, projectName, topicName, connectorId)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
-	_, commonResp, err := datahub.Client.Delete(path, reqPara)
+	_, commonResp, err := datahub.Client.Delete(path, newDefaultRequest())
 	if err != nil {
 		return nil, err
 	}
@@ -877,12 +793,11 @@ func (datahub *DataHub) GetConnectorDoneTime(projectName, topicName, connectorId
 	}
 
 	path := fmt.Sprintf(connectorPath, projectName, topicName, connectorId)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-		Query:  map[string]string{"donetime": ""},
+	req := &commonRequest{
+		query: map[string]string{"donetime": ""},
 	}
 
-	respBody, commonResp, err := datahub.Client.Get(path, reqPara)
+	respBody, commonResp, err := datahub.Client.Get(path, req)
 	if err != nil {
 		return nil, err
 	}
@@ -898,13 +813,10 @@ func (datahub *DataHub) GetConnectorShardStatus(projectName, topicName, connecto
 	}
 
 	path := fmt.Sprintf(connectorPath, projectName, topicName, connectorId)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	gcss := &GetConnectorShardStatusRequest{
 		Action: "Status",
 	}
-	respBody, commonResp, err := datahub.Client.Post(path, gcss, reqPara)
+	respBody, commonResp, err := datahub.Client.Post(path, gcss)
 	if err != nil {
 		return nil, err
 	}
@@ -923,14 +835,11 @@ func (datahub *DataHub) GetConnectorShardStatusByShard(projectName, topicName, c
 	}
 
 	path := fmt.Sprintf(connectorPath, projectName, topicName, connectorId)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	gcss := &GetConnectorShardStatusRequest{
 		Action:  "Status",
 		ShardId: shardId,
 	}
-	respBody, commonResp, err := datahub.Client.Post(path, gcss, reqPara)
+	respBody, commonResp, err := datahub.Client.Post(path, gcss)
 	if err != nil {
 		return nil, err
 	}
@@ -946,13 +855,10 @@ func (datahub *DataHub) ReloadConnector(projectName, topicName, connectorId stri
 	}
 
 	path := fmt.Sprintf(connectorPath, projectName, topicName, connectorId)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	rcr := &ReloadConnectorRequest{
 		Action: "Reload",
 	}
-	_, commonResp, err := datahub.Client.Post(path, rcr, reqPara)
+	_, commonResp, err := datahub.Client.Post(path, rcr)
 	if err != nil {
 		return nil, err
 	}
@@ -971,14 +877,11 @@ func (datahub *DataHub) ReloadConnectorByShard(projectName, topicName, connector
 	}
 
 	path := fmt.Sprintf(connectorPath, projectName, topicName, connectorId)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	rcr := &ReloadConnectorRequest{
 		Action:  "Reload",
 		ShardId: shardId,
 	}
-	_, commonResp, err := datahub.Client.Post(path, rcr, reqPara)
+	_, commonResp, err := datahub.Client.Post(path, rcr)
 	if err != nil {
 		return nil, err
 	}
@@ -997,14 +900,11 @@ func (datahub *DataHub) UpdateConnectorState(projectName, topicName, connectorId
 	}
 
 	path := fmt.Sprintf(connectorPath, projectName, topicName, connectorId)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	ucsr := &UpdateConnectorStateRequest{
 		Action: "updatestate",
 		State:  state,
 	}
-	_, commonResp, err := datahub.Client.Post(path, ucsr, reqPara)
+	_, commonResp, err := datahub.Client.Post(path, ucsr)
 	if err != nil {
 		return nil, err
 	}
@@ -1023,9 +923,6 @@ func (datahub *DataHub) UpdateConnectorOffset(projectName, topicName, connectorI
 	}
 
 	path := fmt.Sprintf(connectorPath, projectName, topicName, connectorId)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	ucor := &UpdateConnectorOffsetRequest{
 		Action:    "updateshardcontext",
 		ShardId:   shardId,
@@ -1033,7 +930,7 @@ func (datahub *DataHub) UpdateConnectorOffset(projectName, topicName, connectorI
 		Sequence:  offset.Sequence,
 	}
 
-	_, commonResp, err := datahub.Client.Post(path, ucor, reqPara)
+	_, commonResp, err := datahub.Client.Post(path, ucor)
 	if err != nil {
 		return nil, err
 	}
@@ -1049,14 +946,11 @@ func (datahub *DataHub) AppendConnectorField(projectName, topicName, connectorId
 	}
 
 	path := fmt.Sprintf(connectorPath, projectName, topicName, connectorId)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	acfr := &AppendConnectorFieldRequest{
 		Action:    "appendfield",
 		FieldName: fieldName,
 	}
-	_, commonResp, err := datahub.Client.Post(path, acfr, reqPara)
+	_, commonResp, err := datahub.Client.Post(path, acfr)
 	if err != nil {
 		return nil, err
 	}
@@ -1072,15 +966,12 @@ func (datahub *DataHub) ListSubscription(projectName, topicName string, pageInde
 	}
 
 	path := fmt.Sprintf(subscriptionsPath, projectName, topicName)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	lsr := &ListSubscriptionRequest{
 		Action:    "list",
 		PageIndex: pageIndex,
 		PageSize:  pageSize,
 	}
-	respBody, commonResp, err := datahub.Client.Post(path, lsr, reqPara)
+	respBody, commonResp, err := datahub.Client.Post(path, lsr)
 	if err != nil {
 		return nil, err
 	}
@@ -1099,14 +990,11 @@ func (datahub *DataHub) CreateSubscription(projectName, topicName, comment strin
 	}
 
 	path := fmt.Sprintf(subscriptionsPath, projectName, topicName)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	csr := &CreateSubscriptionRequest{
 		Action:  "create",
 		Comment: comment,
 	}
-	respBody, commonResp, err := datahub.Client.Post(path, csr, reqPara)
+	respBody, commonResp, err := datahub.Client.Post(path, csr)
 	if err != nil {
 		return nil, err
 	}
@@ -1125,13 +1013,10 @@ func (datahub *DataHub) UpdateSubscription(projectName, topicName, subId, commen
 	}
 
 	path := fmt.Sprintf(subscriptionPath, projectName, topicName, subId)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	usr := &UpdateSubscriptionRequest{
 		Comment: comment,
 	}
-	_, commonResp, err := datahub.Client.Put(path, usr, reqPara)
+	_, commonResp, err := datahub.Client.Put(path, usr)
 	if err != nil {
 		return nil, err
 	}
@@ -1147,10 +1032,7 @@ func (datahub *DataHub) DeleteSubscription(projectName, topicName, subId string)
 	}
 
 	path := fmt.Sprintf(subscriptionPath, projectName, topicName, subId)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
-	_, commonResp, err := datahub.Client.Delete(path, reqPara)
+	_, commonResp, err := datahub.Client.Delete(path, newDefaultRequest())
 	if err != nil {
 		return nil, err
 	}
@@ -1166,10 +1048,7 @@ func (datahub *DataHub) GetSubscription(projectName, topicName, subId string) (*
 	}
 
 	path := fmt.Sprintf(subscriptionPath, projectName, topicName, subId)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
-	respBody, commonResp, err := datahub.Client.Get(path, reqPara)
+	respBody, commonResp, err := datahub.Client.Get(path, newDefaultRequest())
 	if err != nil {
 		return nil, err
 	}
@@ -1185,13 +1064,10 @@ func (datahub *DataHub) UpdateSubscriptionState(projectName, topicName, subId st
 	}
 
 	path := fmt.Sprintf(subscriptionPath, projectName, topicName, subId)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	usr := &UpdateSubscriptionStateRequest{
 		State: state,
 	}
-	_, commonResp, err := datahub.Client.Put(path, usr, reqPara)
+	_, commonResp, err := datahub.Client.Put(path, usr)
 	if err != nil {
 		return nil, err
 	}
@@ -1212,14 +1088,11 @@ func (datahub *DataHub) OpenSubscriptionSession(projectName, topicName, subId st
 	}
 
 	path := fmt.Sprintf(offsetsPath, projectName, topicName, subId)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	ossr := &OpenSubscriptionSessionRequest{
 		Action:   "open",
 		ShardIds: shardIds,
 	}
-	respBody, commonResp, err := datahub.Client.Post(path, ossr, reqPara)
+	respBody, commonResp, err := datahub.Client.Post(path, ossr)
 	if err != nil {
 		return nil, err
 	}
@@ -1240,14 +1113,11 @@ func (datahub *DataHub) GetSubscriptionOffset(projectName, topicName, subId stri
 	}
 
 	path := fmt.Sprintf(offsetsPath, projectName, topicName, subId)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	gsor := &GetSubscriptionOffsetRequest{
 		Action:   "get",
 		ShardIds: shardIds,
 	}
-	respBody, commonResp, err := datahub.Client.Post(path, gsor, reqPara)
+	respBody, commonResp, err := datahub.Client.Post(path, gsor)
 	if err != nil {
 		return nil, err
 	}
@@ -1263,15 +1133,12 @@ func (datahub *DataHub) CommitSubscriptionOffset(projectName, topicName, subId s
 	}
 
 	path := fmt.Sprintf(offsetsPath, projectName, topicName, subId)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	req := &CommitSubscriptionOffsetRequest{
 		Action:  "commit",
 		Offsets: offsets,
 	}
 
-	_, commonResp, err := datahub.Client.Put(path, req, reqPara)
+	_, commonResp, err := datahub.Client.Put(path, req)
 	if err != nil {
 		return nil, err
 	}
@@ -1287,14 +1154,11 @@ func (datahub *DataHub) ResetSubscriptionOffset(projectName, topicName, subId st
 	}
 
 	path := fmt.Sprintf(offsetsPath, projectName, topicName, subId)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	req := &ResetSubscriptionOffsetRequest{
 		Action:  "reset",
 		Offsets: offsets,
 	}
-	_, commonResp, err := datahub.Client.Put(path, req, reqPara)
+	_, commonResp, err := datahub.Client.Put(path, req)
 	if err != nil {
 		return nil, err
 	}
@@ -1320,9 +1184,6 @@ func (datahub *DataHub) Heartbeat(projectName, topicName, consumerGroup, consume
 	}
 
 	path := fmt.Sprintf(consumerGroupPath, projectName, topicName, consumerGroup)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	hr := &HeartbeatRequest{
 		Action:           "heartbeat",
 		ConsumerId:       consumerId,
@@ -1331,7 +1192,7 @@ func (datahub *DataHub) Heartbeat(projectName, topicName, consumerGroup, consume
 		ReadEndShardList: readEndShardList,
 	}
 
-	respBody, commonResp, err := datahub.Client.Post(path, hr, reqPara)
+	respBody, commonResp, err := datahub.Client.Post(path, hr)
 	if err != nil {
 		return nil, err
 	}
@@ -1347,14 +1208,11 @@ func (datahub *DataHub) JoinGroup(projectName, topicName, consumerGroup string, 
 	}
 
 	path := fmt.Sprintf(consumerGroupPath, projectName, topicName, consumerGroup)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	jgr := &JoinGroupRequest{
 		Action:         "joinGroup",
 		SessionTimeout: sessionTimeout,
 	}
-	respBody, commonResp, err := datahub.Client.Post(path, jgr, reqPara)
+	respBody, commonResp, err := datahub.Client.Post(path, jgr)
 	if err != nil {
 		return nil, err
 	}
@@ -1383,9 +1241,6 @@ func (datahub *DataHub) SyncGroup(projectName, topicName, consumerGroup, consume
 	}
 
 	path := fmt.Sprintf(consumerGroupPath, projectName, topicName, consumerGroup)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	sgr := &SyncGroupRequest{
 		Action:           "syncGroup",
 		ConsumerId:       consumerId,
@@ -1393,7 +1248,7 @@ func (datahub *DataHub) SyncGroup(projectName, topicName, consumerGroup, consume
 		ReleaseShardList: releaseShardList,
 		ReadEndShardList: readEndShardList,
 	}
-	_, commonResp, err := datahub.Client.Post(path, sgr, reqPara)
+	_, commonResp, err := datahub.Client.Post(path, sgr)
 	if err != nil {
 		return nil, err
 	}
@@ -1409,15 +1264,12 @@ func (datahub *DataHub) LeaveGroup(projectName, topicName, consumerGroup, consum
 	}
 
 	path := fmt.Sprintf(consumerGroupPath, projectName, topicName, consumerGroup)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	lgr := &LeaveGroupRequest{
 		Action:     "leaveGroup",
 		ConsumerId: consumerId,
 		VersionId:  versionId,
 	}
-	_, commonResp, err := datahub.Client.Post(path, lgr, reqPara)
+	_, commonResp, err := datahub.Client.Post(path, lgr)
 	if err != nil {
 		return nil, err
 	}
@@ -1433,14 +1285,11 @@ func (datahub *DataHub) ListTopicSchema(projectName, topicName string) (*ListTop
 	}
 
 	path := fmt.Sprintf(topicPath, projectName, topicName)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	lts := &ListTopicSchemaRequest{
 		Action: "ListSchema",
 	}
 
-	respBody, commonResp, err := datahub.Client.Post(path, lts, reqPara)
+	respBody, commonResp, err := datahub.Client.Post(path, lts)
 	if err != nil {
 		return nil, err
 	}
@@ -1456,16 +1305,13 @@ func (datahub *DataHub) GetTopicSchemaByVersion(projectName, topicName string, v
 	}
 
 	path := fmt.Sprintf(topicPath, projectName, topicName)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	lts := &GetTopicSchemaRequest{
 		Action:       "GetSchema",
 		VersionId:    versionId,
 		RecordSchema: nil,
 	}
 
-	respBody, commonResp, err := datahub.Client.Post(path, lts, reqPara)
+	respBody, commonResp, err := datahub.Client.Post(path, lts)
 	if err != nil {
 		return nil, err
 	}
@@ -1481,16 +1327,13 @@ func (datahub *DataHub) GetTopicSchemaBySchema(projectName, topicName string, re
 	}
 
 	path := fmt.Sprintf(topicPath, projectName, topicName)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	lts := &GetTopicSchemaRequest{
 		Action:       "GetSchema",
 		VersionId:    -1,
 		RecordSchema: recordSchema,
 	}
 
-	respBody, commonResp, err := datahub.Client.Post(path, lts, reqPara)
+	respBody, commonResp, err := datahub.Client.Post(path, lts)
 	if err != nil {
 		return nil, err
 	}
@@ -1506,15 +1349,12 @@ func (datahub *DataHub) RegisterTopicSchema(projectName, topicName string, recor
 	}
 
 	path := fmt.Sprintf(topicPath, projectName, topicName)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	lts := &RegisterTopicSchemaRequest{
 		Action:       "RegisterSchema",
 		RecordSchema: recordSchema,
 	}
 
-	respBody, commonResp, err := datahub.Client.Post(path, lts, reqPara)
+	respBody, commonResp, err := datahub.Client.Post(path, lts)
 	if err != nil {
 		return nil, err
 	}
@@ -1530,15 +1370,12 @@ func (datahub *DataHub) DeleteTopicSchema(projectName, topicName string, version
 	}
 
 	path := fmt.Sprintf(topicPath, projectName, topicName)
-	reqPara := &RequestParameter{
-		Header: map[string]string{httpHeaderContentType: httpJsonContent},
-	}
 	lts := &DeleteTopicSchemaRequest{
 		Action:    "DeleteSchema",
 		VersionId: versionId,
 	}
 
-	_, commonResp, err := datahub.Client.Post(path, lts, reqPara)
+	_, commonResp, err := datahub.Client.Post(path, lts)
 	if err != nil {
 		return nil, err
 	}
@@ -1558,15 +1395,15 @@ func (datahub *DataHubPB) PutRecords(projectName, topicName string, records []IR
 	}
 
 	path := fmt.Sprintf(shardsPath, projectName, topicName)
-	reqPara := &RequestParameter{
-		Header: map[string]string{
-			httpHeaderContentType:   httpProtoContent,
-			httpHeaderRequestAction: httpPublistContent},
-	}
 	prr := &PutPBRecordsRequest{
 		Records: records,
+		commonRequest: commonRequest{
+			header: map[string]string{
+				httpHeaderContentType:   httpProtoContent,
+				httpHeaderRequestAction: httpPublistContent},
+		},
 	}
-	respBody, commonResp, err := datahub.Client.Post(path, prr, reqPara)
+	respBody, commonResp, err := datahub.Client.Post(path, prr)
 	if err != nil {
 		return nil, err
 	}
@@ -1585,16 +1422,16 @@ func (datahub *DataHubPB) PutRecordsByShard(projectName, topicName, shardId stri
 	}
 
 	path := fmt.Sprintf(shardPath, projectName, topicName, shardId)
-	reqPara := &RequestParameter{
-		Header: map[string]string{
-			httpHeaderContentType:   httpProtoContent,
-			httpHeaderRequestAction: httpPublistContent},
-	}
 	prr := &PutPBRecordsRequest{
 		Records: records,
+		commonRequest: commonRequest{
+			header: map[string]string{
+				httpHeaderContentType:   httpProtoContent,
+				httpHeaderRequestAction: httpPublistContent},
+		},
 	}
 
-	_, commonResp, err := datahub.Client.Post(path, prr, reqPara)
+	_, commonResp, err := datahub.Client.Post(path, prr)
 	if err != nil {
 		return nil, err
 	}
@@ -1613,16 +1450,16 @@ func (datahub *DataHubPB) GetTupleRecords(projectName, topicName, shardId, curso
 	}
 
 	path := fmt.Sprintf(shardPath, projectName, topicName, shardId)
-	reqPara := &RequestParameter{
-		Header: map[string]string{
-			httpHeaderContentType:   httpProtoContent,
-			httpHeaderRequestAction: httpSubscribeContent},
-	}
 	grr := &GetPBRecordRequest{
 		Cursor: cursor,
 		Limit:  limit,
+		commonRequest: commonRequest{
+			header: map[string]string{
+				httpHeaderContentType:   httpProtoContent,
+				httpHeaderRequestAction: httpSubscribeContent},
+		},
 	}
-	respBody, commonResp, err := datahub.Client.Post(path, grr, reqPara)
+	respBody, commonResp, err := datahub.Client.Post(path, grr)
 	if err != nil {
 		return nil, err
 	}
@@ -1641,16 +1478,15 @@ func (datahub *DataHubPB) GetBlobRecords(projectName, topicName, shardId, cursor
 	}
 
 	path := fmt.Sprintf(shardPath, projectName, topicName, shardId)
-	reqPara := &RequestParameter{
-		Header: map[string]string{
-			httpHeaderContentType:   httpProtoContent,
-			httpHeaderRequestAction: httpSubscribeContent},
-	}
 	grr := &GetPBRecordRequest{
 		Cursor: cursor,
 		Limit:  limit,
+		commonRequest: commonRequest{
+			header: map[string]string{
+				httpHeaderContentType:   httpProtoContent,
+				httpHeaderRequestAction: httpSubscribeContent}},
 	}
-	respBody, commonResp, err := datahub.Client.Post(path, grr, reqPara)
+	respBody, commonResp, err := datahub.Client.Post(path, grr)
 	if err != nil {
 		return nil, err
 	}
@@ -1680,20 +1516,19 @@ func (datahub *DataHubBatch) PutRecordsByShard(projectName, topicName, shardId s
 	}
 
 	path := fmt.Sprintf(shardPath, projectName, topicName, shardId)
-	reqPara := &RequestParameter{
-		Header: map[string]string{
-			httpHeaderContentType:   httpProtoBatchContent,
-			httpHeaderRequestAction: httpPublistContent},
-	}
-
 	schemaCache := schemaClientInstance().getTopicSchemaCache(projectName, topicName, datahub)
 	serializer := newBatchSerializer(projectName, topicName, schemaCache, datahub.compressType)
 	prr := &PutBatchRecordsRequest{
 		serializer: serializer,
 		Records:    records,
+		commonRequest: commonRequest{
+			header: map[string]string{
+				httpHeaderContentType:   httpProtoBatchContent,
+				httpHeaderRequestAction: httpPublistContent},
+		},
 	}
 
-	_, commonResp, err := datahub.Client.Post(path, prr, reqPara)
+	_, commonResp, err := datahub.Client.Post(path, prr)
 	if err != nil {
 		return nil, err
 	}
@@ -1712,19 +1547,19 @@ func (datahub *DataHubBatch) GetTupleRecords(projectName, topicName, shardId, cu
 	}
 
 	path := fmt.Sprintf(shardPath, projectName, topicName, shardId)
-	reqPara := &RequestParameter{
-		Header: map[string]string{
-			httpHeaderContentType:   httpProtoBatchContent,
-			httpHeaderRequestAction: httpSubscribeContent},
-	}
 	gbr := &GetBatchRecordRequest{
 		GetPBRecordRequest{
 			Cursor: cursor,
 			Limit:  limit,
+			commonRequest: commonRequest{
+				header: map[string]string{
+					httpHeaderContentType:   httpProtoBatchContent,
+					httpHeaderRequestAction: httpSubscribeContent},
+			},
 		},
 	}
 
-	respBody, commonResp, err := datahub.Client.Post(path, gbr, reqPara)
+	respBody, commonResp, err := datahub.Client.Post(path, gbr)
 	if err != nil {
 		return nil, err
 	}

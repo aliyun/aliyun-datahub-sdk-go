@@ -11,12 +11,20 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// Additional information when send success
+type SendDetails struct {
+	ShardId   string
+	RequestId string
+	ReqSize   int
+	RawSize   int
+}
+
 type Producer interface {
 	Init() error
 
-	Send(records []IRecord) (string, error)
+	Send(records []IRecord) (*SendDetails, error)
 
-	SendByShard(records []IRecord, shardId string) error
+	SendByShard(records []IRecord, shardId string) (*SendDetails, error)
 
 	// GetSchema return the schema for the specified topic.
 	// If enable multi-version schema, it returns the latest version of the schema.
@@ -106,35 +114,35 @@ func (pi *producerImpl) Init() error {
 	return pi.initMeta()
 }
 
-func (pi *producerImpl) Send(records []IRecord) (string, error) {
+func (pi *producerImpl) Send(records []IRecord) (*SendDetails, error) {
 	shardId := pi.getNextShard()
 	if shardId == "" {
-		return "", fmt.Errorf("cannot get valid shard")
+		return nil, fmt.Errorf("cannot get valid shard")
 	}
 
-	err := pi.SendByShard(records, shardId)
+	details, err := pi.SendByShard(records, shardId)
 	if IsShardSealedError(err) {
 		pi.freshShard(true)
 		shardId = pi.getNextShard()
 		if shardId == "" {
-			return "", fmt.Errorf("cannot get valid shard")
+			return nil, fmt.Errorf("cannot get valid shard")
 		}
 
-		err = pi.SendByShard(records, shardId)
+		details, err = pi.SendByShard(records, shardId)
 	}
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return shardId, nil
+	return details, nil
 }
 
-func (pi *producerImpl) SendByShard(records []IRecord, shardId string) error {
+func (pi *producerImpl) SendByShard(records []IRecord, shardId string) (*SendDetails, error) {
 	return pi.sendWithRetry(records, shardId)
 }
 
-func (pi *producerImpl) sendWithRetry(records []IRecord, shardId string) error {
+func (pi *producerImpl) sendWithRetry(records []IRecord, shardId string) (*SendDetails, error) {
 	var returnErr error = nil
 	for i := 0; pi.config.MaxRetry < 0 || i <= pi.config.MaxRetry; i++ {
 		now := time.Now()
@@ -144,13 +152,19 @@ func (pi *producerImpl) sendWithRetry(records []IRecord, shardId string) error {
 				log.Debugf("%s/%s/%s send records %d success, cost: %v, rid:%s",
 					pi.project, pi.topic, shardId, len(records), time.Since(now), res.RequestId)
 			}
-			return nil
+
+			return &SendDetails{
+				ReqSize:   res.ReqSize,
+				RawSize:   res.RawSize,
+				RequestId: res.RequestId,
+				ShardId:   shardId,
+			}, nil
 		}
 
 		if !IsRetryableError(err) {
 			log.Errorf("%s/%s/%s send records %d failed, cost:%v, error:%v",
 				pi.project, pi.topic, shardId, len(records), time.Since(now), err)
-			return err
+			return nil, err
 		}
 
 		returnErr = err
@@ -170,7 +184,7 @@ func (pi *producerImpl) sendWithRetry(records []IRecord, shardId string) error {
 		}
 		time.Sleep(sleepTime)
 	}
-	return returnErr
+	return nil, returnErr
 }
 
 func (pi *producerImpl) getNextIndex() int {

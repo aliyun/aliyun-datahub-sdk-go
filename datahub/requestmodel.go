@@ -10,45 +10,86 @@ import (
 	"github.com/aliyun/aliyun-datahub-sdk-go/datahub/util"
 )
 
+type requestInfo struct {
+	rawSzie int
+}
+
+func newRequestInfo(rawSize int) *requestInfo {
+	return &requestInfo{
+		rawSzie: rawSize,
+	}
+}
+
 // handel the http request
 type RequestModel interface {
 	// serialize the requestModel and maybe need add some message on http header
-	requestBodyEncode() ([]byte, error)
+	requestBodyEncode() ([]byte, *requestInfo, error)
+	getExtraHeader() map[string]string
+	getExtraQuery() map[string]string
 }
 
-// empty request
-type EmptyRequest struct {
+type commonRequest struct {
+	header map[string]string
+	query  map[string]string
 }
 
-func (br *EmptyRequest) requestBodyEncode() ([]byte, error) {
-	return nil, nil
+func newDefaultRequest() *commonRequest {
+	return &commonRequest{}
+}
+
+func (cr *commonRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	return nil, newRequestInfo(0), nil
+}
+
+func (cr *commonRequest) getExtraHeader() map[string]string {
+	return cr.header
+}
+
+func (cr *commonRequest) getExtraQuery() map[string]string {
+	return cr.query
 }
 
 type CreateProjectRequest struct {
+	commonRequest
 	Comment string `json:"Comment"`
 }
 
-func (cpr *CreateProjectRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(cpr)
+func (cpr *CreateProjectRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(cpr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type UpdateProjectRequest struct {
+	commonRequest
 	Comment string `json:"Comment"`
 }
 
-func (upr *UpdateProjectRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(upr)
+func (upr *UpdateProjectRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(upr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type UpdateProjectVpcWhitelistRequest struct {
+	commonRequest
 	VpcIds string `json:"VpcIds"`
 }
 
-func (upv *UpdateProjectVpcWhitelistRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(upv)
+func (upv *UpdateProjectVpcWhitelistRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(upv)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type CreateTopicRequest struct {
+	commonRequest
 	Action       string        `json:"Action"`
 	ShardCount   int           `json:"ShardCount"`
 	Lifecycle    int           `json:"Lifecycle"`
@@ -85,58 +126,82 @@ func (ctr *CreateTopicRequest) MarshalJSON() ([]byte, error) {
 	return json.Marshal(msg)
 }
 
-func (ctr *CreateTopicRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(ctr)
+func (ctr *CreateTopicRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(ctr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type UpdateTopicRequest struct {
+	commonRequest
 	Comment   string `json:"Comment,omitempty"`
 	Lifecycle int    `json:"Lifecycle,omitempty"`
 }
 
-func (utr *UpdateTopicRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(utr)
+func (utr *UpdateTopicRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(utr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type SplitShardRequest struct {
+	commonRequest
 	Action   string `json:"Action"`
 	ShardId  string `json:"ShardId"`
 	SplitKey string `json:"SplitKey,omitempty"`
 }
 
-func (ssr *SplitShardRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(ssr)
+func (ssr *SplitShardRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(ssr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type MergeShardRequest struct {
+	commonRequest
 	Action          string `json:"Action"`
 	ShardId         string `json:"ShardId"`
 	AdjacentShardId string `json:"AdjacentShardId"`
 }
 
-func (msr *MergeShardRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(msr)
+func (msr *MergeShardRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(msr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type ExtendShardRequest struct {
+	commonRequest
 	Action     string `json:"Action"`
 	ExtendMode string `json:"ExtendMode"`
 	ShardCount int    `json:"ShardNumber"`
 }
 
-func (esr *ExtendShardRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(esr)
+func (esr *ExtendShardRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(esr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type GetCursorRequest struct {
+	commonRequest
 	Action     string     `json:"Action"`
 	CursorType CursorType `json:"Type"`
 	SystemTime int64      `json:"SystemTime"`
 	Sequence   int64      `json:"Sequence"`
 }
 
-func (gcr *GetCursorRequest) requestBodyEncode() ([]byte, error) {
-
+func (gcr *GetCursorRequest) MarshalJSON() ([]byte, error) {
 	type ReqMsg struct {
 		Action string     `json:"Action"`
 		Type   CursorType `json:"Type"`
@@ -169,13 +234,26 @@ func (gcr *GetCursorRequest) requestBodyEncode() ([]byte, error) {
 	}
 }
 
+func (gcr *GetCursorRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(gcr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
+}
+
 type PutRecordsRequest struct {
+	commonRequest
 	Action  string    `json:"Action"`
 	Records []IRecord `json:"Records"`
 }
 
-func (prr *PutRecordsRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(prr)
+func (prr *PutRecordsRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(prr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 func (ptr *PutRecordsRequest) MarshalJSON() ([]byte, error) {
@@ -194,34 +272,50 @@ func (ptr *PutRecordsRequest) MarshalJSON() ([]byte, error) {
 }
 
 type GetRecordRequest struct {
+	commonRequest
 	Action string `json:"Action"`
 	Cursor string `json:"Cursor"`
 	Limit  int    `json:"Limit"`
 }
 
-func (grr *GetRecordRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(grr)
+func (grr *GetRecordRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(grr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type AppendFieldRequest struct {
+	commonRequest
 	Action    string    `json:"Action"`
 	FieldName string    `json:"FieldName"`
 	FieldType FieldType `json:"FieldType"`
 }
 
-func (afr *AppendFieldRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(afr)
+func (afr *AppendFieldRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(afr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type GetMeterInfoRequest struct {
+	commonRequest
 	Action string `json:"Action"`
 }
 
-func (gmir *GetMeterInfoRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(gmir)
+func (gmir *GetMeterInfoRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(gmir)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type CreateConnectorRequest struct {
+	commonRequest
 	Action        string            `json:"Action"`
 	Type          ConnectorType     `json:"Type"`
 	SinkStartTime int64             `json:"SinkStartTime"`
@@ -230,188 +324,271 @@ type CreateConnectorRequest struct {
 	Config        interface{}       `json:"Config"`
 }
 
-func (ccr *CreateConnectorRequest) requestBodyEncode() ([]byte, error) {
+func (ccr *CreateConnectorRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	var buf []byte = nil
+	var err error = nil
 	switch ccr.Type {
 	case SinkOdps:
-		return marshalCreateOdpsConnector(ccr)
+		buf, err = marshalCreateOdpsConnector(ccr)
 	case SinkOss:
-		return marshalCreateOssConnector(ccr)
+		buf, err = marshalCreateOssConnector(ccr)
 	case SinkEs:
-		return marshalCreateEsConnector(ccr)
+		buf, err = marshalCreateEsConnector(ccr)
 	case SinkAds:
-		return marshalCreateAdsConnector(ccr)
+		buf, err = marshalCreateAdsConnector(ccr)
 	case SinkMysql:
-		return marshalCreateMysqlConnector(ccr)
+		buf, err = marshalCreateMysqlConnector(ccr)
 	case SinkFc:
-		return marshalCreateFcConnector(ccr)
+		buf, err = marshalCreateFcConnector(ccr)
 	case SinkOts:
-		return marshalCreateOtsConnector(ccr)
+		buf, err = marshalCreateOtsConnector(ccr)
 	case SinkDatahub:
-		return marshalCreateDatahubConnector(ccr)
+		buf, err = marshalCreateDatahubConnector(ccr)
 	case SinkHologres:
-		return marshalCreateHologresConnector(ccr)
+		buf, err = marshalCreateHologresConnector(ccr)
 	default:
-		return nil, fmt.Errorf("not support connector type config: %s", ccr.Type.String())
+		err = fmt.Errorf("not support connector type config: %s", ccr.Type.String())
 	}
+
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type UpdateConnectorRequest struct {
+	commonRequest
 	Action        string            `json:"Action"`
 	ColumnFields  []string          `json:"ColumnFields"`
 	ColumnNameMap map[string]string `json:"ColumnNameMap"`
 	Config        interface{}       `json:"Config"`
 }
 
-func (ucr *UpdateConnectorRequest) requestBodyEncode() ([]byte, error) {
-
+func (ucr *UpdateConnectorRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	var buf []byte = nil
+	var err error = nil
 	if ucr.Config == nil {
-		return marshalUpdateConnector(ucr)
+		buf, err = marshalUpdateConnector(ucr)
+		if err != nil {
+			return nil, nil, err
+		}
+		return buf, newRequestInfo(len(buf)), nil
 	}
 
 	switch ucr.Config.(type) {
 	case SinkOdpsConfig:
-		return marshalUpdateOdpsConnector(ucr)
+		buf, err = marshalUpdateOdpsConnector(ucr)
 	case SinkOssConfig:
-		return marshalUpdateOssConnector(ucr)
+		buf, err = marshalUpdateOssConnector(ucr)
 	case SinkEsConfig:
-		return marshalUpdateEsConnector(ucr)
+		buf, err = marshalUpdateEsConnector(ucr)
 	case SinkAdsConfig:
-		return marshalUpdateAdsConnector(ucr)
+		buf, err = marshalUpdateAdsConnector(ucr)
 	case SinkMysqlConfig:
-		return marshalUpdateMysqlConnector(ucr)
+		buf, err = marshalUpdateMysqlConnector(ucr)
 	case SinkFcConfig:
-		return marshalUpdateFcConnector(ucr)
+		buf, err = marshalUpdateFcConnector(ucr)
 	case SinkOtsConfig:
-		return marshalUpdateOtsConnector(ucr)
+		buf, err = marshalUpdateOtsConnector(ucr)
 	case SinkDatahubConfig:
-		return marshalUpdateDatahubConnector(ucr)
+		buf, err = marshalUpdateDatahubConnector(ucr)
 	case SinkHologresConfig:
-		return marshalUpdateHologresConnector(ucr)
+		buf, err = marshalUpdateHologresConnector(ucr)
 	default:
-		return nil, fmt.Errorf("this connector type not support, %t", reflect.TypeOf(ucr.Config))
+		err = fmt.Errorf("this connector type not support, %t", reflect.TypeOf(ucr.Config))
 	}
+
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type ReloadConnectorRequest struct {
+	commonRequest
 	Action  string `json:"Action"`
 	ShardId string `json:"ShardId,omitempty"`
 }
 
-func (rcr *ReloadConnectorRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(rcr)
+func (rcr *ReloadConnectorRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(rcr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type UpdateConnectorStateRequest struct {
+	commonRequest
 	Action string         `json:"Action"`
 	State  ConnectorState `json:"State"`
 }
 
-func (ucsr *UpdateConnectorStateRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(ucsr)
+func (ucsr *UpdateConnectorStateRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(ucsr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type UpdateConnectorOffsetRequest struct {
+	commonRequest
 	Action    string `json:"Action"`
 	ShardId   string `json:"ShardId"`
 	Timestamp int64  `json:"CurrentTime"`
 	Sequence  int64  `json:"CurrentSequence"`
 }
 
-func (ucor *UpdateConnectorOffsetRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(ucor)
+func (ucor *UpdateConnectorOffsetRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(ucor)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type GetConnectorShardStatusRequest struct {
+	commonRequest
 	Action  string `json:"Action"`
 	ShardId string `json:"ShardId,omitempty"`
 }
 
-func (gcss *GetConnectorShardStatusRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(gcss)
+func (gcss *GetConnectorShardStatusRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(gcss)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type AppendConnectorFieldRequest struct {
+	commonRequest
 	Action    string `json:"Action"`
 	FieldName string `json:"FieldName"`
 }
 
-func (acfr *AppendConnectorFieldRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(acfr)
+func (acfr *AppendConnectorFieldRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(acfr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type CreateSubscriptionRequest struct {
+	commonRequest
 	Action  string `json:"Action"`
 	Comment string `json:"Comment"`
 }
 
-func (csr *CreateSubscriptionRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(csr)
+func (csr *CreateSubscriptionRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(csr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type ListSubscriptionRequest struct {
+	commonRequest
 	Action    string `json:"Action"`
 	PageIndex int    `json:"PageIndex"`
 	PageSize  int    `json:"PageSize"`
 }
 
-func (lsr *ListSubscriptionRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(lsr)
+func (lsr *ListSubscriptionRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(lsr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type UpdateSubscriptionRequest struct {
-	//Action  string            `json:"Action"`
+	commonRequest
 	Comment string `json:"Comment"`
 }
 
-func (usr *UpdateSubscriptionRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(usr)
+func (usr *UpdateSubscriptionRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(usr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type UpdateSubscriptionStateRequest struct {
+	commonRequest
 	State SubscriptionState `json:"State"`
 }
 
-func (ussr *UpdateSubscriptionStateRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(ussr)
+func (ussr *UpdateSubscriptionStateRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(ussr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type OpenSubscriptionSessionRequest struct {
+	commonRequest
 	Action   string   `json:"Action"`
 	ShardIds []string `json:"ShardIds"`
 }
 
-func (ossr *OpenSubscriptionSessionRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(ossr)
+func (ossr *OpenSubscriptionSessionRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(ossr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type GetSubscriptionOffsetRequest struct {
+	commonRequest
 	Action   string   `json:"Action"`
 	ShardIds []string `json:"ShardIds"`
 }
 
-func (gsor *GetSubscriptionOffsetRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(gsor)
+func (gsor *GetSubscriptionOffsetRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(gsor)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type CommitSubscriptionOffsetRequest struct {
+	commonRequest
 	Action  string                        `json:"Action"`
 	Offsets map[string]SubscriptionOffset `json:"Offsets"`
 }
 
-func (csor *CommitSubscriptionOffsetRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(csor)
+func (csor *CommitSubscriptionOffsetRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(csor)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type ResetSubscriptionOffsetRequest struct {
+	commonRequest
 	Action  string                        `json:"Action"`
 	Offsets map[string]SubscriptionOffset `json:"Offsets"`
 }
 
-func (rsor *ResetSubscriptionOffsetRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(rsor)
+func (rsor *ResetSubscriptionOffsetRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(rsor)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type HeartbeatRequest struct {
+	commonRequest
 	Action           string   `json:"Action"`
 	ConsumerId       string   `json:"ConsumerId"`
 	VersionId        int64    `json:"VersionId"`
@@ -419,20 +596,30 @@ type HeartbeatRequest struct {
 	ReadEndShardList []string `json:"ReadEndShardList,omitempty"`
 }
 
-func (hr *HeartbeatRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(hr)
+func (hr *HeartbeatRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(hr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type JoinGroupRequest struct {
+	commonRequest
 	Action         String `json:"Action"`
 	SessionTimeout int64  `json:"SessionTimeout"`
 }
 
-func (jgr *JoinGroupRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(jgr)
+func (jgr *JoinGroupRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(jgr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type SyncGroupRequest struct {
+	commonRequest
 	Action           string   `json:"Action"`
 	ConsumerId       string   `json:"ConsumerId"`
 	VersionId        int64    `json:"VersionId"`
@@ -440,35 +627,50 @@ type SyncGroupRequest struct {
 	ReadEndShardList []string `json:"ReadEndShardList,omitempty"`
 }
 
-func (sgr *SyncGroupRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(sgr)
+func (sgr *SyncGroupRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(sgr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type LeaveGroupRequest struct {
+	commonRequest
 	Action     string `json:"Action"`
 	ConsumerId string `json:"ConsumerId"`
 	VersionId  int64  `json:"VersionId"`
 }
 
-func (lgr *LeaveGroupRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(lgr)
+func (lgr *LeaveGroupRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(lgr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type ListTopicSchemaRequest struct {
+	commonRequest
 	Action string `json:"Action"`
 }
 
-func (lts *ListTopicSchemaRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(lts)
+func (lts *ListTopicSchemaRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(lts)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type GetTopicSchemaRequest struct {
+	commonRequest
 	Action       string        `json:"Action"`
 	VersionId    int           `json:"VersionId"`
 	RecordSchema *RecordSchema `json:"RecordSchema,omitempty"`
 }
 
-func (gts *GetTopicSchemaRequest) requestBodyEncode() ([]byte, error) {
+func (gts *GetTopicSchemaRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
 	msg := &struct {
 		Action       string `json:"Action"`
 		VersionId    int    `json:"VersionId"`
@@ -481,15 +683,21 @@ func (gts *GetTopicSchemaRequest) requestBodyEncode() ([]byte, error) {
 	if gts.RecordSchema != nil {
 		msg.RecordSchema = gts.RecordSchema.String()
 	}
-	return json.Marshal(msg)
+
+	buf, err := json.Marshal(msg)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type RegisterTopicSchemaRequest struct {
+	commonRequest
 	Action       string        `json:"Action"`
 	RecordSchema *RecordSchema `json:"RecordSchema"`
 }
 
-func (rts *RegisterTopicSchemaRequest) requestBodyEncode() ([]byte, error) {
+func (rts *RegisterTopicSchemaRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
 	msg := &struct {
 		Action       string `json:"Action"`
 		RecordSchema string `json:"RecordSchema,omitempty"`
@@ -500,23 +708,34 @@ func (rts *RegisterTopicSchemaRequest) requestBodyEncode() ([]byte, error) {
 	if rts.RecordSchema != nil {
 		msg.RecordSchema = rts.RecordSchema.String()
 	}
-	return json.Marshal(msg)
+
+	buf, err := json.Marshal(msg)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type DeleteTopicSchemaRequest struct {
+	commonRequest
 	Action    string `json:"Action"`
 	VersionId int    `json:"VersionId"`
 }
 
-func (lgr *DeleteTopicSchemaRequest) requestBodyEncode() ([]byte, error) {
-	return json.Marshal(lgr)
+func (dtr *DeleteTopicSchemaRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	buf, err := json.Marshal(dtr)
+	if err != nil {
+		return nil, nil, err
+	}
+	return buf, newRequestInfo(len(buf)), nil
 }
 
 type PutPBRecordsRequest struct {
+	commonRequest
 	Records []IRecord `json:"Records"`
 }
 
-func (pr *PutPBRecordsRequest) requestBodyEncode() ([]byte, error) {
+func (pr *PutPBRecordsRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
 	res := make([]*pbmodel.RecordEntry, len(pr.Records))
 	for idx, val := range pr.Records {
 		bRecord := val.GetBaseRecord()
@@ -532,7 +751,7 @@ func (pr *PutPBRecordsRequest) requestBodyEncode() ([]byte, error) {
 		default:
 			v, ok := data.([]interface{})
 			if !ok {
-				return nil, fmt.Errorf("data format is invalid")
+				return nil, nil, fmt.Errorf("data format is invalid")
 			}
 			for _, str := range v {
 				fd := &pbmodel.FieldData{}
@@ -578,18 +797,19 @@ func (pr *PutPBRecordsRequest) requestBodyEncode() ([]byte, error) {
 	}
 	buf, err := proto.Marshal(prr)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	x := util.WrapMessage(buf)
-	return x, nil
+	wBuf := util.WrapMessage(buf)
+	return wBuf, newRequestInfo(len(wBuf)), nil
 }
 
 type GetPBRecordRequest struct {
+	commonRequest
 	Cursor string `json:"Cursor"`
 	Limit  int    `json:"Limit"`
 }
 
-func (gpr *GetPBRecordRequest) requestBodyEncode() ([]byte, error) {
+func (gpr *GetPBRecordRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
 	limit := int32(gpr.Limit)
 	grr := &pbmodel.GetRecordsRequest{
 		Cursor: &gpr.Cursor,
@@ -598,22 +818,23 @@ func (gpr *GetPBRecordRequest) requestBodyEncode() ([]byte, error) {
 
 	buf, err := proto.Marshal(grr)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	wBuf := util.WrapMessage(buf)
-	return wBuf, nil
+	return wBuf, newRequestInfo(len(wBuf)), nil
 }
 
 type PutBatchRecordsRequest struct {
+	commonRequest
 	serializer *batchSerializer
 	Records    []IRecord
 }
 
-func (pbr *PutBatchRecordsRequest) requestBodyEncode() ([]byte, error) {
-	batchBuf, err := pbr.serializer.serialize(pbr.Records)
+func (pbr *PutBatchRecordsRequest) requestBodyEncode() ([]byte, *requestInfo, error) {
+	batchBuf, header, err := pbr.serializer.serialize(pbr.Records)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	entry := &pbmodel.BinaryRecordEntry{
@@ -625,9 +846,9 @@ func (pbr *PutBatchRecordsRequest) requestBodyEncode() ([]byte, error) {
 
 	buf, err := proto.Marshal(protoReq)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return util.WrapMessage(buf), nil
+	return util.WrapMessage(buf), newRequestInfo(int(header.rawSize)), nil
 }
 
 type GetBatchRecordRequest struct {
