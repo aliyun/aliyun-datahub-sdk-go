@@ -23,6 +23,7 @@ var (
 )
 
 type topicSchemaCache interface {
+	init()
 	getMaxSchemaVersionId() int
 	getSchemaByVersionId(versionId int) *RecordSchema
 	getVersionIdBySchema(schema *RecordSchema) int
@@ -74,33 +75,46 @@ func getTopicKey(project, topic string) string {
 	return fmt.Sprintf("%s/%s", project, topic)
 }
 
+/*
+* Creating the cache first and then adding a lock may result in multiple cache creations,
+* but init function will trigger network requests, If a large number of topics are started simultaneously,
+* locking before init may result in slower startup times.
+ */
 func (sc *schemaClient) addTopicSchemaCache(project, topic string, client DataHubApi) topicSchemaCache {
+	cache := NewTopicSchemaCache(project, topic, client)
+	cache.cache.init()
+
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
 
-	// only ensure not to continue growing
+	// ensure not to continue growing
 	for k, v := range sc.topicCache {
 		if time.Since(v.accessTime.Load().(time.Time)) > time.Duration(5)*time.Minute {
 			delete(sc.topicCache, k)
 		}
 	}
 
-	cache := NewTopicSchemaCache(project, topic, client)
 	sc.topicCache[getTopicKey(project, topic)] = cache
 	return cache.getSchemaCache()
 }
 
-func (sc *schemaClient) getTopicSchemaCache(project, topic string, client DataHubApi) topicSchemaCache {
+func (sc *schemaClient) findTopicSchemaCache(project, topic string) topicSchemaCache {
 	sc.lock.RLock()
+	defer sc.lock.RUnlock()
 
 	cache, exists := sc.topicCache[getTopicKey(project, topic)]
 	if exists {
-		defer sc.lock.RUnlock()
 		return cache.getSchemaCache()
 	}
+	return nil
+}
 
-	sc.lock.RUnlock()
-	return sc.addTopicSchemaCache(project, topic, client)
+func (sc *schemaClient) getTopicSchemaCache(project, topic string, client DataHubApi) topicSchemaCache {
+	cache := sc.findTopicSchemaCache(project, topic)
+	if cache == nil {
+		cache = sc.addTopicSchemaCache(project, topic, client)
+	}
+	return cache
 }
 
 type SchemaItem struct {
@@ -118,6 +132,13 @@ type topicSchemaCacheImpl struct {
 	versionMap         map[int]SchemaItem
 	nextFreshTime      atomic.Value
 	lock               sync.RWMutex
+}
+
+func (tsc *topicSchemaCacheImpl) init() {
+	err := tsc.freshSchema(true)
+	if err != nil {
+		log.Warnf("%s/%s init schema cache failed, error:%v", tsc.project, tsc.topic, err)
+	}
 }
 
 func (tsc *topicSchemaCacheImpl) freshSchema(force bool) error {
