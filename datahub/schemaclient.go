@@ -46,6 +46,8 @@ func NewTopicSchemaCache(project string, topic string, client DataHubApi) *topic
 			project:            project,
 			topic:              topic,
 			maxSchemaVersionId: -1,
+			schemaMap:          make(map[uint32]*SchemaItem),
+			versionMap:         make(map[int]*SchemaItem),
 			nextFreshTime:      now,
 		},
 	}
@@ -117,7 +119,17 @@ func (sc *schemaClient) getTopicSchemaCache(project, topic string, client DataHu
 	return cache
 }
 
+// for test
+func (sc *schemaClient) clean() {
+	sc.lock.Lock()
+	defer sc.lock.Unlock()
+	for k := range sc.topicCache {
+		delete(sc.topicCache, k)
+	}
+}
+
 type SchemaItem struct {
+	versionId  int
 	dhSchema   *RecordSchema
 	avroSchema avro.Schema
 }
@@ -128,8 +140,8 @@ type topicSchemaCacheImpl struct {
 	topic              string
 	topicResult        *GetTopicResult
 	maxSchemaVersionId int
-	schemaMap          map[uint32]int
-	versionMap         map[int]SchemaItem
+	schemaMap          map[uint32]*SchemaItem
+	versionMap         map[int]*SchemaItem
 	nextFreshTime      atomic.Value
 	lock               sync.RWMutex
 }
@@ -141,32 +153,57 @@ func (tsc *topicSchemaCacheImpl) init() {
 	}
 }
 
-func (tsc *topicSchemaCacheImpl) freshSchema(force bool) error {
-	nextTime := tsc.nextFreshTime.Load().(time.Time)
-	if !force && time.Now().Before(nextTime) {
+func (tsc *topicSchemaCacheImpl) freshNomalSchema(topicResult *GetTopicResult) error {
+	tsc.lock.RLock()
+	needUpdate := false
+	oldItem := tsc.versionMap[0]
+	if oldItem == nil || oldItem.dhSchema.HashCode() != topicResult.RecordSchema.hashCode() {
+		needUpdate = true
+	}
+	tsc.lock.RUnlock()
+	if !needUpdate {
+		log.Infof("%s/%s fresh schema success, no schema change", tsc.project, tsc.topic)
 		return nil
 	}
 
-	// pervent fresh shard by multi goroutine
-	newNextTime := time.Now().Add(time.Duration(5) * time.Minute)
-	if !tsc.nextFreshTime.CompareAndSwap(nextTime, newNextTime) {
-		return nil
-	}
-
-	var err error
-	tsc.topicResult, err = tsc.client.GetTopic(tsc.project, tsc.topic)
+	newAvroSchema, err := getAvroSchema(topicResult.RecordSchema)
 	if err != nil {
+		log.Errorf("%s/%s fresh schema failed, error:%v", tsc.project, tsc.topic, err)
 		return err
 	}
 
+	tsc.lock.Lock()
+	defer tsc.lock.Unlock()
+
+	newItem := &SchemaItem{
+		versionId:  0,
+		dhSchema:   topicResult.RecordSchema,
+		avroSchema: newAvroSchema,
+	}
+
+	tsc.maxSchemaVersionId = 0
+	tsc.versionMap[0] = newItem
+	// the old schema is not directly cleared because it might still be in use for writing.
+	tsc.schemaMap[newItem.dhSchema.HashCode()] = newItem
+	oldSchema := "nil"
+	if oldItem != nil {
+		oldSchema = oldItem.dhSchema.String()
+	}
+	log.Infof("%s/%s fresh schema success, old: %s, new: %s",
+		tsc.project, tsc.topic, oldSchema, newItem.dhSchema.String())
+	return nil
+}
+
+// for enable schema topic
+func (tsc *topicSchemaCacheImpl) freshMultiSchema() error {
 	res, err := tsc.client.ListTopicSchema(tsc.project, tsc.topic)
 	if err != nil {
 		return err
 	}
 
 	newSchemaList := make([]int, 0)
-	newSchemaMap := map[uint32]int{}
-	newVersionMap := map[int]SchemaItem{}
+	newSchemaMap := make(map[uint32]*SchemaItem)
+	newVersionMap := make(map[int]*SchemaItem)
 	maxVersion := -1
 	for _, schema := range res.SchemaInfoList {
 		avroSchema, err := getAvroSchema(&schema.RecordSchema)
@@ -180,11 +217,13 @@ func (tsc *topicSchemaCacheImpl) freshSchema(force bool) error {
 		}
 
 		newSchemaList = append(newSchemaList, schema.VersionId)
-		newVersionMap[schema.VersionId] = SchemaItem{
+		item := &SchemaItem{
+			versionId:  schema.VersionId,
 			avroSchema: avroSchema,
 			dhSchema:   &schema.RecordSchema,
 		}
-		newSchemaMap[schema.RecordSchema.hashCode()] = schema.VersionId
+		newVersionMap[schema.VersionId] = item
+		newSchemaMap[schema.RecordSchema.HashCode()] = item
 	}
 
 	update := false
@@ -212,6 +251,35 @@ func (tsc *topicSchemaCacheImpl) freshSchema(force bool) error {
 		log.Infof("%s/%s fresh schema success, newSchemaVersions:%v", tsc.project, tsc.topic, newSchemaList)
 	}
 	return nil
+}
+
+func (tsc *topicSchemaCacheImpl) freshSchema(force bool) error {
+	nextTime := tsc.nextFreshTime.Load().(time.Time)
+	if !force && time.Now().Before(nextTime) {
+		return nil
+	}
+
+	// pervent fresh shard by multi goroutine
+	newNextTime := time.Now().Add(time.Duration(5) * time.Minute)
+	if !tsc.nextFreshTime.CompareAndSwap(nextTime, newNextTime) {
+		return nil
+	}
+
+	var err error
+	tsc.topicResult, err = tsc.client.GetTopic(tsc.project, tsc.topic)
+	if err != nil {
+		return err
+	}
+
+	if tsc.topicResult.RecordType == BLOB {
+		return nil
+	}
+
+	if !tsc.topicResult.EnableSchema {
+		return tsc.freshNomalSchema(tsc.topicResult)
+	} else {
+		return tsc.freshMultiSchema()
+	}
 }
 
 func (tsc *topicSchemaCacheImpl) getMaxSchemaVersionId() int {
@@ -246,8 +314,14 @@ func (tsc *topicSchemaCacheImpl) getVersionIdBySchema(schema *RecordSchema) int 
 	tsc.lock.RLock()
 	defer tsc.lock.RUnlock()
 
-	if version, ok := tsc.schemaMap[schema.hashCode()]; ok {
-		return version
+	// maybe schema has been freshed after append field,
+	// but the old schema is still in use for writing, so return 0 directly
+	if !tsc.topicResult.EnableSchema {
+		return 0
+	}
+
+	if schemaItem, ok := tsc.schemaMap[schema.hashCode()]; ok {
+		return schemaItem.versionId
 	}
 
 	return invalidSchemaVersionId
@@ -262,8 +336,8 @@ func (tsc *topicSchemaCacheImpl) getAvroSchema(schema *RecordSchema) avro.Schema
 
 	tsc.lock.RLock()
 	defer tsc.lock.RUnlock()
-	if version, ok := tsc.schemaMap[schema.hashCode()]; ok {
-		return tsc.versionMap[version].avroSchema
+	if item, ok := tsc.schemaMap[schema.hashCode()]; ok {
+		return item.avroSchema
 	}
 
 	return nil
