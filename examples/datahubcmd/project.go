@@ -39,10 +39,7 @@ func list_projects(dh datahub.DataHubApi) error {
 }
 
 func get_project_parsed_check() bool {
-	if ProjectName == "" {
-		return false
-	}
-	return true
+	return ProjectName != ""
 }
 
 func get_project(dh datahub.DataHubApi) error {

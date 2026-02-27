@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 	"time"
 
@@ -52,19 +52,19 @@ func put_records(dh datahub.DataHubApi) error {
 	var records []datahub.IRecord
 	switch topic.RecordType {
 	case datahub.BLOB:
-		dat, err := ioutil.ReadFile(RecordSource)
+		dat, err := os.ReadFile(RecordSource)
 		if err != nil {
 			return err
 		}
 
 		records = make([]datahub.IRecord, 1)
-		record := datahub.NewBlobRecord(dat, 0)
+		record := datahub.NewBlobRecord(dat)
 		record.ShardId = ShardId
 		records[0] = record
 
 	case datahub.TUPLE:
 		recordsData := &struct {
-			Records []map[string]interface{} `json:records`
+			Records []map[string]any `json:"records"`
 		}{}
 
 		decoder := json.NewDecoder(strings.NewReader(RecordSource))
@@ -76,7 +76,7 @@ func put_records(dh datahub.DataHubApi) error {
 
 		records = make([]datahub.IRecord, len(recordsData.Records))
 		for idx, record_data := range recordsData.Records {
-			record := datahub.NewTupleRecord(topic.RecordSchema, 0)
+			record := datahub.NewTupleRecord(topic.RecordSchema)
 			for key, val := range record_data {
 				record.ShardId = ShardId
 				record.SetValueByName(key, val)
@@ -101,9 +101,8 @@ func put_records(dh datahub.DataHubApi) error {
 			}
 			records = fail_records
 		}
-		fmt.Printf("put records failed last time, trynum: %d, result: \n%s\n", trynum, result)
+		fmt.Printf("put records failed last time, trynum: %d, result: \n%v\n", trynum, result)
 		trynum++
-		return nil
 	}
 }
 
