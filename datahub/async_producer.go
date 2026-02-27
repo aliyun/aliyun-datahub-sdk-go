@@ -254,7 +254,7 @@ func (ap *asyncProducerImpl) GetSchemaByVersionId(versionId int) (*RecordSchema,
 func (ap *asyncProducerImpl) GetActiveShards() []string {
 	shards := make([]string, 0)
 	res, err := ap.client.ListShard(ap.project, ap.topic)
-	if err == nil {
+	if err != nil {
 		return shards
 	}
 

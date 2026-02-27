@@ -37,7 +37,7 @@ func newCommonResponseResult(code int, header *http.Header, body []byte) (*Commo
 	var err error
 	switch {
 	case code >= 400:
-		var datahubErr DatahubClientError
+		var datahubErr DatahubError
 		if err = json.Unmarshal(body, &datahubErr); err != nil {
 			return nil, err
 		}
