@@ -41,7 +41,8 @@ func newCommonResponseResult(code int, header *http.Header, body []byte) (*Commo
 		if err = json.Unmarshal(body, &datahubErr); err != nil {
 			return nil, err
 		}
-		err = errorHandler(code, result.RequestId, datahubErr.Code, datahubErr.Message)
+		datahubErr.StatusCode = code
+		err = errorHandler(&datahubErr)
 	default:
 		err = nil
 	}
