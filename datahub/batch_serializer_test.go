@@ -66,7 +66,7 @@ func TestBatchNormalSerialize(t *testing.T) {
 		assert.Equal(t, int64(300), newRecords[i].GetBaseRecord().Serial)
 		assert.Equal(t, "cursor", newRecords[i].GetBaseRecord().Cursor)
 		assert.Equal(t, "nextCursor", newRecords[i].GetBaseRecord().NextCursor)
-		assert.Equal(t, i, newRecords[i].GetBatchIndex())
+		assert.Equal(t, uint32(i), newRecords[i].GetBatchIndex())
 	}
 }
 
@@ -130,7 +130,7 @@ func TestBatchSerializeWithNullValue(t *testing.T) {
 		assert.Equal(t, int64(300), newRecords[i].GetBaseRecord().Serial)
 		assert.Equal(t, "cursor", newRecords[i].GetBaseRecord().Cursor)
 		assert.Equal(t, "nextCursor", newRecords[i].GetBaseRecord().NextCursor)
-		assert.Equal(t, i, newRecords[i].GetBatchIndex())
+		assert.Equal(t, uint32(i), newRecords[i].GetBatchIndex())
 	}
 }
 
@@ -196,6 +196,6 @@ func TestDeserializeWithTruncateSchema(t *testing.T) {
 		assert.Equal(t, int64(300), newRecords[i].GetBaseRecord().Serial)
 		assert.Equal(t, "cursor", newRecords[i].GetBaseRecord().Cursor)
 		assert.Equal(t, "nextCursor", newRecords[i].GetBaseRecord().NextCursor)
-		assert.Equal(t, i, newRecords[i].GetBatchIndex())
+		assert.Equal(t, uint32(i), newRecords[i].GetBatchIndex())
 	}
 }

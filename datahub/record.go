@@ -7,6 +7,11 @@ import (
 	"reflect"
 )
 
+// RecordKey is used to acknowledge record consumption.
+type RecordKey interface {
+	Ack()
+}
+
 // BaseRecord
 type BaseRecord struct {
 	ShardId      string            `json:"ShardId,omitempty"`
@@ -14,11 +19,12 @@ type BaseRecord struct {
 	HashKey      string            `json:"HashKey,omitempty"`
 	SystemTime   int64             `json:"SystemTime,omitempty"`
 	Sequence     int64             `json:"Sequence,omitempty"`
-	BatchIndex   int               `json:"-"`
+	BatchIndex   uint32            `json:"-"`
 	Cursor       string            `json:"Cursor,omitempty"`
 	NextCursor   string            `json:"NextCursor,omitempty"`
 	Serial       int64             `json:"Serial,omitempty"`
 	Attributes   map[string]string `json:"Attributes,omitempty"`
+	recordKey    RecordKey         `json:"-"`
 }
 
 func (br *BaseRecord) GetSystemTime() int64 {
@@ -29,7 +35,7 @@ func (br *BaseRecord) GetSequence() int64 {
 	return br.Sequence
 }
 
-func (br *BaseRecord) GetBatchIndex() int {
+func (br *BaseRecord) GetBatchIndex() uint32 {
 	return br.BatchIndex
 }
 
@@ -45,7 +51,15 @@ func (br *BaseRecord) GetAttributes() map[string]string {
 	return br.Attributes
 }
 
-func (br *BaseRecord) setMetaInfo(sequence, systemTime, serial int64, index int, shardId, cursor, nextCursor string) {
+func (br *BaseRecord) GetRecordKey() RecordKey {
+	return br.recordKey
+}
+
+func (br *BaseRecord) setRecordKey(key RecordKey) {
+	br.recordKey = key
+}
+
+func (br *BaseRecord) setMetaInfo(sequence, systemTime, serial int64, index uint32, shardId, cursor, nextCursor string) {
 	br.Sequence = sequence
 	br.SystemTime = systemTime
 	br.Serial = serial
@@ -74,17 +88,19 @@ type IRecord interface {
 	fmt.Stringer
 	GetSystemTime() int64
 	GetSequence() int64
-	GetBatchIndex() int
+	GetBatchIndex() uint32
 	GetData() interface{}
 	fillData(data interface{}) error
 	GetBaseRecord() BaseRecord
 	SetBaseRecord(baseRecord BaseRecord)
 	SetAttribute(key string, val string)
 	GetAttributes() map[string]string
-	setMetaInfo(sequence, systemTime, serial int64, index int, shardId, cursor, nextCursor string)
+	setMetaInfo(sequence, systemTime, serial int64, index uint32, shardId, cursor, nextCursor string)
 	SetShardId(shardId string)
 	SetPartitionKey(key string)
 	GetSize() int
+	GetRecordKey() RecordKey
+	setRecordKey(key RecordKey)
 }
 
 // BlobRecord blob type record

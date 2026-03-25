@@ -121,6 +121,11 @@ func IsShardSealedError(err error) bool {
 	return ok
 }
 
+func IsServiceInProcessError(err error) bool {
+	_, ok := err.(*ServiceInProcessError)
+	return ok
+}
+
 func IsSeekOutOfRange(err error) bool {
 	_, ok := err.(*SeekOutOfRangeError)
 	return ok

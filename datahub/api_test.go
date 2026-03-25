@@ -1421,7 +1421,7 @@ func TestCommitSubscriptionOffset(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, body)
 		str := string(body)
-		assert.Equal(t, "{\"Action\":\"commit\",\"Offsets\":{\"0\":{\"Timestamp\":100,\"Sequence\":1,\"Version\":0,\"SessionId\":1}}}", str)
+		assert.Equal(t, "{\"Action\":\"commit\",\"Offsets\":{\"0\":{\"Timestamp\":100,\"Sequence\":1,\"BatchIndex\":0,\"Version\":0,\"SessionId\":1}}}", str)
 
 		writer.Header().Set("x-datahub-request-id", "request_id")
 		writer.WriteHeader(http.StatusOK)
@@ -1455,7 +1455,7 @@ func TestResetSubscriptionOffset(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, body)
 		str := string(body)
-		assert.Equal(t, "{\"Action\":\"reset\",\"Offsets\":{\"0\":{\"Timestamp\":100,\"Sequence\":200,\"Version\":0,\"SessionId\":null}}}", str)
+		assert.Equal(t, "{\"Action\":\"reset\",\"Offsets\":{\"0\":{\"Timestamp\":100,\"Sequence\":200,\"BatchIndex\":0,\"Version\":0,\"SessionId\":null}}}", str)
 
 		writer.Header().Set("x-datahub-request-id", "request_id")
 		writer.WriteHeader(http.StatusOK)

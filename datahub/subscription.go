@@ -12,8 +12,9 @@ type SubscriptionEntry struct {
 }
 
 type SubscriptionOffset struct {
-	Timestamp int64  `json:"Timestamp"`
-	Sequence  int64  `json:"Sequence"`
-	VersionId int64  `json:"Version"`
-	SessionId *int64 `json:"SessionId"`
+	Timestamp  int64  `json:"Timestamp"`
+	Sequence   int64  `json:"Sequence"`
+	BatchIndex uint32 `json:"BatchIndex"`
+	VersionId  int64  `json:"Version"`
+	SessionId  *int64 `json:"SessionId"`
 }

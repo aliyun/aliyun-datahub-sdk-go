@@ -249,7 +249,7 @@ func (bd *batchDeserializer) deserialize(data []byte, meta *respMeta) ([]IRecord
 	}
 
 	for idx, record := range records {
-		record.setMetaInfo(meta.sequence, meta.systemTime, meta.serial, idx, bd.shardId, meta.cursor, meta.nextCursor)
+		record.setMetaInfo(meta.sequence, meta.systemTime, meta.serial, uint32(idx), bd.shardId, meta.cursor, meta.nextCursor)
 	}
 
 	return records, nil

@@ -47,3 +47,45 @@ func NewProducerConfig() *ProducerConfig {
 		EnableErrorCh:        true,
 	}
 }
+
+// FetchStrategy defines how to select shard when fetching records
+type FetchStrategy int
+
+const (
+	// FetchRoundRobin fetches records from shards in round-robin order
+	FetchRoundRobin FetchStrategy = iota
+	// FetchBalance fetches records from shard with oldest SystemTime first
+	FetchBalance
+)
+
+// ConsumerConfig configuration for consumer
+type ConsumerConfig struct {
+	BaseConfig
+	SubId            string
+	AutoRecordAck    bool          // auto ack after read, default true
+	FetchNumber      int           // records per fetch, default 500, max 1000
+	BufferNumber     int           // local buffer size, default 500
+	MaxInflightFetch int           // max concurrent fetching requests, default 2
+	Protocol         Protocol      // data protocol
+	FetchStrategy    FetchStrategy // shard selection strategy, default FetchRoundRobin
+	CommitInterval   time.Duration // offset commit interval, default 30s
+	SessionTimeout   time.Duration // consumer group session timeout, default 60s
+}
+
+// NewConsumerConfig creates a new ConsumerConfig with default values
+func NewConsumerConfig() *ConsumerConfig {
+	return &ConsumerConfig{
+		BaseConfig: BaseConfig{
+			MaxRetry:      3,
+			RetryInterval: 500 * time.Millisecond,
+		},
+		AutoRecordAck:    true,
+		FetchNumber:      500,
+		BufferNumber:     500,
+		MaxInflightFetch: 2,
+		Protocol:         Batch,
+		FetchStrategy:    FetchRoundRobin,
+		CommitInterval:   30 * time.Second,
+		SessionTimeout:   60 * time.Second,
+	}
+}

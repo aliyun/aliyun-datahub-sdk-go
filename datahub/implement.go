@@ -1226,9 +1226,7 @@ func (datahub *DataHub) SyncGroup(projectName, topicName, consumerGroup, consume
 	if !util.CheckTopicName(topicName) {
 		return nil, newInvalidParameterErrorWithMessage(topicNameInvalid)
 	}
-	if len(releaseShardList) == 0 || len(readEndShardList) == 0 {
-		return nil, newInvalidParameterErrorWithMessage(shardListInvalid)
-	}
+
 	for _, id := range releaseShardList {
 		if !util.CheckShardId(id) {
 			return nil, newInvalidParameterErrorWithMessage(shardIdInvalid)
