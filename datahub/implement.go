@@ -1514,7 +1514,10 @@ func (datahub *DataHubBatch) PutRecordsByShard(projectName, topicName, shardId s
 	}
 
 	path := fmt.Sprintf(shardPath, projectName, topicName, shardId)
-	schemaCache := schemaClientInstance().getTopicSchemaCache(projectName, topicName, datahub)
+	schemaCache, err := schemaClientInstance().getTopicSchemaCache(projectName, topicName, datahub)
+	if err != nil {
+		return nil, err
+	}
 	serializer := newBatchSerializer(projectName, topicName, schemaCache, datahub.compressType)
 	prr := &PutBatchRecordsRequest{
 		serializer: serializer,
@@ -1562,7 +1565,10 @@ func (datahub *DataHubBatch) GetTupleRecords(projectName, topicName, shardId, cu
 		return nil, err
 	}
 
-	schemaCache := schemaClientInstance().getTopicSchemaCache(projectName, topicName, datahub)
+	schemaCache, err := schemaClientInstance().getTopicSchemaCache(projectName, topicName, datahub)
+	if err != nil {
+		return nil, err
+	}
 	deserializer := newBatchDeserializer(shardId, schemaCache)
 	return newGetBatchRecordsResult(respBody, recordSchema, commonResp, deserializer)
 }

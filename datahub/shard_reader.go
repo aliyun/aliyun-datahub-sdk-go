@@ -99,11 +99,16 @@ func (sr *shardReader) fetch() ([]IRecord, error) {
 	cursor := sr.cursor
 
 	// getSchemaByVersionId(0): returns nil for blob, schema for tuple
-	schemaCache := schemaClientInstance().getTopicSchemaCache(sr.project, sr.topic, sr.client)
-	schema := schemaCache.getSchemaByVersionId(0)
+	schemaCache, err := schemaClientInstance().getTopicSchemaCache(sr.project, sr.topic, sr.client)
+	if err != nil {
+		return nil, err
+	}
+	schema, err := schemaCache.getSchemaByVersionId(0)
+	if err != nil {
+		return nil, err
+	}
 
 	var result *GetRecordsResult
-	var err error
 
 	if schema != nil {
 		result, err = sr.client.GetTupleRecords(sr.project, sr.topic, sr.shardId, cursor, sr.config.FetchNumber, schema)

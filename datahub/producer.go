@@ -99,7 +99,10 @@ func (pi *producerImpl) initMeta() error {
 
 	pi.client = NewClientWithConfig(pi.config.Endpoint, config, pi.config.Account)
 	pi.client.setUserAgent(userAgent)
-	pi.schemaCache = schemaClientInstance().getTopicSchemaCache(pi.project, pi.topic, pi.client)
+	pi.schemaCache, err = schemaClientInstance().getTopicSchemaCache(pi.project, pi.topic, pi.client)
+	if err != nil {
+		return err
+	}
 
 	err = pi.freshShard(true)
 	if err != nil {
@@ -280,14 +283,21 @@ func (pi *producerImpl) GetSchema() (*RecordSchema, error) {
 
 func (pi *producerImpl) GetSchemaByVersionId(versionId int) (*RecordSchema, error) {
 	if versionId < 0 {
-		versionId = pi.schemaCache.getMaxSchemaVersionId()
+		var err error
+		versionId, err = pi.schemaCache.getMaxSchemaVersionId()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if versionId < 0 { // blob
 		return nil, nil
 	}
 
-	schema := pi.schemaCache.getSchemaByVersionId(versionId)
+	schema, err := pi.schemaCache.getSchemaByVersionId(versionId)
+	if err != nil {
+		return nil, err
+	}
 	if schema != nil {
 		return schema, nil
 	}

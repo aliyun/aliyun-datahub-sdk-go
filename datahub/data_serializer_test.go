@@ -17,23 +17,24 @@ type topicSchemaCacheForTest struct {
 	dhSchema   *RecordSchema
 }
 
-func (tsc *topicSchemaCacheForTest) init() {
+func (tsc *topicSchemaCacheForTest) init() error {
+	return nil
 }
 
-func (tsc *topicSchemaCacheForTest) getMaxSchemaVersionId() int {
-	return 1
+func (tsc *topicSchemaCacheForTest) getMaxSchemaVersionId() (int, error) {
+	return 1, nil
 }
-func (tsc *topicSchemaCacheForTest) getSchemaByVersionId(versionId int) *RecordSchema {
-	return tsc.dhSchema
+func (tsc *topicSchemaCacheForTest) getSchemaByVersionId(versionId int) (*RecordSchema, error) {
+	return tsc.dhSchema, nil
 }
-func (tsc *topicSchemaCacheForTest) getVersionIdBySchema(schema *RecordSchema) int {
-	return 1
+func (tsc *topicSchemaCacheForTest) getVersionIdBySchema(schema *RecordSchema) (int, error) {
+	return 1, nil
 }
-func (tsc *topicSchemaCacheForTest) getAvroSchema(schema *RecordSchema) avro.Schema {
-	return tsc.avroSchema
+func (tsc *topicSchemaCacheForTest) getAvroSchema(schema *RecordSchema) (avro.Schema, error) {
+	return tsc.avroSchema, nil
 }
-func (tsc *topicSchemaCacheForTest) getAvroSchemaByVersionId(versionId int) avro.Schema {
-	return tsc.avroSchema
+func (tsc *topicSchemaCacheForTest) getAvroSchemaByVersionId(versionId int) (avro.Schema, error) {
+	return tsc.avroSchema, nil
 }
 
 func randomString(length int) string {

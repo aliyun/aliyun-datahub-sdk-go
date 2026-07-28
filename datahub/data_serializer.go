@@ -104,7 +104,10 @@ func (as *avroDataSerializer) getSchema(record IRecord) (avro.Schema, error) {
 		dhSchema = tupleRecord.RecordSchema
 	}
 
-	schema := as.schemaCache.getAvroSchema(dhSchema)
+	schema, err := as.schemaCache.getAvroSchema(dhSchema)
+	if err != nil {
+		return nil, err
+	}
 	if schema != nil {
 		return schema, nil
 	}
@@ -180,7 +183,10 @@ func (ad *avroDataDeserializer) deserialize(data []byte, header *batchHeader) ([
 }
 
 func (ad *avroDataDeserializer) getSchema(header *batchHeader) (*RecordSchema, avro.Schema, error) {
-	schema := ad.schemaCache.getSchemaByVersionId(int(header.schemaVersion))
+	schema, err := ad.schemaCache.getSchemaByVersionId(int(header.schemaVersion))
+	if err != nil {
+		return nil, nil, err
+	}
 
 	truncated := false
 	dhSchema := schema
@@ -194,7 +200,10 @@ func (ad *avroDataDeserializer) getSchema(header *batchHeader) (*RecordSchema, a
 
 	var avroSchema avro.Schema
 	if !truncated {
-		avroSchema = ad.schemaCache.getAvroSchemaByVersionId(int(header.schemaVersion))
+		avroSchema, err = ad.schemaCache.getAvroSchemaByVersionId(int(header.schemaVersion))
+		if err != nil {
+			return nil, nil, err
+		}
 	} else {
 		tmp, err := getAvroSchema(dhSchema)
 		if err != nil {

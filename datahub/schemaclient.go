@@ -13,8 +13,10 @@ import (
 )
 
 const (
-	invalidSchemaVersionId = math.MinInt32
-	blobSchemaVersionId    = -1
+	invalidSchemaVersionId     = math.MinInt32
+	blobSchemaVersionId        = -1
+	schemaRefreshInterval      = 5 * time.Minute
+	schemaRefreshRetryInterval = time.Second
 )
 
 var (
@@ -23,12 +25,12 @@ var (
 )
 
 type topicSchemaCache interface {
-	init()
-	getMaxSchemaVersionId() int
-	getSchemaByVersionId(versionId int) *RecordSchema
-	getVersionIdBySchema(schema *RecordSchema) int
-	getAvroSchema(schema *RecordSchema) avro.Schema
-	getAvroSchemaByVersionId(versionId int) avro.Schema
+	init() error
+	getMaxSchemaVersionId() (int, error)
+	getSchemaByVersionId(versionId int) (*RecordSchema, error)
+	getVersionIdBySchema(schema *RecordSchema) (int, error)
+	getAvroSchema(schema *RecordSchema) (avro.Schema, error)
+	getAvroSchemaByVersionId(versionId int) (avro.Schema, error)
 }
 
 type topicSchemaItem struct {
@@ -82,9 +84,11 @@ func getTopicKey(project, topic string) string {
 * but init function will trigger network requests, If a large number of topics are started simultaneously,
 * locking before init may result in slower startup times.
  */
-func (sc *schemaClient) addTopicSchemaCache(project, topic string, client DataHubApi) topicSchemaCache {
+func (sc *schemaClient) addTopicSchemaCache(project, topic string, client DataHubApi) (topicSchemaCache, error) {
 	cache := NewTopicSchemaCache(project, topic, client)
-	cache.cache.init()
+	if err := cache.cache.init(); err != nil {
+		return nil, fmt.Errorf("%s/%s init schema cache failed: %w", project, topic, err)
+	}
 
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
@@ -97,7 +101,7 @@ func (sc *schemaClient) addTopicSchemaCache(project, topic string, client DataHu
 	}
 
 	sc.topicCache[getTopicKey(project, topic)] = cache
-	return cache.getSchemaCache()
+	return cache.getSchemaCache(), nil
 }
 
 func (sc *schemaClient) findTopicSchemaCache(project, topic string) topicSchemaCache {
@@ -111,12 +115,12 @@ func (sc *schemaClient) findTopicSchemaCache(project, topic string) topicSchemaC
 	return nil
 }
 
-func (sc *schemaClient) getTopicSchemaCache(project, topic string, client DataHubApi) topicSchemaCache {
+func (sc *schemaClient) getTopicSchemaCache(project, topic string, client DataHubApi) (topicSchemaCache, error) {
 	cache := sc.findTopicSchemaCache(project, topic)
 	if cache == nil {
-		cache = sc.addTopicSchemaCache(project, topic, client)
+		return sc.addTopicSchemaCache(project, topic, client)
 	}
-	return cache
+	return cache, nil
 }
 
 // for test
@@ -146,11 +150,8 @@ type topicSchemaCacheImpl struct {
 	lock               sync.RWMutex
 }
 
-func (tsc *topicSchemaCacheImpl) init() {
-	err := tsc.freshSchema(true)
-	if err != nil {
-		log.Warnf("%s/%s init schema cache failed, error:%v", tsc.project, tsc.topic, err)
-	}
+func (tsc *topicSchemaCacheImpl) init() error {
+	return tsc.freshSchema(true)
 }
 
 func (tsc *topicSchemaCacheImpl) freshNomalSchema(topicResult *GetTopicResult) error {
@@ -253,108 +254,198 @@ func (tsc *topicSchemaCacheImpl) freshMultiSchema() error {
 	return nil
 }
 
-func (tsc *topicSchemaCacheImpl) freshSchema(force bool) error {
+func (tsc *topicSchemaCacheImpl) freshSchema(force bool) (err error) {
 	nextTime := tsc.nextFreshTime.Load().(time.Time)
 	if !force && time.Now().Before(nextTime) {
 		return nil
 	}
 
 	// pervent fresh shard by multi goroutine
-	newNextTime := time.Now().Add(time.Duration(5) * time.Minute)
+	newNextTime := time.Now().Add(schemaRefreshInterval)
 	if !tsc.nextFreshTime.CompareAndSwap(nextTime, newNextTime) {
 		return nil
 	}
+	defer func() {
+		if err != nil {
+			tsc.nextFreshTime.CompareAndSwap(
+				newNextTime,
+				time.Now().Add(schemaRefreshRetryInterval),
+			)
+		}
+	}()
 
-	var err error
-	tsc.topicResult, err = tsc.client.GetTopic(tsc.project, tsc.topic)
+	topicResult, err := tsc.client.GetTopic(tsc.project, tsc.topic)
 	if err != nil {
 		return err
 	}
-
-	if tsc.topicResult.RecordType == BLOB {
-		return nil
+	if topicResult == nil {
+		return fmt.Errorf("%s/%s get topic returned nil topic result", tsc.project, tsc.topic)
 	}
 
-	if !tsc.topicResult.EnableSchema {
-		return tsc.freshNomalSchema(tsc.topicResult)
-	} else {
-		return tsc.freshMultiSchema()
-	}
-}
-
-func (tsc *topicSchemaCacheImpl) getMaxSchemaVersionId() int {
-	tsc.freshSchema(false)
-	tsc.lock.RLock()
-	defer tsc.lock.RUnlock()
-
-	return tsc.maxSchemaVersionId
-}
-
-func (tsc *topicSchemaCacheImpl) getSchemaByVersionId(versionId int) *RecordSchema {
-	tsc.freshSchema(false)
-
-	if versionId >= 0 {
-		tsc.lock.RLock()
-		defer tsc.lock.RUnlock()
-
-		if schemaItem, ok := tsc.versionMap[versionId]; ok {
-			return schemaItem.dhSchema
+	if topicResult.RecordType != BLOB {
+		if !topicResult.EnableSchema {
+			err = tsc.freshNomalSchema(topicResult)
+		} else {
+			err = tsc.freshMultiSchema()
+		}
+		if err != nil {
+			return err
 		}
 	}
 
+	tsc.lock.Lock()
+	tsc.topicResult = topicResult
+	tsc.lock.Unlock()
 	return nil
 }
 
-func (tsc *topicSchemaCacheImpl) getVersionIdBySchema(schema *RecordSchema) int {
+func (tsc *topicSchemaCacheImpl) getMaxSchemaVersionId() (int, error) {
+	refreshErr := tsc.freshSchema(false)
+	tsc.lock.RLock()
+	versionID := tsc.maxSchemaVersionId
+	initialized := tsc.topicResult != nil
+	tsc.lock.RUnlock()
+
+	if !initialized {
+		return versionID, tsc.unavailableCacheError(refreshErr)
+	}
+	if refreshErr != nil {
+		tsc.logStaleCacheUsage(refreshErr)
+	}
+	return versionID, nil
+}
+
+func (tsc *topicSchemaCacheImpl) getSchemaByVersionId(versionId int) (*RecordSchema, error) {
+	refreshErr := tsc.freshSchema(false)
+	tsc.lock.RLock()
+	topicResult := tsc.topicResult
+	schemaItem := tsc.versionMap[versionId]
+	tsc.lock.RUnlock()
+
+	if topicResult == nil {
+		return nil, tsc.unavailableCacheError(refreshErr)
+	}
+	if versionId < 0 || topicResult.RecordType == BLOB || schemaItem != nil {
+		if refreshErr != nil {
+			tsc.logStaleCacheUsage(refreshErr)
+		}
+		if schemaItem != nil {
+			return schemaItem.dhSchema, nil
+		}
+		return nil, nil
+	}
+	if refreshErr != nil {
+		return nil, tsc.wrapRefreshError(refreshErr)
+	}
+	return nil, nil
+}
+
+func (tsc *topicSchemaCacheImpl) getVersionIdBySchema(schema *RecordSchema) (int, error) {
 	if schema == nil {
-		return blobSchemaVersionId
+		return blobSchemaVersionId, nil
 	}
 
-	tsc.freshSchema(false)
+	refreshErr := tsc.freshSchema(false)
 	tsc.lock.RLock()
-	defer tsc.lock.RUnlock()
+	topicResult := tsc.topicResult
+	var schemaItem *SchemaItem
+	if topicResult != nil {
+		schemaItem = tsc.schemaMap[schema.hashCode()]
+	}
+	tsc.lock.RUnlock()
+
+	if topicResult == nil {
+		return invalidSchemaVersionId, tsc.unavailableCacheError(refreshErr)
+	}
 
 	// maybe schema has been freshed after append field,
 	// but the old schema is still in use for writing, so return 0 directly
-	if !tsc.topicResult.EnableSchema {
-		return 0
+	if !topicResult.EnableSchema {
+		if refreshErr != nil {
+			tsc.logStaleCacheUsage(refreshErr)
+		}
+		return 0, nil
 	}
 
-	if schemaItem, ok := tsc.schemaMap[schema.hashCode()]; ok {
-		return schemaItem.versionId
+	if schemaItem != nil {
+		if refreshErr != nil {
+			tsc.logStaleCacheUsage(refreshErr)
+		}
+		return schemaItem.versionId, nil
 	}
 
-	return invalidSchemaVersionId
+	if refreshErr != nil {
+		return invalidSchemaVersionId, tsc.wrapRefreshError(refreshErr)
+	}
+	return invalidSchemaVersionId, nil
 }
 
-func (tsc *topicSchemaCacheImpl) getAvroSchema(schema *RecordSchema) avro.Schema {
+func (tsc *topicSchemaCacheImpl) getAvroSchema(schema *RecordSchema) (avro.Schema, error) {
 	if schema == nil {
-		return getAvroBlobSchema()
+		return getAvroBlobSchema(), nil
 	}
 
-	tsc.freshSchema(false)
-
+	refreshErr := tsc.freshSchema(false)
 	tsc.lock.RLock()
-	defer tsc.lock.RUnlock()
-	if item, ok := tsc.schemaMap[schema.hashCode()]; ok {
-		return item.avroSchema
+	topicResult := tsc.topicResult
+	item := tsc.schemaMap[schema.hashCode()]
+	tsc.lock.RUnlock()
+
+	if topicResult == nil {
+		return nil, tsc.unavailableCacheError(refreshErr)
+	}
+	if item != nil {
+		if refreshErr != nil {
+			tsc.logStaleCacheUsage(refreshErr)
+		}
+		return item.avroSchema, nil
 	}
 
-	return nil
+	if refreshErr != nil {
+		return nil, tsc.wrapRefreshError(refreshErr)
+	}
+	return nil, nil
 }
 
-func (tsc *topicSchemaCacheImpl) getAvroSchemaByVersionId(versionId int) avro.Schema {
+func (tsc *topicSchemaCacheImpl) getAvroSchemaByVersionId(versionId int) (avro.Schema, error) {
 	if versionId < 0 {
-		return getAvroBlobSchema()
+		return getAvroBlobSchema(), nil
 	}
 
-	tsc.freshSchema(false)
-
+	refreshErr := tsc.freshSchema(false)
 	tsc.lock.RLock()
-	defer tsc.lock.RUnlock()
-	if item, ok := tsc.versionMap[versionId]; ok {
-		return item.avroSchema
+	topicResult := tsc.topicResult
+	item := tsc.versionMap[versionId]
+	tsc.lock.RUnlock()
+
+	if topicResult == nil {
+		return nil, tsc.unavailableCacheError(refreshErr)
+	}
+	if item != nil {
+		if refreshErr != nil {
+			tsc.logStaleCacheUsage(refreshErr)
+		}
+		return item.avroSchema, nil
 	}
 
-	return nil
+	if refreshErr != nil {
+		return nil, tsc.wrapRefreshError(refreshErr)
+	}
+	return nil, nil
+}
+
+func (tsc *topicSchemaCacheImpl) unavailableCacheError(refreshErr error) error {
+	if refreshErr != nil {
+		return tsc.wrapRefreshError(refreshErr)
+	}
+	return fmt.Errorf("%s/%s schema cache is not initialized", tsc.project, tsc.topic)
+}
+
+func (tsc *topicSchemaCacheImpl) wrapRefreshError(refreshErr error) error {
+	return fmt.Errorf("%s/%s refresh schema cache failed: %w", tsc.project, tsc.topic, refreshErr)
+}
+
+func (tsc *topicSchemaCacheImpl) logStaleCacheUsage(refreshErr error) {
+	log.Warnf("%s/%s refresh schema cache failed, using stale cache, error:%v",
+		tsc.project, tsc.topic, refreshErr)
 }

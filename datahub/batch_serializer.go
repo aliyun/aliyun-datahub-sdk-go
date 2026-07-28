@@ -194,7 +194,10 @@ func (bs *batchSerializer) getSchemaVersion(record IRecord) (int32, error) {
 		dhSchema = tupleRecord.RecordSchema
 	}
 
-	versionId := bs.cache.getVersionIdBySchema(dhSchema)
+	versionId, err := bs.cache.getVersionIdBySchema(dhSchema)
+	if err != nil {
+		return 0, err
+	}
 	if versionId == invalidSchemaVersionId {
 		schemaStr := "nil"
 		if dhSchema != nil {

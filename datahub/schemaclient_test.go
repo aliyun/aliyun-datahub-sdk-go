@@ -71,10 +71,13 @@ func TestSchemaClient_AddTopicSchemaCache(t *testing.T) {
 	}, nil).Times(1)
 
 	client := schemaClientInstance()
-	cache := client.addTopicSchemaCache("test_project", "test_topic", mockClient)
+	cache, err := client.addTopicSchemaCache("test_project", "test_topic", mockClient)
 
+	assert.NoError(t, err)
 	assert.NotNil(t, cache)
-	assert.Equal(t, 0, cache.getMaxSchemaVersionId())
+	maxVersionID, err := cache.getMaxSchemaVersionId()
+	assert.NoError(t, err)
+	assert.Equal(t, 0, maxVersionID)
 	mockClient.AssertExpectations(t)
 }
 
@@ -102,9 +105,12 @@ func TestSchemaClient_AddTopicSchemaCacheWithEnableSchema(t *testing.T) {
 	}, nil).Times(1)
 
 	client := schemaClientInstance()
-	cache := client.addTopicSchemaCache("test_project", "test_topic", mockClient)
+	cache, err := client.addTopicSchemaCache("test_project", "test_topic", mockClient)
+	assert.NoError(t, err)
 	assert.NotNil(t, cache)
-	assert.Equal(t, 1, cache.getMaxSchemaVersionId())
+	maxVersionID, err := cache.getMaxSchemaVersionId()
+	assert.NoError(t, err)
+	assert.Equal(t, 1, maxVersionID)
 	mockClient.AssertExpectations(t)
 }
 
@@ -117,10 +123,13 @@ func TestSchemaClient_AddTopicSchemaCacheWithBlobTopic(t *testing.T) {
 	}, nil).Times(1)
 
 	client := schemaClientInstance()
-	cache := client.addTopicSchemaCache("test_project", "test_topic", mockClient)
+	cache, err := client.addTopicSchemaCache("test_project", "test_topic", mockClient)
 
+	assert.NoError(t, err)
 	assert.NotNil(t, cache)
-	assert.Equal(t, -1, cache.getMaxSchemaVersionId())
+	maxVersionID, err := cache.getMaxSchemaVersionId()
+	assert.NoError(t, err)
+	assert.Equal(t, -1, maxVersionID)
 	mockClient.AssertExpectations(t)
 }
 
@@ -141,7 +150,8 @@ func TestSchemaClient_FindTopicSchemaCache(t *testing.T) {
 	assert.Nil(t, cache)
 
 	// Add cache first
-	client.addTopicSchemaCache("test_project", "test_topic", mockClient)
+	_, err := client.addTopicSchemaCache("test_project", "test_topic", mockClient)
+	assert.NoError(t, err)
 
 	// Find cache
 	foundCache := client.findTopicSchemaCache("test_project", "test_topic")
@@ -171,14 +181,16 @@ func TestSchemaClient_AutoAddTopicSchemaCache(t *testing.T) {
 	assert.Nil(t, cache1)
 
 	// First retrieval should create cache
-	cache2 := client.getTopicSchemaCache("test_project", "test_topic", mockClient)
+	cache2, err := client.getTopicSchemaCache("test_project", "test_topic", mockClient)
+	assert.NoError(t, err)
 	assert.NotNil(t, cache2)
 
 	cache3 := client.findTopicSchemaCache("test_project", "test_topic")
 	assert.Equal(t, cache2, cache3)
 
 	// Second retrieval should return same cache
-	cache4 := client.getTopicSchemaCache("test_project", "test_topic", mockClient)
+	cache4, err := client.getTopicSchemaCache("test_project", "test_topic", mockClient)
+	assert.NoError(t, err)
 	assert.Equal(t, cache2, cache4)
 
 	mockClient.AssertExpectations(t)
@@ -207,11 +219,77 @@ func TestTopicSchemaCacheImpl_Init(t *testing.T) {
 		nextFreshTime: freshTime,
 	}
 
-	cacheImpl.init()
+	assert.NoError(t, cacheImpl.init())
 
 	assert.Equal(t, 0, cacheImpl.maxSchemaVersionId)
 	assert.Equal(t, 1, len(cacheImpl.schemaMap))
 	assert.Equal(t, 1, len(cacheImpl.versionMap))
+	mockClient.AssertExpectations(t)
+}
+
+func TestTopicSchemaCacheImpl_InitReturnsRefreshError(t *testing.T) {
+	expectedErr := errors.New("network error")
+	mockClient := &MockDataHubApi{}
+	mockClient.On("GetTopic", "test_project", "test_topic").
+		Return((*GetTopicResult)(nil), expectedErr).
+		Once()
+
+	var nextFreshTime atomic.Value
+	nextFreshTime.Store(time.Now())
+	cacheImpl := &topicSchemaCacheImpl{
+		client:        mockClient,
+		project:       "test_project",
+		topic:         "test_topic",
+		schemaMap:     make(map[uint32]*SchemaItem),
+		versionMap:    make(map[int]*SchemaItem),
+		nextFreshTime: nextFreshTime,
+	}
+
+	err := cacheImpl.init()
+
+	assert.ErrorIs(t, err, expectedErr)
+	mockClient.AssertExpectations(t)
+}
+
+func TestSchemaClient_DoesNotCacheFailedInitialization(t *testing.T) {
+	expectedErr := errors.New("network error")
+	mockClient := &MockDataHubApi{}
+	mockClient.On("GetTopic", "failed_project", "failed_topic").
+		Return((*GetTopicResult)(nil), expectedErr).
+		Once()
+
+	client := schemaClientInstance()
+	client.clean()
+
+	cache, err := client.getTopicSchemaCache("failed_project", "failed_topic", mockClient)
+
+	assert.Nil(t, cache)
+	assert.ErrorIs(t, err, expectedErr)
+	assert.Nil(t, client.findTopicSchemaCache("failed_project", "failed_topic"))
+	mockClient.AssertExpectations(t)
+}
+
+func TestSchemaClient_RetriesInitializationAfterFailure(t *testing.T) {
+	expectedErr := errors.New("network error")
+	mockClient := &MockDataHubApi{}
+	mockClient.On("GetTopic", "retry_project", "retry_topic").
+		Return((*GetTopicResult)(nil), expectedErr).
+		Once()
+	mockClient.On("GetTopic", "retry_project", "retry_topic").
+		Return(&GetTopicResult{RecordType: BLOB}, nil).
+		Once()
+
+	client := schemaClientInstance()
+	client.clean()
+
+	firstCache, err := client.getTopicSchemaCache("retry_project", "retry_topic", mockClient)
+	assert.Nil(t, firstCache)
+	assert.ErrorIs(t, err, expectedErr)
+
+	secondCache, err := client.getTopicSchemaCache("retry_project", "retry_topic", mockClient)
+	assert.NoError(t, err)
+	assert.NotNil(t, secondCache)
+	assert.Equal(t, secondCache, client.findTopicSchemaCache("retry_project", "retry_topic"))
 	mockClient.AssertExpectations(t)
 }
 
@@ -303,9 +381,11 @@ func TestTopicSchemaCacheImpl_GetMaxSchemaVersionId(t *testing.T) {
 		versionMap:         make(map[int]*SchemaItem),
 		nextFreshTime:      freshTime,
 		maxSchemaVersionId: 5,
+		topicResult:        &GetTopicResult{RecordType: TUPLE},
 	}
 
-	versionId := cacheImpl.getMaxSchemaVersionId()
+	versionId, err := cacheImpl.getMaxSchemaVersionId()
+	assert.NoError(t, err)
 	assert.Equal(t, 5, versionId)
 }
 
@@ -320,21 +400,25 @@ func TestTopicSchemaCacheImpl_GetSchemaByVersionId(t *testing.T) {
 		topic:         "test_topic",
 		schemaMap:     make(map[uint32]*SchemaItem),
 		nextFreshTime: freshTime,
+		topicResult:   &GetTopicResult{RecordType: TUPLE},
 		versionMap: map[int]*SchemaItem{
 			1: {versionId: 1, dhSchema: testSchema},
 		},
 	}
 
 	// Test finding existing version
-	schema := cacheImpl.getSchemaByVersionId(1)
+	schema, err := cacheImpl.getSchemaByVersionId(1)
+	assert.NoError(t, err)
 	assert.Equal(t, testSchema, schema)
 
 	// Test not finding version
-	schema = cacheImpl.getSchemaByVersionId(999)
+	schema, err = cacheImpl.getSchemaByVersionId(999)
+	assert.NoError(t, err)
 	assert.Nil(t, schema)
 
 	// Test negative version number
-	schema = cacheImpl.getSchemaByVersionId(-1)
+	schema, err = cacheImpl.getSchemaByVersionId(-1)
+	assert.NoError(t, err)
 	assert.Nil(t, schema)
 }
 
@@ -358,16 +442,99 @@ func TestTopicSchemaCacheImpl_GetVersionIdBySchema(t *testing.T) {
 	}
 
 	// Test finding version for schema
-	versionId := cacheImpl.getVersionIdBySchema(testSchema)
+	versionId, err := cacheImpl.getVersionIdBySchema(testSchema)
+	assert.NoError(t, err)
 	assert.Equal(t, 1, versionId)
 
 	// Test not finding schema
-	versionId = cacheImpl.getVersionIdBySchema(&RecordSchema{})
+	versionId, err = cacheImpl.getVersionIdBySchema(&RecordSchema{})
+	assert.NoError(t, err)
 	assert.Equal(t, invalidSchemaVersionId, versionId)
 
 	// Test passing nil schema
-	versionId = cacheImpl.getVersionIdBySchema(nil)
+	versionId, err = cacheImpl.getVersionIdBySchema(nil)
+	assert.NoError(t, err)
 	assert.Equal(t, blobSchemaVersionId, versionId)
+}
+
+func TestGetVersionIdBySchemaUsesStaleEntryAfterRefreshError(t *testing.T) {
+	expectedErr := errors.New("network error")
+	mockClient := &MockDataHubApi{}
+	mockClient.On("GetTopic", "test_project", "test_topic").
+		Return((*GetTopicResult)(nil), expectedErr).
+		Once()
+
+	testSchema := NewRecordSchema()
+	testSchema.AddField(*NewField("test_field", INTEGER))
+	var nextFreshTime atomic.Value
+	nextFreshTime.Store(time.Now().Add(-time.Minute))
+	cacheImpl := &topicSchemaCacheImpl{
+		client:      mockClient,
+		project:     "test_project",
+		topic:       "test_topic",
+		topicResult: &GetTopicResult{RecordType: TUPLE, EnableSchema: true},
+		schemaMap: map[uint32]*SchemaItem{
+			testSchema.hashCode(): {
+				versionId: 7,
+				dhSchema:  testSchema,
+			},
+		},
+		versionMap:    make(map[int]*SchemaItem),
+		nextFreshTime: nextFreshTime,
+	}
+
+	versionID, err := cacheImpl.getVersionIdBySchema(testSchema)
+
+	assert.NoError(t, err)
+	assert.Equal(t, 7, versionID)
+	mockClient.AssertExpectations(t)
+}
+
+func TestGetVersionIdBySchemaReturnsRefreshErrorWhenStaleEntryMissing(t *testing.T) {
+	expectedErr := errors.New("network error")
+	mockClient := &MockDataHubApi{}
+	mockClient.On("GetTopic", "test_project", "test_topic").
+		Return((*GetTopicResult)(nil), expectedErr).
+		Once()
+
+	testSchema := NewRecordSchema()
+	testSchema.AddField(*NewField("test_field", INTEGER))
+	var nextFreshTime atomic.Value
+	nextFreshTime.Store(time.Now().Add(-time.Minute))
+	cacheImpl := &topicSchemaCacheImpl{
+		client:        mockClient,
+		project:       "test_project",
+		topic:         "test_topic",
+		topicResult:   &GetTopicResult{RecordType: TUPLE, EnableSchema: true},
+		schemaMap:     make(map[uint32]*SchemaItem),
+		versionMap:    make(map[int]*SchemaItem),
+		nextFreshTime: nextFreshTime,
+	}
+
+	versionID, err := cacheImpl.getVersionIdBySchema(testSchema)
+
+	assert.Equal(t, invalidSchemaVersionId, versionID)
+	assert.ErrorIs(t, err, expectedErr)
+	mockClient.AssertExpectations(t)
+}
+
+func TestGetVersionIdBySchemaReturnsUninitializedErrorInsteadOfPanicking(t *testing.T) {
+	testSchema := NewRecordSchema()
+	testSchema.AddField(*NewField("test_field", INTEGER))
+	var nextFreshTime atomic.Value
+	nextFreshTime.Store(time.Now().Add(time.Minute))
+	cacheImpl := &topicSchemaCacheImpl{
+		project:       "test_project",
+		topic:         "test_topic",
+		schemaMap:     make(map[uint32]*SchemaItem),
+		versionMap:    make(map[int]*SchemaItem),
+		nextFreshTime: nextFreshTime,
+	}
+
+	versionID, err := cacheImpl.getVersionIdBySchema(testSchema)
+
+	assert.Equal(t, invalidSchemaVersionId, versionID)
+	assert.ErrorContains(t, err, "not initialized")
 }
 
 func TestTopicSchemaCacheImpl_GetAvroSchema(t *testing.T) {
@@ -387,14 +554,17 @@ func TestTopicSchemaCacheImpl_GetAvroSchema(t *testing.T) {
 		},
 		nextFreshTime: freshTime,
 		versionMap:    make(map[int]*SchemaItem),
+		topicResult:   &GetTopicResult{RecordType: TUPLE},
 	}
 
 	// Test finding avro schema for given schema
-	avroSchema := cacheImpl.getAvroSchema(testSchema)
+	avroSchema, err := cacheImpl.getAvroSchema(testSchema)
+	assert.NoError(t, err)
 	assert.Equal(t, testAvroSchema, avroSchema)
 
 	// Test passing nil schema
-	avroSchema = cacheImpl.getAvroSchema(nil)
+	avroSchema, err = cacheImpl.getAvroSchema(nil)
+	assert.NoError(t, err)
 	assert.Equal(t, getAvroBlobSchema(), avroSchema)
 }
 
@@ -411,21 +581,25 @@ func TestTopicSchemaCacheImpl_GetAvroSchemaByVersionId(t *testing.T) {
 		topic:         "test_topic",
 		nextFreshTime: freshTime,
 		schemaMap:     make(map[uint32]*SchemaItem),
+		topicResult:   &GetTopicResult{RecordType: TUPLE},
 		versionMap: map[int]*SchemaItem{
 			1: {versionId: 1, avroSchema: testAvroSchema},
 		},
 	}
 
 	// Test finding avro schema for given version
-	avroSchema := cacheImpl.getAvroSchemaByVersionId(1)
+	avroSchema, err := cacheImpl.getAvroSchemaByVersionId(1)
+	assert.NoError(t, err)
 	assert.Equal(t, testAvroSchema, avroSchema)
 
 	// Test not finding version
-	avroSchema = cacheImpl.getAvroSchemaByVersionId(999)
+	avroSchema, err = cacheImpl.getAvroSchemaByVersionId(999)
+	assert.NoError(t, err)
 	assert.Nil(t, avroSchema)
 
 	// Test negative version number
-	avroSchema = cacheImpl.getAvroSchemaByVersionId(-1)
+	avroSchema, err = cacheImpl.getAvroSchemaByVersionId(-1)
+	assert.NoError(t, err)
 	assert.Equal(t, getAvroBlobSchema(), avroSchema)
 }
 
@@ -507,6 +681,94 @@ func TestFreshSchemaWithError(t *testing.T) {
 	mockClient.AssertExpectations(t)
 }
 
+func TestFreshSchemaErrorPreservesExistingTopicResult(t *testing.T) {
+	expectedErr := errors.New("network error")
+	mockClient := &MockDataHubApi{}
+	mockClient.On("GetTopic", "test_project", "test_topic").
+		Return((*GetTopicResult)(nil), expectedErr).
+		Once()
+
+	oldResult := &GetTopicResult{
+		RecordType:   TUPLE,
+		EnableSchema: true,
+	}
+	var nextFreshTime atomic.Value
+	nextFreshTime.Store(time.Now())
+	cacheImpl := &topicSchemaCacheImpl{
+		client:        mockClient,
+		project:       "test_project",
+		topic:         "test_topic",
+		topicResult:   oldResult,
+		schemaMap:     make(map[uint32]*SchemaItem),
+		versionMap:    make(map[int]*SchemaItem),
+		nextFreshTime: nextFreshTime,
+	}
+
+	err := cacheImpl.freshSchema(true)
+
+	assert.ErrorIs(t, err, expectedErr)
+	assert.Same(t, oldResult, cacheImpl.topicResult)
+	assert.Less(t, time.Until(cacheImpl.nextFreshTime.Load().(time.Time)), 5*time.Second)
+	mockClient.AssertExpectations(t)
+}
+
+func TestFreshSchemaListErrorPreservesExistingSnapshot(t *testing.T) {
+	expectedErr := errors.New("list schema error")
+	mockClient := &MockDataHubApi{}
+	mockClient.On("GetTopic", "test_project", "test_topic").
+		Return(&GetTopicResult{RecordType: TUPLE, EnableSchema: true}, nil).
+		Once()
+	mockClient.On("ListTopicSchema", "test_project", "test_topic").
+		Return((*ListTopicSchemaResult)(nil), expectedErr).
+		Once()
+
+	oldResult := &GetTopicResult{RecordType: TUPLE, EnableSchema: true}
+	oldSchemaMap := make(map[uint32]*SchemaItem)
+	oldVersionMap := make(map[int]*SchemaItem)
+	var nextFreshTime atomic.Value
+	nextFreshTime.Store(time.Now())
+	cacheImpl := &topicSchemaCacheImpl{
+		client:        mockClient,
+		project:       "test_project",
+		topic:         "test_topic",
+		topicResult:   oldResult,
+		schemaMap:     oldSchemaMap,
+		versionMap:    oldVersionMap,
+		nextFreshTime: nextFreshTime,
+	}
+
+	err := cacheImpl.freshSchema(true)
+
+	assert.ErrorIs(t, err, expectedErr)
+	assert.Same(t, oldResult, cacheImpl.topicResult)
+	assert.Equal(t, oldSchemaMap, cacheImpl.schemaMap)
+	assert.Equal(t, oldVersionMap, cacheImpl.versionMap)
+	mockClient.AssertExpectations(t)
+}
+
+func TestFreshSchemaRejectsNilTopicResult(t *testing.T) {
+	mockClient := &MockDataHubApi{}
+	mockClient.On("GetTopic", "test_project", "test_topic").
+		Return((*GetTopicResult)(nil), nil).
+		Once()
+
+	var nextFreshTime atomic.Value
+	nextFreshTime.Store(time.Now())
+	cacheImpl := &topicSchemaCacheImpl{
+		client:        mockClient,
+		project:       "test_project",
+		topic:         "test_topic",
+		schemaMap:     make(map[uint32]*SchemaItem),
+		versionMap:    make(map[int]*SchemaItem),
+		nextFreshTime: nextFreshTime,
+	}
+
+	err := cacheImpl.freshSchema(true)
+
+	assert.ErrorContains(t, err, "nil topic result")
+	mockClient.AssertExpectations(t)
+}
+
 func TestFreshSchemaWithAppendField(t *testing.T) {
 	oldSchema := NewRecordSchema()
 	oldSchema.AddField(*NewField("f1", INTEGER))
@@ -551,29 +813,41 @@ func TestFreshSchemaWithAppendField(t *testing.T) {
 		nextFreshTime: nextFreshTime,
 	}
 
-	cacheImpl.init()
+	assert.NoError(t, cacheImpl.init())
 	assert.Equal(t, len(cacheImpl.versionMap), 1)
 	assert.Equal(t, len(cacheImpl.schemaMap), 1)
 	assert.Equal(t, cacheImpl.maxSchemaVersionId, 0)
-	assert.Equal(t, cacheImpl.getVersionIdBySchema(oldSchema), 0)
-	avroSchema1 := cacheImpl.getAvroSchema(oldSchema)
+	versionID, err := cacheImpl.getVersionIdBySchema(oldSchema)
+	assert.NoError(t, err)
+	assert.Equal(t, versionID, 0)
+	avroSchema1, err := cacheImpl.getAvroSchema(oldSchema)
+	assert.NoError(t, err)
 	assert.Equal(t, avroSchema1, odlAvroSchema)
-	avroSchema2 := cacheImpl.getAvroSchema(newSchema)
+	avroSchema2, err := cacheImpl.getAvroSchema(newSchema)
+	assert.NoError(t, err)
 	assert.Nil(t, avroSchema2)
-	avroSchema3 := cacheImpl.getAvroSchemaByVersionId(0)
+	avroSchema3, err := cacheImpl.getAvroSchemaByVersionId(0)
+	assert.NoError(t, err)
 	assert.Equal(t, avroSchema3, odlAvroSchema)
 
-	cacheImpl.freshSchema(true)
+	assert.NoError(t, cacheImpl.freshSchema(true))
 	assert.Equal(t, len(cacheImpl.versionMap), 1)
 	assert.Equal(t, len(cacheImpl.schemaMap), 2)
 	assert.Equal(t, cacheImpl.maxSchemaVersionId, 0)
-	assert.Equal(t, cacheImpl.getVersionIdBySchema(oldSchema), 0)
-	assert.Equal(t, cacheImpl.getVersionIdBySchema(newSchema), 0)
-	avroSchema11 := cacheImpl.getAvroSchema(oldSchema)
+	versionID, err = cacheImpl.getVersionIdBySchema(oldSchema)
+	assert.NoError(t, err)
+	assert.Equal(t, versionID, 0)
+	versionID, err = cacheImpl.getVersionIdBySchema(newSchema)
+	assert.NoError(t, err)
+	assert.Equal(t, versionID, 0)
+	avroSchema11, err := cacheImpl.getAvroSchema(oldSchema)
+	assert.NoError(t, err)
 	assert.Equal(t, avroSchema11, odlAvroSchema)
-	avroSchema12 := cacheImpl.getAvroSchema(newSchema)
+	avroSchema12, err := cacheImpl.getAvroSchema(newSchema)
+	assert.NoError(t, err)
 	assert.Equal(t, avroSchema12, newAvroSchema)
-	avroSchema13 := cacheImpl.getAvroSchemaByVersionId(0)
+	avroSchema13, err := cacheImpl.getAvroSchemaByVersionId(0)
+	assert.NoError(t, err)
 	assert.Equal(t, avroSchema13, newAvroSchema)
 
 	mockClient.AssertExpectations(t)
@@ -662,31 +936,39 @@ func TestFreshSchemaWithAddNewSchema(t *testing.T) {
 		nextFreshTime: nextFreshTime,
 	}
 
-	cacheImpl.init()
+	assert.NoError(t, cacheImpl.init())
 	assert.Equal(t, len(cacheImpl.versionMap), 2)
 	assert.Equal(t, len(cacheImpl.schemaMap), 2)
 	assert.Equal(t, cacheImpl.maxSchemaVersionId, 1)
-	avro1 := cacheImpl.getAvroSchema(schema1)
+	avro1, err := cacheImpl.getAvroSchema(schema1)
+	assert.NoError(t, err)
 	assert.Equal(t, avro1, avroSchema1)
-	avro1 = cacheImpl.getAvroSchemaByVersionId(0)
+	avro1, err = cacheImpl.getAvroSchemaByVersionId(0)
+	assert.NoError(t, err)
 	assert.Equal(t, avro1, avroSchema1)
-	avro2 := cacheImpl.getAvroSchema(schema2)
+	avro2, err := cacheImpl.getAvroSchema(schema2)
+	assert.NoError(t, err)
 	assert.Equal(t, avro2, avroSchema2)
-	avro2 = cacheImpl.getAvroSchemaByVersionId(1)
+	avro2, err = cacheImpl.getAvroSchemaByVersionId(1)
+	assert.NoError(t, err)
 	assert.Equal(t, avro2, avroSchema2)
-	avro3 := cacheImpl.getAvroSchema(schema3)
+	avro3, err := cacheImpl.getAvroSchema(schema3)
+	assert.NoError(t, err)
 	assert.Equal(t, avro3, nil)
-	avro3 = cacheImpl.getAvroSchemaByVersionId(2)
+	avro3, err = cacheImpl.getAvroSchemaByVersionId(2)
+	assert.NoError(t, err)
 	assert.Equal(t, avro3, nil)
 
-	cacheImpl.freshSchema(true)
+	assert.NoError(t, cacheImpl.freshSchema(true))
 	assert.Equal(t, len(cacheImpl.versionMap), 3)
 	assert.Equal(t, len(cacheImpl.schemaMap), 3)
 	assert.Equal(t, cacheImpl.maxSchemaVersionId, 2)
 
-	avro13 := cacheImpl.getAvroSchema(schema3)
+	avro13, err := cacheImpl.getAvroSchema(schema3)
+	assert.NoError(t, err)
 	assert.Equal(t, avro13, avroSchema3)
-	avro13 = cacheImpl.getAvroSchemaByVersionId(2)
+	avro13, err = cacheImpl.getAvroSchemaByVersionId(2)
+	assert.NoError(t, err)
 	assert.Equal(t, avro13, avroSchema3)
 
 	mockClient.AssertExpectations(t)

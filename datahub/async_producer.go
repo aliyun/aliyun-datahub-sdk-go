@@ -212,7 +212,10 @@ func (ap *asyncProducerImpl) initMeta() error {
 
 	ap.client = NewClientWithConfig(ap.config.Endpoint, config, ap.config.Account)
 	ap.client.setUserAgent(userAgent)
-	ap.schemaCache = schemaClientInstance().getTopicSchemaCache(ap.project, ap.topic, ap.client)
+	ap.schemaCache, err = schemaClientInstance().getTopicSchemaCache(ap.project, ap.topic, ap.client)
+	if err != nil {
+		return err
+	}
 
 	log.Infof("Init %s/%s async producer success", ap.project, ap.topic)
 	return nil
@@ -236,14 +239,21 @@ func (ap *asyncProducerImpl) GetSchema() (*RecordSchema, error) {
 
 func (ap *asyncProducerImpl) GetSchemaByVersionId(versionId int) (*RecordSchema, error) {
 	if versionId < 0 {
-		versionId = ap.schemaCache.getMaxSchemaVersionId()
+		var err error
+		versionId, err = ap.schemaCache.getMaxSchemaVersionId()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if versionId < 0 { // blob
 		return nil, nil
 	}
 
-	schema := ap.schemaCache.getSchemaByVersionId(versionId)
+	schema, err := ap.schemaCache.getSchemaByVersionId(versionId)
+	if err != nil {
+		return nil, err
+	}
 	if schema != nil {
 		return schema, nil
 	}
