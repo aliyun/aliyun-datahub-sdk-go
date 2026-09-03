@@ -120,9 +120,19 @@ type AsyncProducer interface {
 
 	GetActiveShards() []string
 
+	// Flush moves records accepted before the call from aggregation buffers into
+	// the send queues. It blocks until the local flush completes, but does not
+	// wait for server responses. Send results are reported through Successes and
+	// Errors. Flush must not be called concurrently with Close.
+	Flush()
+
 	// Close current producer, it will write all buffer to server before closed,
 	// you also need to handle all errors if write to server failed.
 	Close() error
+}
+
+type flushRequest struct {
+	done chan struct{}
 }
 
 type asyncProducerImpl struct {
@@ -141,6 +151,7 @@ type asyncProducerImpl struct {
 	retries            chan []IRecord
 	success            chan *ProduceSuccess
 	errors             chan *ProduceError
+	flushCh            chan *flushRequest
 	updateShardCh      chan bool
 	wg                 sync.WaitGroup
 }
@@ -156,6 +167,7 @@ func NewAsyncProducer(cfg *ProducerConfig) AsyncProducer {
 		retries:            make(chan []IRecord, 64),
 		success:            make(chan *ProduceSuccess, 64),
 		errors:             make(chan *ProduceError, 64),
+		flushCh:            make(chan *flushRequest, 1),
 		updateShardCh:      make(chan bool, 8),
 	}
 	return ap
@@ -223,6 +235,12 @@ func (ap *asyncProducerImpl) initMeta() error {
 
 func (ap *asyncProducerImpl) Input() chan<- IRecord {
 	return ap.input
+}
+
+func (ap *asyncProducerImpl) Flush() {
+	request := &flushRequest{done: make(chan struct{})}
+	ap.flushCh <- request
+	<-request.done
 }
 
 func (ap *asyncProducerImpl) Successes() <-chan *ProduceSuccess {
@@ -453,18 +471,49 @@ func (ap *asyncProducerImpl) dispatch() {
 			if !ok {
 				return
 			}
-
-			if record == nil {
-				log.Warnf("%s/%s record is nil, ingore it", ap.project, ap.topic)
-				continue
-			}
-
-			ap.writeRecord(record)
+			ap.dispatchRecord(record)
 		case batch := <-ap.retries:
 			for _, record := range batch {
-				ap.writeRecord(record)
+				ap.dispatchRecord(record)
 			}
+		case request := <-ap.flushCh:
+			ap.flushPending()
+			close(request.done)
 		}
+	}
+}
+
+func (ap *asyncProducerImpl) dispatchRecord(record IRecord) {
+	if record == nil {
+		log.Warnf("%s/%s record is nil, ingore it", ap.project, ap.topic)
+		return
+	}
+	ap.writeRecord(record)
+}
+
+func (ap *asyncProducerImpl) flushPending() {
+	pendingInputs := len(ap.input)
+	for i := 0; i < pendingInputs; i++ {
+		record, ok := <-ap.input
+		if !ok {
+			break
+		}
+		ap.dispatchRecord(record)
+	}
+
+	pendingRetries := len(ap.retries)
+	for i := 0; i < pendingRetries; i++ {
+		batch := <-ap.retries
+		for _, record := range batch {
+			ap.dispatchRecord(record)
+		}
+	}
+
+	ap.buffer.flush()
+	ap.mutex.RLock()
+	defer ap.mutex.RUnlock()
+	for _, writer := range ap.writers {
+		writer.flush()
 	}
 }
 
@@ -539,6 +588,10 @@ func (ss *shardWriter) writeBatch(batch []IRecord) {
 	ss.buffer.batchInput() <- batch
 }
 
+func (ss *shardWriter) flush() {
+	ss.buffer.flush()
+}
+
 func (ss *shardWriter) sendRun() {
 	defer ss.wg.Done()
 
@@ -606,6 +659,7 @@ type bufferHelper struct {
 	wg         sync.WaitGroup
 	batchCh    chan []IRecord
 	recordCh   chan IRecord
+	flushCh    chan *flushRequest
 }
 
 func newBufferHelper(bufferNum, flightingNum int, bufferTime time.Duration) *bufferHelper {
@@ -614,6 +668,7 @@ func newBufferHelper(bufferNum, flightingNum int, bufferTime time.Duration) *buf
 		bufferTime: bufferTime,
 		recordCh:   make(chan IRecord, bufferNum),
 		batchCh:    make(chan []IRecord, flightingNum),
+		flushCh:    make(chan *flushRequest, 1),
 	}
 
 	bh.wg.Add(1)
@@ -626,49 +681,56 @@ func (bh *bufferHelper) runInner() {
 	batch := make([]IRecord, 0, bh.bufferNum)
 	var timer *time.Timer
 	var timerCh <-chan time.Time
+	stopTimer := func() {
+		if timer != nil {
+			timer.Stop()
+			timer = nil
+			timerCh = nil
+		}
+	}
+	flushBatch := func() {
+		stopTimer()
+		if len(batch) > 0 {
+			bh.batchCh <- batch
+			batch = make([]IRecord, 0, bh.bufferNum)
+		}
+	}
+	appendRecord := func(record IRecord) {
+		if len(batch) == 0 {
+			timer = time.NewTimer(bh.bufferTime)
+			timerCh = timer.C
+		}
+
+		batch = append(batch, record)
+		if len(batch) >= bh.bufferNum {
+			flushBatch()
+		}
+	}
 
 	for {
 		select {
 		case record, ok := <-bh.recordCh:
 			if !ok {
 				// channel has closed, flush remained buffer
-				if len(batch) > 0 {
-					bh.batchCh <- batch
-				}
-				if timer != nil {
-					timer.Stop()
-				}
+				flushBatch()
 				return
 			}
 
-			if len(batch) == 0 {
-				timer = time.NewTimer(bh.bufferTime)
-				timerCh = timer.C
-			}
-
-			batch = append(batch, record)
-
-			if len(batch) >= bh.bufferNum {
-				if timer != nil {
-					timer.Stop()
-					timer = nil
-					timerCh = nil
-				}
-
-				bh.batchInput() <- batch
-				batch = make([]IRecord, 0, bh.bufferNum)
-			}
+			appendRecord(record)
 		case <-timerCh:
-			if timer != nil {
-				timer.Stop()
-				timer = nil
-				timerCh = nil
+			flushBatch()
+		case request := <-bh.flushCh:
+			pending := len(bh.recordCh)
+			for i := 0; i < pending; i++ {
+				record, ok := <-bh.recordCh
+				if !ok {
+					flushBatch()
+					return
+				}
+				appendRecord(record)
 			}
-
-			if len(batch) > 0 {
-				bh.batchCh <- batch
-				batch = make([]IRecord, 0, bh.bufferNum)
-			}
+			flushBatch()
+			close(request.done)
 		}
 	}
 }
@@ -683,6 +745,12 @@ func (bh *bufferHelper) batchInput() chan<- []IRecord {
 
 func (bh *bufferHelper) output() <-chan []IRecord {
 	return bh.batchCh
+}
+
+func (bh *bufferHelper) flush() {
+	request := &flushRequest{done: make(chan struct{})}
+	bh.flushCh <- request
+	<-request.done
 }
 
 func (bh *bufferHelper) close() {

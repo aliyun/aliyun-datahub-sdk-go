@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/aliyun/aliyun-datahub-sdk-go/datahub"
 )
@@ -28,7 +29,14 @@ func genRecord(schema *datahub.RecordSchema) datahub.IRecord {
 	}
 }
 
-func handleSuccessRun(producer datahub.AsyncProducer) {
+func genRecordWithPartitionKey(schema *datahub.RecordSchema, index int) datahub.IRecord {
+	record := genRecord(schema)
+	record.SetPartitionKey(fmt.Sprintf("pk_%d", index))
+	return record
+}
+
+func handleSuccessRun(producer datahub.AsyncProducer, wg *sync.WaitGroup) {
+	defer wg.Done()
 	for suc := range producer.Successes() {
 		// handle request success
 		fmt.Printf("shard:%s, rid:%s, records:%d, latency:%v\n",
@@ -36,12 +44,21 @@ func handleSuccessRun(producer datahub.AsyncProducer) {
 	}
 }
 
-func handleFailedRun(producer datahub.AsyncProducer) {
+func handleFailedRun(producer datahub.AsyncProducer, wg *sync.WaitGroup) {
+	defer wg.Done()
 	// handle request failed
 	for err := range producer.Errors() {
 		fmt.Printf("shard:%s, records:%d, latency:%v, error:%v\n",
 			err.ShardId, len(err.Records), err.Latency, err.Err)
 	}
+}
+
+func startResultHandlers(producer datahub.AsyncProducer) *sync.WaitGroup {
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go handleSuccessRun(producer, &wg)
+	go handleFailedRun(producer, &wg)
+	return &wg
 }
 
 func asyncWrite() {
@@ -63,17 +80,24 @@ func asyncWrite() {
 		panic(err)
 	}
 
-	go handleSuccessRun(producer)
-	go handleFailedRun(producer)
+	handlers := startResultHandlers(producer)
 
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 500; i++ {
+		producer.Input() <- genRecord(schema)
+	}
+
+	// Flush is optional. It moves records currently in aggregation buffers to
+	// the send queues without closing the producer. It waits only for the local
+	// flush; server results are still delivered through Successes and Errors.
+	producer.Flush()
+
+	for i := 500; i < 1000; i++ {
 		producer.Input() <- genRecord(schema)
 	}
 
 	err = producer.Close()
-	if err != nil {
-		panic(err)
-	}
+	handlers.Wait()
+	check(err)
 }
 
 func asyncWritewithHash() {
@@ -95,20 +119,16 @@ func asyncWritewithHash() {
 		panic(err)
 	}
 
-	go handleSuccessRun(producer)
-	go handleFailedRun(producer)
+	handlers := startResultHandlers(producer)
 
 	for i := 0; i < 1000; i++ {
-		record := genRecord(schema)
-		// set partition key, it will decide which shard to write to
-		record.SetPartitionKey(fmt.Sprintf("pk_%d", i))
-		producer.Input() <- genRecord(schema)
+		// Set a partition key to decide which shard receives the record.
+		producer.Input() <- genRecordWithPartitionKey(schema, i)
 	}
 
 	err = producer.Close()
-	if err != nil {
-		panic(err)
-	}
+	handlers.Wait()
+	check(err)
 }
 
 func main() {
