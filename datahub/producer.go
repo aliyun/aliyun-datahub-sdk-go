@@ -66,7 +66,7 @@ func NewProducer(cfg *ProducerConfig) Producer {
 }
 
 func (pi *producerImpl) initMeta() error {
-	tmpClient := NewClientWithConfig(pi.config.Endpoint, NewDefaultConfig(), pi.config.Account)
+	tmpClient := NewClientWithConfig(pi.config.Endpoint, pi.config.newClientConfig(), pi.config.Account)
 	res, err := tmpClient.GetTopic(pi.project, pi.topic)
 	if err != nil {
 		return err
@@ -76,7 +76,7 @@ func (pi *producerImpl) initMeta() error {
 		pi.freshShardInterval = res.extraConfig.listShardInterval
 	}
 
-	config := NewDefaultConfig()
+	config := pi.config.newClientConfig()
 
 	if res.extraConfig.compressType != NOCOMPRESS {
 		config.CompressorType = res.extraConfig.compressType
