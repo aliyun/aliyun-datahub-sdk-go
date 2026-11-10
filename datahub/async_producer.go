@@ -190,7 +190,7 @@ func (ap *asyncProducerImpl) Init() error {
 }
 
 func (ap *asyncProducerImpl) initMeta() error {
-	tmpClient := NewClientWithConfig(ap.config.Endpoint, NewDefaultConfig(), ap.config.Account)
+	tmpClient := NewClientWithConfig(ap.config.Endpoint, ap.config.newClientConfig(), ap.config.Account)
 	var err error
 	ap.topicMeta, err = tmpClient.GetTopic(ap.project, ap.topic)
 	if err != nil {
@@ -201,7 +201,7 @@ func (ap *asyncProducerImpl) initMeta() error {
 		ap.freshShardInterval = ap.topicMeta.extraConfig.listShardInterval
 	}
 
-	config := NewDefaultConfig()
+	config := ap.config.newClientConfig()
 
 	if ap.topicMeta.extraConfig.compressType != NOCOMPRESS {
 		config.CompressorType = ap.topicMeta.extraConfig.compressType

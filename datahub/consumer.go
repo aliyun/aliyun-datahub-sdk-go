@@ -35,14 +35,14 @@ func NewConsumer(cfg *ConsumerConfig) Consumer {
 
 func (ci *consumerImpl) Init() error {
 
-	tmpClient := NewClientWithConfig(ci.config.Endpoint, NewDefaultConfig(), ci.config.Account)
+	tmpClient := NewClientWithConfig(ci.config.Endpoint, ci.config.newClientConfig(), ci.config.Account)
 	res, err := tmpClient.GetTopic(ci.project, ci.topic)
 	fmt.Println(err)
 	if err != nil {
 		return err
 	}
 
-	config := NewDefaultConfig()
+	config := ci.config.newClientConfig()
 
 	if res.extraConfig.compressType != NOCOMPRESS {
 		config.CompressorType = res.extraConfig.compressType
