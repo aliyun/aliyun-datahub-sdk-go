@@ -32,9 +32,22 @@ type BaseConfig struct {
 	// Zero or negative values keep the default of no overall request timeout.
 	// Retries and retry intervals are not included.
 	RequestTimeout time.Duration
-	// ConnectTimeout limits TCP connection establishment. Zero or negative values
-	// keep the default of 10 seconds.
+	// ConnectTimeout limits TCP connection establishment, default 10s.
+	// Zero or negative values keep the underlying default of 10 seconds.
 	ConnectTimeout time.Duration
+	// ResponseHeaderTimeout limits the wait for response headers after the request
+	// has been fully written, default 30s. It does not include reading the response
+	// body. Zero or negative values disable this timeout.
+	ResponseHeaderTimeout time.Duration
+}
+
+func defaultBaseConfig() BaseConfig {
+	return BaseConfig{
+		MaxRetry:              3,
+		RetryInterval:         500 * time.Millisecond,
+		ConnectTimeout:        10 * time.Second,
+		ResponseHeaderTimeout: 30 * time.Second,
+	}
 }
 
 func (cfg *BaseConfig) newClientConfig() *Config {
@@ -45,6 +58,7 @@ func (cfg *BaseConfig) newClientConfig() *Config {
 	if cfg.ConnectTimeout > 0 {
 		config.HttpClient.Transport.(*http.Transport).DialContext = TraceDialContext(cfg.ConnectTimeout)
 	}
+	config.HttpClient.Transport.(*http.Transport).ResponseHeaderTimeout = cfg.ResponseHeaderTimeout
 	return config
 }
 
@@ -82,10 +96,7 @@ type ProducerConfig struct {
 
 func NewProducerConfig() *ProducerConfig {
 	return &ProducerConfig{
-		BaseConfig: BaseConfig{
-			MaxRetry:      3,
-			RetryInterval: 500 * time.Millisecond,
-		},
+		BaseConfig:           defaultBaseConfig(),
 		SendStrategy:         RoundRobin,
 		Parittioner:          DefaultPartitionFunc,
 		Protocol:             Batch,
@@ -134,10 +145,7 @@ type ConsumerConfig struct {
 // NewConsumerConfig creates a new ConsumerConfig with default values
 func NewConsumerConfig() *ConsumerConfig {
 	return &ConsumerConfig{
-		BaseConfig: BaseConfig{
-			MaxRetry:      3,
-			RetryInterval: 500 * time.Millisecond,
-		},
+		BaseConfig:       defaultBaseConfig(),
 		AutoRecordAck:    true,
 		FetchNumber:      500,
 		BufferNumber:     500,

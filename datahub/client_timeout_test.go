@@ -12,6 +12,15 @@ import (
 )
 
 func TestClientInitRequestTimeout(t *testing.T) {
+	testClientInitTimeout(t, false)
+}
+
+func TestClientInitResponseHeaderTimeout(t *testing.T) {
+	testClientInitTimeout(t, true)
+}
+
+func testClientInitTimeout(t *testing.T, responseHeader bool) {
+	t.Helper()
 	for _, kind := range []string{"producer", "async", "consumer"} {
 		t.Run(kind, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -24,6 +33,12 @@ func TestClientInitRequestTimeout(t *testing.T) {
 			defer server.Close()
 			base := BaseConfig{Endpoint: server.URL, Project: "test", Topic: "test",
 				Account: NewAliyunAccount("ak", "sk"), RequestTimeout: 30 * time.Millisecond}
+			wantError := "Client.Timeout"
+			if responseHeader {
+				base.RequestTimeout = 0
+				base.ResponseHeaderTimeout = 30 * time.Millisecond
+				wantError = "timeout awaiting response headers"
+			}
 			var init func() error
 			switch kind {
 			case "producer":
@@ -43,7 +58,7 @@ func TestClientInitRequestTimeout(t *testing.T) {
 			}
 			err := init()
 			require.Error(t, err)
-			require.Contains(t, err.Error(), "Client.Timeout")
+			require.Contains(t, err.Error(), wantError)
 		})
 	}
 }
@@ -67,13 +82,26 @@ func TestBaseConfigRequestTimeout(t *testing.T) {
 }
 
 func TestBaseConfigTimeoutDefaults(t *testing.T) {
-	for _, cfg := range []BaseConfig{{}, NewProducerConfig().BaseConfig, NewConsumerConfig().BaseConfig} {
+	for _, cfg := range []BaseConfig{NewProducerConfig().BaseConfig, NewConsumerConfig().BaseConfig} {
+		require.Equal(t, 10*time.Second, cfg.ConnectTimeout)
+		require.Equal(t, 30*time.Second, cfg.ResponseHeaderTimeout)
 		client := cfg.newClientConfig().HttpClient
 		require.Zero(t, client.Timeout)
 		transport := client.Transport.(*http.Transport)
-		require.Equal(t, 100*time.Second, transport.ResponseHeaderTimeout)
+		require.Equal(t, 30*time.Second, transport.ResponseHeaderTimeout)
 		require.Equal(t, 10*time.Second, transport.TLSHandshakeTimeout)
 	}
+}
+
+func TestBaseConfigResponseHeaderTimeoutOverride(t *testing.T) {
+	for _, timeout := range []time.Duration{0, 2 * time.Second} {
+		cfg := NewProducerConfig()
+		cfg.ResponseHeaderTimeout = timeout
+		transport := cfg.newClientConfig().HttpClient.Transport.(*http.Transport)
+		require.Equal(t, timeout, transport.ResponseHeaderTimeout)
+	}
+	// Standalone low-level clients retain their original defaults.
+	require.Equal(t, 100*time.Second, DefaultHttpClient().Transport.(*http.Transport).ResponseHeaderTimeout)
 }
 
 func TestBaseConfigConnectTimeout(t *testing.T) {

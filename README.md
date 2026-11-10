@@ -187,9 +187,10 @@ Start with `NewProducerConfig()` or `NewConsumerConfig()`, then override fields.
 | MaxRetry | int | No | 3 | Retries for writes / consumer fetches; 0 disables retries, negative values keep retrying; only applies to retryable errors |
 | RetryInterval | time.Duration | No | 500ms | Retry interval; Producers use 100ms for throttling errors |
 | RequestTimeout | time.Duration | No | 0 | All clients; total timeout per HTTP request, including connection, sending, and response body reading; non-positive values leave it unset |
-| ConnectTimeout | time.Duration | No | 0 (effective 10s) | All clients; connection establishment timeout; non-positive values preserve the underlying 10s default |
+| ConnectTimeout | time.Duration | No | 10s | All clients; connection establishment timeout; non-positive values preserve the underlying 10s default |
+| ResponseHeaderTimeout | time.Duration | No | 30s | All clients; wait for response headers after the request is fully sent, excluding response body reading; non-positive values disable this timeout |
 
-Both timeout settings cover initialization and subsequent HTTP requests. They do not bound total time spent on retries, backoff, asynchronous queues, or application processing. The underlying response-header timeout remains 100s by default; `RequestTimeout = 0` does not make every phase unlimited.
+The constructors explicitly set ConnectTimeout to 10s and ResponseHeaderTimeout to 30s. RequestTimeout remains unlimited by default. These settings are applied to initialization and main HTTP clients; they do not bound total time spent on retries, backoff, asynchronous queues, or application processing. `RequestTimeout = 0` does not disable the separate connection and response-header timeouts. A shared schema cache may still use the first client's timeout settings for the same project/topic.
 
 ### Producer parameters (ProducerConfig)
 

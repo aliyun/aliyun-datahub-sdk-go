@@ -187,9 +187,10 @@ ACK 标记记录已处理，位点按 `CommitInterval` 周期提交，并非每�
 | MaxRetry | int | 否 | 3 | 写入 / 消费拉取的重试次数；0 不重试，负数持续重试，仅对可重试错误生效 |
 | RetryInterval | time.Duration | 否 | 500ms | 重试间隔；Producer 遇到限流错误时使用 100ms |
 | RequestTimeout | time.Duration | 否 | 0 | 所有客户端；单次 HTTP 请求总超时，含连接、发送和读取响应体；非正值不设置总超时 |
-| ConnectTimeout | time.Duration | 否 | 0（实际 10s） | 所有客户端；连接建立超时；非正值沿用底层 10s |
+| ConnectTimeout | time.Duration | 否 | 10s | 所有客户端；连接建立超时；非正值沿用底层 10s |
+| ResponseHeaderTimeout | time.Duration | 否 | 30s | 所有客户端；请求发送完后等待响应头的超时，不含响应体读取；非正值关闭此超时 |
 
-两个超时参数均覆盖初始化和后续 HTTP 请求，但不包括多次重试、退避、异步排队或业务处理的总耗时。默认仍有底层响应头等待上限 100s；`RequestTimeout = 0` 不代表所有阶段无限等待。
+构造函数显式设置 ConnectTimeout 为 10s、ResponseHeaderTimeout 为 30s，RequestTimeout 默认仍不限制总时长。这些配置会传入初始化及正式 HTTP 客户端，但不限制多次重试、退避、异步排队或业务处理的总耗时。`RequestTimeout = 0` 不会取消独立的连接和响应头超时。同 Project/Topic 的共享 Schema 缓存仍可能沿用首个客户端的超时配置。
 
 ### Producer 参数（ProducerConfig）
 
